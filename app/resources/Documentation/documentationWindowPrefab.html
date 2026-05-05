@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../resources/Documentation/documentationWindow.css">
+    <link rel="stylesheet" type="text/css" href="../../resources/Documentation/documentationWindow.dark.css">
+    <script>
+      function adjustToScreen() {
+            document.getElementById("contentView").height = window.innerHeight - 20;
+       }
+      function openPath(link) {
+          var pathToDocumentation = "embedded.html";
+          if (document.getElementById("contentView").src != pathToDocumentation + link) {
+          document.getElementById("contentView").src = pathToDocumentation + link;
+          }
+          return false;
+      }
+    </script>
+</head>
+<!-- The content view is resized every time the window is resized. It ist also resized initialy once the window is opend. -->
+
+<body onresize="adjustToScreen()" onload="adjustToScreen();">
+    <ul id="nav">
+        <!--navigationentries-->
+    </ul>
+    <div class="contentContainer">
+        <section>
+            <iframe id="contentView" height="100" width="100%" src="embedded.html" style="border:none;"></iframe>
+        </section>
+    </div>
+</body>
+
+<script>
+    require('../../resources/Documentation/controller.js');
+</script>
+
+
+</html>
