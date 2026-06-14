@@ -1,0 +1,6 @@
+[submodule "eenk"]
+	path = eenk
+	url = https://github.com/t0mg/eenk.git
+[submodule "inkcpp"]
+	path = inkcpp
+	url = https://github.com/JBenda/inkcpp.git

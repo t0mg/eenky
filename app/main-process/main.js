@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, dialog, ipcRenderer, Menu} = require('electron')
+const {app, BrowserWindow, ipcMain, dialog, ipcRenderer, Menu, session} = require('electron')
 const i18n = require("./i18n/i18n.js")
 const {ProjectWindow} = require("./projectWindow.js");
 const {DocumentationWindow} = require("./documentationWindow.js");
@@ -8,6 +8,15 @@ const {onForceQuit} = require('./forceQuitDetect');
 const {Inklecate} = require("./inklecate.js");
 const { fstat } = require('original-fs');
 const {fs} = require("fs");
+
+// ── EENK extensions ───────────────────────────────────────────────────────────
+require('./eenkCompiler.js');   // registers eenk:compile IPC
+const { stopSimulator } = require('./simulator.js'); // registers eenk:sim-* IPC
+
+// IPC: open file dialog (used by compiler + simulator panels)
+ipcMain.handle('eenk:open-file-dialog', async (event, opts) => {
+    return dialog.showOpenDialog(opts || {});
+});
 
 
 function inkJSNeedsUpdating() {
@@ -115,6 +124,62 @@ ipcMain.on("project-cancelled-close", (event) => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function () {
+
+    // ── Web Serial permission (required for esp-web-tools flasher) ────────────
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'serial') {
+            callback(true);
+        } else {
+            callback(false);
+        }
+    });
+    session.defaultSession.setDevicePermissionHandler((details) => {
+        if (details.deviceType === 'serial') return true;
+        return false;
+    });
+
+    session.defaultSession.on('select-serial-port', (event, portList, webContents, callback) => {
+        event.preventDefault();
+        
+        let callbackFired = false;
+        const safeCallback = (portId) => {
+            if (!callbackFired) {
+                callbackFired = true;
+                callback(portId);
+            }
+        };
+
+        if (portList && portList.length > 0) {
+            const template = portList.map(port => ({
+                label: port.displayName || port.portName || port.portId,
+                click: () => {
+                    safeCallback(port.portId);
+                }
+            }));
+            template.push({ type: 'separator' });
+            template.push({
+                label: 'Cancel',
+                click: () => { safeCallback(''); }
+            });
+
+            const menu = Menu.buildFromTemplate(template);
+            const win = BrowserWindow.fromWebContents(webContents);
+            if (win) {
+                menu.popup({
+                    window: win,
+                    callback: () => {
+                        // Fired when menu is closed (either by clicking outside or after an item click)
+                        safeCallback('');
+                    }
+                });
+            } else {
+                safeCallback('');
+            }
+        } else {
+            safeCallback('');
+        }
+    });
+
     
     app.on('window-all-closed', function () {
         if (process.platform != 'darwin' || isQuitting) {
@@ -302,6 +367,7 @@ app.on('ready', function () {
 
 function finalQuit() {
     Inklecate.killSessions();
+    stopSimulator();
 }
 
 onForceQuit(finalQuit);

@@ -44,7 +44,13 @@
           <div class="button nav-forward" title="Navigate forward">
             <span class="icon icon-right-dir"></span>
           </div>
+        </div>
 
+        <div id="eenky-tabs-container" style="position: absolute; left: 140px; top: 0; bottom: 0; display: flex; align-items: center; z-index: 200; -webkit-app-region: no-drag; pointer-events: auto;">
+           <button class="btn btn-default eenky-tab selected" data-panel="editor">Editor</button>
+           <button class="btn btn-default eenky-tab" data-panel="compiler" style="margin-left: 5px;">Compile</button>
+           <button class="btn btn-default eenky-tab" data-panel="simulator" style="margin-left: 5px;">Simulate</button>
+           <button class="btn btn-default eenky-tab" data-panel="flasher" style="margin-left: 5px;">Flash</button>
         </div>
 
         
@@ -68,6 +74,7 @@
           </div>
 
         </div>
+
 
         
         <div class="issue-popup hidden">
@@ -139,6 +146,49 @@
           </div>
         </div>
 
+        <!-- EENKY panels -->
+        <div id="eenky-panel-compiler" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 40; padding: 20px; overflow: auto; font-family: system-ui;">
+          <h2>Compile</h2>
+          <button class="btn btn-primary" id="btn-compile">Compile Current Project</button>
+          <div style="margin-top:20px;">
+            <pre id="compiler-log" style="background:#f5f5f4; padding:10px; border:1px solid #ddd; min-height:100px; white-space:pre-wrap;"></pre>
+          </div>
+        </div>
+
+        <div id="eenky-panel-simulator" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 40; padding: 20px; overflow: auto; font-family: system-ui;">
+          <h2>Simulate</h2>
+          <div id="sim-missing-warn" class="hidden" style="color:red; margin-bottom:10px;">
+            <strong>eenk-sim binary not found.</strong><br>
+            Build the native target with: <code>pio run -e native</code><br>
+            Then copy <code>.pio/build/native/program.exe</code> to <code>tools/eenky/bin/win/eenk-sim.exe</code>
+          </div>
+          <button class="btn btn-primary" id="btn-sim-launch">Launch Simulator for Current Project</button>
+          <button class="btn btn-default" id="btn-sim-stop" disabled>Stop Simulator</button>
+          <div style="margin-top:20px;">
+            <pre id="simulator-log" style="background:#f5f5f4; padding:10px; border:1px solid #ddd; min-height:100px; white-space:pre-wrap;"></pre>
+          </div>
+        </div>
+
+        <div id="eenky-panel-flasher" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 40; padding: 20px; overflow: auto; font-family: system-ui;">
+          <h2>Flash Firmware</h2>
+          <p>Connect your Xteink X4 via USB, then select the firmware file to flash.</p>
+          
+          <div style="margin-bottom: 20px;">
+            <button class="btn btn-default" id="btn-pick-fw">Select firmware binary (.bin)</button>
+            <span id="fw-path-label" style="margin-left: 10px; color: #666;">No firmware selected</span>
+          </div>
+
+          <div id="install-wrapper">
+            <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+            <esp-web-install-button id="install-btn">
+              <span slot="unsupported">Web Serial is not available in this environment.</span>
+              <span slot="activate">
+                <button class="btn btn-primary" id="flash-trigger" disabled>Flash Firmware</button>
+              </span>
+            </esp-web-install-button>
+          </div>
+        </div>
+
       </div><!-- photon window-content -->
       <div id="goto-anything-container" class="ignore-events">
         <div id="goto-anything" class="hidden">
@@ -153,14 +203,186 @@
   </body>
 
   <script src="acesrc/ace.js" type="text/javascript" charset="utf-8"></script>
-  
   <script src="acesrc/ext-language_tools.js"></script>
-
-  <!-- For some reason using the minified versions causes find-in-file to break -->
-  <!-- <script src="acesrc/ace-min.js" type="text/javascript" charset="utf-8"></script> -->
-  <!-- <script src="acesrc/ext-language_tools-min.js"></script> -->
 
   <script>
     require('./controller.js');
   </script>
+
+  <script>
+    // ── EENKY logic ──────────────────────────────────────────────────
+    (function() {
+      console.log('EENKY script starting');
+      const { ipcRenderer } = require('electron');
+      const { InkProject } = require('./inkProject.js');
+
+      // ── Tab switcher ──
+      const tabs = document.querySelectorAll('.eenky-tab');
+      const mainEl = document.getElementById('main');
+      const panels = {
+        compiler: document.getElementById('eenky-panel-compiler'),
+        simulator: document.getElementById('eenky-panel-simulator'),
+        flasher: document.getElementById('eenky-panel-flasher')
+      };
+      
+      // Fix panel position on Win32
+      if (process.platform === 'win32' || process.platform === 'linux') {
+        Object.values(panels).forEach(p => p.style.top = '34px');
+      }
+
+      let activePanel = 'editor';
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const panel = tab.dataset.panel;
+          if (panel === activePanel) return;
+          activePanel = panel;
+
+          tabs.forEach(t => {
+            if (t === tab) {
+              t.classList.add('selected');
+              t.classList.add('active');
+            } else {
+              t.classList.remove('selected');
+              t.classList.remove('active');
+            }
+          });
+
+          if (panel === 'editor') {
+            mainEl.classList.remove('hidden');
+            Object.values(panels).forEach(p => p.classList.add('hidden'));
+          } else {
+            mainEl.classList.add('hidden');
+            Object.values(panels).forEach(p => p.classList.add('hidden'));
+            panels[panel].classList.remove('hidden');
+          }
+        });
+      });
+
+      // ── Helper ──
+      function getCurrentInkPath() {
+        if(InkProject.currentProject && InkProject.currentProject.mainInk) {
+           return InkProject.currentProject.mainInk.absolutePath();
+        }
+        return null;
+      }
+
+      // ── Compiler ──
+      const btnCompile = document.getElementById('btn-compile');
+      const compilerLog = document.getElementById('compiler-log');
+      
+      function cLog(msg) {
+        compilerLog.textContent += msg + '\n';
+        compilerLog.scrollTop = compilerLog.scrollHeight;
+      }
+
+      btnCompile.addEventListener('click', async () => {
+        const inkPath = getCurrentInkPath();
+        if (!inkPath) {
+          cLog('[ERROR] No ink project loaded/saved.');
+          return;
+        }
+        btnCompile.disabled = true;
+        compilerLog.textContent = '';
+        try {
+          const result = await ipcRenderer.invoke('eenk:compile', inkPath);
+          cLog('\n[SUCCESS] Compiled successfully.');
+          cLog('JSON: ' + result.jsonFile);
+          cLog('BIN: ' + result.binFile);
+        } catch(err) {
+          cLog('\n[ERROR] ' + err);
+        } finally {
+          btnCompile.disabled = false;
+        }
+      });
+      ipcRenderer.on('eenk:compile-progress', (_, msg) => cLog(msg));
+
+      // ── Simulator ──
+      const btnSimLaunch = document.getElementById('btn-sim-launch');
+      const btnSimStop = document.getElementById('btn-sim-stop');
+      const simulatorLog = document.getElementById('simulator-log');
+      const simMissingWarn = document.getElementById('sim-missing-warn');
+
+      ipcRenderer.invoke('eenk:check-sim').then(ok => {
+        if (!ok) simMissingWarn.classList.remove('hidden');
+      });
+
+      function sLog(msg) {
+        simulatorLog.textContent += msg + '\n';
+        simulatorLog.scrollTop = simulatorLog.scrollHeight;
+      }
+
+      btnSimLaunch.addEventListener('click', async () => {
+        const inkPath = getCurrentInkPath();
+        if (!inkPath) {
+          sLog('[ERROR] No ink project loaded/saved.');
+          return;
+        }
+        // Assume bin is next to ink file with .bin extension
+        const binPath = inkPath.replace(/\.ink$/i, '.bin');
+        
+        btnSimLaunch.disabled = true;
+        btnSimStop.disabled = false;
+        simulatorLog.textContent = '';
+        const result = await ipcRenderer.invoke('eenk:sim-launch', binPath);
+        if(!result.ok) {
+          sLog('[ERROR] ' + result.error);
+          btnSimLaunch.disabled = false;
+          btnSimStop.disabled = true;
+        }
+      });
+      btnSimStop.addEventListener('click', async () => {
+        await ipcRenderer.invoke('eenk:sim-stop');
+      });
+      ipcRenderer.on('eenk:sim-log', (_, msg) => sLog(msg));
+      ipcRenderer.on('eenk:sim-exited', (_, { code, error }) => {
+        if(error) sLog('[ERROR] ' + error);
+        else sLog('[INFO] Exited with code ' + code);
+        btnSimLaunch.disabled = false;
+        btnSimStop.disabled = true;
+      });
+
+      // ── Flasher ──
+      const btnPickFw = document.getElementById('btn-pick-fw');
+      const fwPathLabel = document.getElementById('fw-path-label');
+      const flashTrigger = document.getElementById('flash-trigger');
+      const installBtn = document.getElementById('install-btn');
+      
+      let fwBlobUrl = null;
+      let manifestBlobUrl = null;
+
+      btnPickFw.addEventListener('click', async () => {
+        const result = await ipcRenderer.invoke('eenk:open-file-dialog', {
+          title: 'Select firmware binary',
+          filters: [{ name: 'Firmware binary', extensions: ['bin'] }],
+          properties: ['openFile']
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+          const filePath = result.filePaths[0];
+          fwPathLabel.textContent = filePath;
+          
+          const fs = require('fs');
+          const bytes = fs.readFileSync(filePath);
+          const blob = new Blob([bytes], { type: 'application/octet-stream' });
+          
+          if(fwBlobUrl) URL.revokeObjectURL(fwBlobUrl);
+          if(manifestBlobUrl) URL.revokeObjectURL(manifestBlobUrl);
+          
+          fwBlobUrl = URL.createObjectURL(blob);
+          const manifest = {
+            name: 'EENK X4 Firmware',
+            new_install_prompt_erase: true,
+            builds: [{ chipFamily: 'ESP32-C3', parts: [{ path: fwBlobUrl, offset: 0 }] }]
+          };
+          manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:'application/json'}));
+          
+          installBtn.setAttribute('manifest', manifestBlobUrl);
+          flashTrigger.disabled = false;
+        }
+      });
+      flashTrigger.addEventListener('click', () => installBtn.click());
+
+    })();
+  </script>
+
 </html>
