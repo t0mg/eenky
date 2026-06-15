@@ -1,6 +1,6 @@
 # EENKY — EENK Story Editor
 
-A forked and extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device.
+A forked and extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device via the **EENK** firmware.
 
 ## What's included
 
@@ -8,16 +8,16 @@ A forked and extended version of [inkle's Inky](https://github.com/inkle/inky) I
 |-----|-------------|
 | **Editor** | Full-featured Ink script editor (from Inky) |
 | **Compile** | Compiles `.ink` → `.json` → `.bin` using inklecate + inkcpp_cl |
-| **Simulate** | Runs the story in the native SDL simulator (pixel-accurate e-ink preview) |
-| **Flash** | Flashes firmware to the Xteink X4 via USB using ESP Web Tools |
+| **Simulate** | Runs the story in the native SDL simulator (pixel-accurate e-ink preview built from EENK) |
+| **Flash** | Flashes the compiled firmware to the Xteink X4 via USB using ESP Web Tools |
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
-- [PlatformIO](https://platformio.org/) — for building the SDL simulator
+- [PlatformIO](https://platformio.org/) — for building the SDL simulator backend
 - [MSYS2 / MinGW-w64](https://www.msys2.org/) with SDL2 — Windows only, for the simulator build
 
-## Getting started
+## Getting Started
 
 ```sh
 # 1. Clone with submodules
@@ -27,8 +27,8 @@ cd eenky
 # 2. Install Node dependencies
 cd app && npm install
 
-# 3. Build the SDL simulator from the eenk firmware submodule
-#    (Windows: make sure C:\msys64\mingw64\bin is in your PATH first)
+# 3. Build the compiler and SDL simulator
+#    (Windows: make sure C:\msys64\mingw64\bin is in your PATH first for the native build)
 cd ../eenk
 pio run -e native
 cd ..
@@ -36,38 +36,44 @@ cd ..
 # 4. Copy binaries into place
 npm run setup
 
-# 5. Launch
+# 5. Launch EENKY
 npm start
 ```
 
-## Submodules
+## Submodule Architecture
+
+EENK and EENKY work in tandem:
+- The parent project is `eenk` (the firmware).
+- It embeds `eenky` as a submodule to provide an authoring IDE.
+- `eenky` in turn embeds `eenk` and `inkcpp` as submodules to compile the `eenk-sim.exe` and `inkcpp_cl.exe` backends for the simulation and compile tabs.
 
 | Path | Repository | Purpose |
 |------|-----------|---------|
-| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | Firmware source — used to build the SDL simulator |
-| `inkcpp/` | [JBenda/inkcpp](https://github.com/JBenda/inkcpp) | C++ Ink runtime — used to build `inkcpp_cl` |
+| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | EENK firmware source — used to build the SDL simulator backend (`eenk-sim`) |
+| `inkcpp/` | [t0mg/inkcpp](https://github.com/t0mg/inkcpp) | Custom C++ Ink runtime — used to build the `inkcpp_cl` compiler backend |
 
-## Binary resolution
+## Binary Resolution
 
-The Electron main process looks for binaries in `app/main-process/ink/<platform>/`:
+The Electron main process looks for these binaries in `app/main-process/ink/<platform>/`:
 
 | Binary | Source |
 |--------|--------|
-| `inklecate_*` | Bundled (from original Inky fork) |
-| `inkcpp_cl` | Built from `inkcpp/` submodule |
-| `eenk-sim` | Built from `eenk/` submodule via PlatformIO |
+| `inklecate_*` | Bundled (from original Inky fork, converts `.ink` to `.json`) |
+| `inkcpp_cl` | Built from `inkcpp/` submodule (converts `.json` to `.bin`) |
+| `eenk-sim` | Built from `eenk/` submodule via PlatformIO (`pio run -e native`) |
 
-Run `npm run setup` to copy the built binaries into place after building.
+Running `npm run setup` automatically builds (if needed) and copies these binaries into place.
 
-## Flashing firmware
+## Flashing Firmware
 
-The Flash tab uses [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and requires a merged factory binary produced by the `merge_firmware.py` post-build script in the `eenk` repo. Build the firmware with:
+The Flash tab uses [ESP Web Tools](https://esphome.github.io/esp-web-tools/) to flash the device directly from the browser/Electron app over Web Serial. It requires a merged factory binary produced by the `merge_firmware.py` post-build script in the `eenk` repo. 
 
+To build the hardware firmware:
 ```sh
 cd eenk
 pio run -e esp32c3
-# Merged binary: eenk/.pio/build/esp32c3/firmware-factory.bin
 ```
+This produces `eenk/.pio/build/esp32c3/firmware-factory.bin` which the Flash tab picks up.
 
 ## License
 
