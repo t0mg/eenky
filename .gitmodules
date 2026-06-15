@@ -1,6 +1,9 @@
 [submodule "eenk"]
 	path = eenk
 	url = https://github.com/t0mg/eenk.git
+	branch = main
+	ignore = all
 [submodule "inkcpp"]
 	path = inkcpp
 	url = https://github.com/t0mg/inkcpp.git
+	branch = eenk-patches
