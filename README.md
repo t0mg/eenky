@@ -35,7 +35,7 @@ cd ..
 
 # 4. Build the inkcpp_cl compiler backend
 cd inkcpp
-cmake -B build -G "MinGW Makefiles"
+cmake -B build -G "MinGW Makefiles" -DCMAKE_EXE_LINKER_FLAGS="-static"
 cmake --build build --config Release
 cd ..
 
