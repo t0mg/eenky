@@ -27,16 +27,23 @@ cd eenky
 # 2. Install Node dependencies
 cd app && npm install
 
-# 3. Build the compiler and SDL simulator
+# 3. Build the SDL simulator backend
 #    (Windows: make sure C:\msys64\mingw64\bin is in your PATH first for the native build)
 cd ../eenk
 pio run -e native
 cd ..
 
-# 4. Copy binaries into place
+# 4. Build the inkcpp_cl compiler backend
+cd inkcpp
+cmake -B build -G "MinGW Makefiles"
+cmake --build build --config Release
+cd ..
+
+# 5. Copy binaries into place
+cd app
 npm run setup
 
-# 5. Launch EENKY
+# 6. Launch EENKY
 npm start
 ```
 
