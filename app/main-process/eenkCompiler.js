@@ -88,8 +88,32 @@ async function compileEenk(inkFilePath, onProgress) {
     await runProcess(inkcpp, [jsonFile], inkDir, onProgress);
     onProgress(`✔ BIN written: ${binFile}`);
 
+    // Analyze Memory Budget
+    let numContainers = 0;
+    let heapRequirement = 0;
+    let totalFileSize = 0;
+    
+    try {
+        const stats = fs.statSync(binFile);
+        totalFileSize = stats.size;
+        
+        const fd = fs.openSync(binFile, 'r');
+        const buffer = Buffer.alloc(40);
+        fs.readSync(fd, buffer, 0, 40, 0);
+        fs.closeSync(fd);
+        
+        const magic = buffer.readUInt32LE(0);
+        if (magic === 0x424b4e49) { // 'INKB'
+            const containersBytes = buffer.readUInt32LE(36);
+            numContainers = containersBytes / 16;
+            heapRequirement = numContainers * 8;
+        }
+    } catch (err) {
+        onProgress(`[WARN] Failed to analyze memory budget: ${err.message}`);
+    }
+
     onProgress(`── Compilation complete ──`);
-    return { jsonFile, binFile };
+    return { jsonFile, binFile, numContainers, heapRequirement, totalFileSize };
 }
 
 // ── IPC registration ─────────────────────────────────────────────────────────

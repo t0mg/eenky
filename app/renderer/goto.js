@@ -4,19 +4,17 @@ const ipc = electron.ipcRenderer;
 const _ = require("lodash");
 const {filter, wrap, score} = require("fuzzaldrin-plus");
 
-const $ = window.jQuery = require('./jquery-2.2.3.min.js');
-
 const InkProject = require("./inkProject.js").InkProject;
 const EditorView = require("./editorView.js").EditorView;
 
 const i18n = require("./i18n.js");
 
-var $goto = null;
-var $gotoContainer = null;
-var $input = null;
-var $results = null;
+var gotoEl = null;
+var gotoContainerEl = null;
+var inputEl = null;
+var resultsEl = null;
 
-var $selectedResult = null;
+var selectedResultEl = null;
 
 var lastMousePos = null;
 
@@ -40,14 +38,14 @@ function show() {
     // Immediately focus the input box even if it's not
     // quite visible yet so that if you CMD-P and start typing immediately
     // the text goes in the right place.
-    $input.focus();
+    inputEl.focus();
 
-    $(document).on("keydown", gotoGlobalKeyHandler);
+    document.addEventListener("keydown", gotoGlobalKeyHandler);
 
     // Show goto view
-    $goto.removeClass("hidden");
-    $gotoContainer.removeClass("ignore-events");
-    $input.val("");
+    gotoEl.classList.remove("hidden");
+    gotoContainerEl.classList.remove("ignore-events");
+    inputEl.value = "";
 
     // Deselect any previously selected result
     select(null);
@@ -123,10 +121,10 @@ function collectSymbols(allSymbols, symbolsObj, recurse)
 }
 
 function hide({restoreCursor=true}={}) {
-    $(document).off("keydown", gotoGlobalKeyHandler);
+    document.removeEventListener("keydown", gotoGlobalKeyHandler);
 
-    $goto.addClass("hidden");
-    $gotoContainer.addClass("ignore-events");
+    gotoEl.classList.add("hidden");
+    gotoContainerEl.classList.add("ignore-events");
 
     if( restoreCursor ) {
         EditorView.focus();
@@ -135,7 +133,7 @@ function hide({restoreCursor=true}={}) {
 }
 
 function toggle() {
-    if( $goto.hasClass("hidden") )
+    if( gotoEl.classList.contains("hidden") )
         show();
     else
         hide();
@@ -154,9 +152,9 @@ function addThoseWithMinScore(allResults, results, searchStr, minScore)
 
 function refresh() {
 
-    var searchStr = $input.val();
+    var searchStr = inputEl.value;
 
-    $results.empty();
+    resultsEl.innerHTML = "";
 
     select(null);
 
@@ -168,7 +166,7 @@ function refresh() {
         resultsBuildInterval = null;
     }
 
-    $results.scrollTop(0);
+    resultsEl.scrollTop = 0;
 
     var results = [];
 
@@ -254,14 +252,14 @@ function addResult(result, searchStr)
 {
     var resultContent = result.name || result.line;
 
-    var wrappedResult = wrap(resultContent, searchStr, { wrap: {
+    var wrappedResult = wrap(String(resultContent), searchStr, { wrap: {
         tagOpen: "<span class='goto-highlight'>",
         tagClose: "</span>"
     }});
 
 
     var type = resultType(result);
-    var $result;
+    var resultEl = document.createElement("li");
 
     if( type == "file" ) {
         var dirStr = "";
@@ -269,15 +267,18 @@ function addResult(result, searchStr)
         var dirName = path.dirname(file.relativePath());
         if( dirName != "." )
             dirStr = `<span class='ancestor'>${dirName}/</span>`;
-        $result = $(`<li class='file'>📄 ${dirStr}${wrappedResult}</li>`);
+        resultEl.className = "file";
+        resultEl.innerHTML = `📄 ${dirStr}${wrappedResult}`;
     }
 
     else if( type == "gotoLine" ) {
-        $result = $(`<li class='gotoLine'><p>➡︎ ${i18n._("Go to line")} ${result.line+1}</p><p class='meta'>${result.lineContent}</p></li>`);
+        resultEl.className = "gotoLine";
+        resultEl.innerHTML = `<p>➡︎ ${i18n._("Go to line")} ${result.line+1}</p><p class='meta'>${result.lineContent}</p>`;
     }
 
     else if( type == "runtimePath" ) {
-        $result = $(`<li class='runtimePath'><p>🔎 ${result.lineContent}</p><p class='meta'>${result.file.filename()} - ${i18n._("line")} ${result.line+1} (${i18n._("looked up internal runtime path")} ${result.runtimePath})</p></li>`);
+        resultEl.className = "runtimePath";
+        resultEl.innerHTML = `<p>🔎 ${result.lineContent}</p><p class='meta'>${result.file.filename()} - ${i18n._("line")} ${result.line+1} (${i18n._("looked up internal runtime path")} ${result.runtimePath})</p>`;
     }
 
     else if( type == "symbol" ) {
@@ -292,37 +293,39 @@ function addResult(result, searchStr)
 
         var filePath = result.inkFile.relativePath();
         var lineNo = result.row+1;
-        $result = $(`<li class='symbol'><p>✎ ${ancestorStr}${wrappedResult}</p><p class='meta'>${filePath} - ${i18n._("line")} ${lineNo}</p></li>`);
+        resultEl.className = "symbol";
+        resultEl.innerHTML = `<p>✎ ${ancestorStr}${wrappedResult}</p><p class='meta'>${filePath} - ${i18n._("line")} ${lineNo}</p>`;
     }
 
     else if( type == "content" ) {
         var filePath = result.file.relativePath();
         var lineNo = result.row+1;
-        $result = $(`<li class='content'><p>${wrappedResult}</p><p class='meta'>${filePath} - ${i18n._("line")} ${lineNo}</p></li>`);
+        resultEl.className = "content";
+        resultEl.innerHTML = `<p>${wrappedResult}</p><p class='meta'>${filePath} - ${i18n._("line")} ${lineNo}</p>`;
     }
 
-    $result.data("result", result);
-    $result.on("click", result, (e) => { choose($result); e.preventDefault(); return false; });
-    $result.on("mousemove", (e) => {
+    resultEl._result = result;
+    resultEl.addEventListener("click", (e) => { choose(resultEl); e.preventDefault(); return false; });
+    resultEl.addEventListener("mousemove", (e) => {
         // Only mouse-over something if it's really the mouse that moved rather than
         // just the document scrolling under the mouse.
         if( lastMousePos == null || lastMousePos.pageX != e.pageX || lastMousePos.pageY != e.pageY ) {
             lastMousePos = { pageX: e.pageX, pageY: e.pageY };
-            select($result);
+            select(resultEl);
         }
     });
-    $results.append($result);
+    resultsEl.appendChild(resultEl);
 }
 
-function select($result)
+function select(resultEl)
 {
-    if( $selectedResult != null )
-        $selectedResult.removeClass("selected");
+    if( selectedResultEl != null )
+        selectedResultEl.classList.remove("selected");
 
-    $selectedResult = $result;
+    selectedResultEl = resultEl;
 
-    if( $selectedResult != null )
-        $selectedResult.addClass("selected");
+    if( selectedResultEl != null )
+        selectedResultEl.classList.add("selected");
 }
 
 function resultType(result)
@@ -348,9 +351,9 @@ function resultType(result)
     return null;
 }
 
-function choose($result)
+function choose(resultEl)
 {
-    var result = $result.data().result;
+    var result = resultEl._result;
     var type = resultType(result);
 
     // Text content of line result
@@ -376,36 +379,33 @@ function choose($result)
 function nextResult() {
 
     // Select very first (after input being active)
-    if( $selectedResult == null ) {
-        var $first = $results.children("li").first();
-        if( $first.length > 0 )
-            select($first);
-        $input.blur();
+    if( selectedResultEl == null ) {
+        var first = resultsEl.children[0];
+        if( first )
+            select(first);
+        inputEl.blur();
         return;
     }
 
-    var $next = $selectedResult.next();
-    if( $next.length > 0 )
-        select($next);
+    var next = selectedResultEl.nextElementSibling;
+    if( next )
+        select(next);
 }
 
 function previousResult() {
-    if( $selectedResult == null ) return;
-    var $prev = $selectedResult.prev();
-    if( $prev.length > 0 )
-        select($prev);
+    if( selectedResultEl == null ) return;
+    var prev = selectedResultEl.previousElementSibling;
+    if( prev )
+        select(prev);
 }
 
 function scrollToRevealResult() {
-    if( $selectedResult != null ) {
-        var $container = $selectedResult.parent();
-        var top = $container.offset().top;
-        var bottom = top + $container.height();
-        var mid = 0.5 * (top + bottom);
-
-        var currPos = $selectedResult.offset().top;
-        if( currPos < top || currPos+$selectedResult.height() > bottom ) {
-            $selectedResult[0].scrollIntoView(currPos < mid);
+    if( selectedResultEl != null ) {
+        var container = selectedResultEl.parentElement;
+        var containerRect = container.getBoundingClientRect();
+        var itemRect = selectedResultEl.getBoundingClientRect();
+        if( itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom ) {
+            selectedResultEl.scrollIntoView(itemRect.top < (containerRect.top + containerRect.height/2));
         }
     }
 }
@@ -429,8 +429,8 @@ function gotoGlobalKeyHandler(e) {
     // return
     else if( e.keyCode == 13 ) {
         e.preventDefault();
-        if( $selectedResult != null )
-            choose($selectedResult);
+        if( selectedResultEl != null )
+            choose(selectedResultEl);
     }
 
     // escape
@@ -440,18 +440,20 @@ function gotoGlobalKeyHandler(e) {
     }
 }
 
-$(document).ready(() => {
-    $goto = $("#goto-anything");
-    $gotoContainer = $("#goto-anything-container");
-    $input = $goto.children("input");
-    $results = $goto.children(".results");
-    $input.on("input", refresh);
-    $input.on("focus", () => select(null));
+window.addEventListener("DOMContentLoaded", () => {
+    gotoEl = document.getElementById("goto-anything");
+    gotoContainerEl = document.getElementById("goto-anything-container");
+    inputEl = gotoEl.querySelector("input");
+    resultsEl = gotoEl.querySelector(".results");
+    inputEl.addEventListener("input", refresh);
+    inputEl.addEventListener("focus", () => select(null));
 
-    $gotoContainer.on("click", () => hide());
+    gotoContainerEl.addEventListener("click", (e) => {
+        if (e.target === gotoContainerEl) hide();
+    });
 
     // Some other events are handled global document handler
-    $input.on("keydown", (e) => {
+    inputEl.addEventListener("keydown", (e) => {
         if( e.keyCode == 13 ) {
             nextResult();
             e.preventDefault();

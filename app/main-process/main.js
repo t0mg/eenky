@@ -18,6 +18,16 @@ ipcMain.handle('eenk:open-file-dialog', async (event, opts) => {
     return dialog.showOpenDialog(opts || {});
 });
 
+ipcMain.handle('eenk:get-recent-files', async () => {
+    return ProjectWindow.getRecentFiles();
+});
+ipcMain.handle('eenk:open-project', async (event, filePath) => {
+    ProjectWindow.open(filePath);
+});
+ipcMain.handle('eenk:new-project', async () => {
+    ProjectWindow.createEmpty();
+});
+
 
 function inkJSNeedsUpdating() {
     return false;
@@ -75,6 +85,11 @@ ipcMain.handle("try-close", async (event) =>{
     })
     
 })
+
+ipcMain.on("compile", (event, compileInstruction) => {
+    console.log("Received compile IPC, session: ", compileInstruction.sessionId);
+    Inklecate.compile(compileInstruction, event.sender);
+});
 
 app.on('will-finish-launching', function () {
     app.on("open-file", function (event, path) {
@@ -222,6 +237,18 @@ app.on('ready', function () {
             var win = ProjectWindow.focused();
             if (win) win.exportJSOnly();
         },
+        compileEenkBin: () => {
+            var win = ProjectWindow.focused();
+            if (win) win.browserWindow.webContents.send('eenk:trigger-compile');
+        },
+        openDeviceManagement: () => {
+            var win = ProjectWindow.focused();
+            if (win) win.browserWindow.webContents.send('eenk:open-device-management');
+        },
+        launchSimulator: () => {
+            var win = ProjectWindow.focused();
+            if (win) win.browserWindow.webContents.send('eenk:launch-simulator');
+        },
         toggleTags: (item, focusedWindow, event) => {
             focusedWindow.webContents.send("set-tags-visible", item.checked);
         },
@@ -337,7 +364,7 @@ app.on('ready', function () {
         for (let i = 1; i < process.argv.length; i++) {
             var arg = process.argv[i].toLowerCase();
             if (arg.endsWith(".ink")) {
-                pendingPathToOpen = process.argv[1];
+                pendingPathToOpen = process.argv[i];
                 break;
             }
         }

@@ -169,3 +169,60 @@
 .window.dark .sidebar .nav-wrapper::-webkit-scrollbar-thumb {
     background: #323232;
 }
+
+/* EENKY Dark Mode Additions */
+.window.dark #home-hub,
+.window.dark #device-management {
+    background: #181818;
+    color: #e3e3dd;
+}
+
+.window.dark .hub-card {
+    background: #222222;
+    border: 1px solid #323232;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.window.dark .hub-card p {
+    color: #aaaaaa;
+}
+
+.window.dark #hub-recent-list li {
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.window.dark #hub-recent-list li a {
+    color: #65b1eb;
+}
+
+.window.dark .modal-container {
+    background: #222222;
+    color: #e3e3dd;
+    border-color: #323232;
+}
+
+.window.dark .modal-header,
+.window.dark .modal-footer {
+    border-color: #2d2d2d;
+    background: #1d1d1d;
+}
+
+.window.dark #modal-compiler-log {
+    background: #181818;
+    color: #faf1c6;
+    border-color: #323232;
+}
+
+.window.dark #modal-memory-budget-panel {
+    background: #1e1e1e;
+}
+
+.window.dark #device-sync-status.success {
+    background-color: #1b5e20;
+    color: #a5d6a7;
+}
+
+.window.dark #device-sync-status.error {
+    background-color: #b71c1c;
+    color: #ef9a9a;
+}

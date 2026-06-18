@@ -31,6 +31,10 @@
         
         <div class="buttons left">
 
+          <div class="button" id="btn-toolbar-home" title="Back to Home Hub" style="display: none;">
+            <span class="icon icon-home"></span>
+          </div>
+
           <div class="button nav-toggle" title="Toggle file browser">
             <span class="icon icon-menu"></span>
           </div>
@@ -46,11 +50,13 @@
           </div>
         </div>
 
-        <div id="eenky-tabs-container" style="position: absolute; left: 140px; top: 0; bottom: 0; display: flex; align-items: center; z-index: 200; -webkit-app-region: no-drag; pointer-events: auto;">
-           <button class="btn btn-default eenky-tab selected" data-panel="editor">Editor</button>
-           <button class="btn btn-default eenky-tab" data-panel="compiler" style="margin-left: 5px;">Compile</button>
-           <button class="btn btn-default eenky-tab" data-panel="simulator" style="margin-left: 5px;">Simulate</button>
-           <button class="btn btn-default eenky-tab" data-panel="flasher" style="margin-left: 5px;">Flash</button>
+        <div id="eenky-toolbar-navigation" style="position: absolute; left: 175px; top: 0; bottom: 0; display: flex; align-items: center; z-index: 200; -webkit-app-region: no-drag; pointer-events: auto;">
+           <button class="btn btn-default" id="btn-toolbar-compile" style="margin-left: 5px; display: none; align-items: center; gap: 4px; padding: 4px 8px;" title="Compile project to .bin">
+             <span class="icon icon-cog"></span> <span class="i18n">Compile .bin</span>
+           </button>
+           <button class="btn btn-default" id="btn-toolbar-sim" style="margin-left: 5px; display: none; align-items: center; gap: 4px; padding: 4px 8px;" title="Launch native simulator">
+             <span class="icon icon-monitor"></span> <span class="i18n">Simulate</span>
+           </button>
         </div>
 
         
@@ -87,7 +93,98 @@
 
       <div class="window-content">
 
-        <div id="main">
+        <!-- HOME HUB VIEW -->
+        <div id="home-hub" class="window-panel" style="font-family: system-ui; padding: 40px; overflow: auto; height: 100%; box-sizing: border-box;">
+          <div class="hub-header" style="text-align: center; margin-bottom: 40px;">
+            <h1 style="font-size: 32px; font-weight: 300; letter-spacing: -0.5px; margin-bottom: 10px;">EENKY</h1>
+            <p style="color: #666; font-size: 14px;" class="i18n">Interactive Fiction Authoring &amp; Device Manager for Xteink X4</p>
+          </div>
+          <div class="hub-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; max-width: 900px; margin: 0 auto; box-sizing: border-box;">
+            <!-- Writing Hub Card -->
+            <div class="hub-card" style="border-radius: 12px; padding: 30px; display: flex; flex-direction: column; box-sizing: border-box;">
+              <div style="font-size: 28px; margin-bottom: 15px;">✍️</div>
+              <h2 style="font-size: 20px; font-weight: 500; margin-top: 0; margin-bottom: 10px;" class="i18n">Story Authoring</h2>
+              <p style="font-size: 13px; line-height: 1.6; flex-grow: 1; margin-bottom: 25px;" class="i18n">Create, edit, and play your interactive stories using the Ink language. Includes live preview and compiler warnings.</p>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="hub-btn-new-project" class="i18n">New Story</button>
+                <button class="btn btn-default" id="hub-btn-open-project" class="i18n">Open Story...</button>
+                <button class="btn btn-default" id="hub-btn-resume-project" style="display: none;" class="i18n">Resume Editing</button>
+              </div>
+              <div id="hub-recent-projects" style="margin-top: 25px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 15px;">
+                <h4 style="font-size: 11px; text-transform: uppercase; color: #999; letter-spacing: 0.5px; margin-top: 0; margin-bottom: 10px;" class="i18n">Recent Stories</h4>
+                <ul id="hub-recent-list" style="list-style: none; padding: 0; margin: 0; font-size: 13px;">
+                  <!-- Will be populated dynamically -->
+                </ul>
+              </div>
+            </div>
+            <!-- Device Hub Card -->
+            <div class="hub-card" style="border-radius: 12px; padding: 30px; display: flex; flex-direction: column; box-sizing: border-box;">
+              <div style="font-size: 28px; margin-bottom: 15px;">🔌</div>
+              <h2 style="font-size: 20px; font-weight: 500; margin-top: 0; margin-bottom: 10px;" class="i18n">Device Management</h2>
+              <p style="font-size: 13px; line-height: 1.6; flex-grow: 1; margin-bottom: 25px;" class="i18n">Manage your Xteink X4 hardware. Flash the EENK firmware to your device via USB Serial and sync compiled binaries directly to the SD Card.</p>
+              <div>
+                <button class="btn btn-primary" id="hub-btn-manage-device" class="i18n">Connect Device</button>
+              </div>
+              <div style="margin-top: 25px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 15px; font-size: 13px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="hub-device-status-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ccc;"></span>
+                  <span id="hub-device-status-text" class="i18n">No device connected</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DEVICE MANAGEMENT VIEW -->
+        <div id="device-management" class="window-panel hidden" style="font-family: system-ui; padding: 40px; overflow: auto; height: 100%; box-sizing: border-box;">
+          <div style="max-width: 900px; margin: 0 auto; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+              <h2 style="font-size: 24px; font-weight: 400; margin: 0;" class="i18n">Device Management Console</h2>
+              <button class="btn btn-default" id="device-btn-back-home" class="i18n">Back to Home</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; box-sizing: border-box;">
+              <!-- Firmware Flasher -->
+              <div class="hub-card" style="border-radius: 12px; padding: 30px; box-sizing: border-box;">
+                <h3 style="font-size: 18px; font-weight: 500; margin-top: 0; margin-bottom: 15px;" class="i18n">Flash Firmware</h3>
+                <p style="font-size: 13px; line-height: 1.5; margin-bottom: 25px;" class="i18n">Connect your Xteink X4 via USB to flash the primary firmware (.bin). This uses Web Serial to directly flash over the cable.</p>
+                
+                <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                  <button class="btn btn-default" id="device-btn-pick-fw" class="i18n">Select firmware binary (.bin)</button>
+                  <span id="device-fw-path-label" style="font-size: 12px; color: #888; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 250px;" class="i18n">No firmware selected</span>
+                </div>
+
+                <div id="device-install-wrapper" style="margin-top: 20px;">
+                  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+                  <esp-web-install-button id="device-install-btn">
+                    <span slot="unsupported">Web Serial is not available in this environment.</span>
+                    <span slot="activate">
+                      <button class="btn btn-primary" id="device-flash-trigger" disabled class="i18n">Flash Firmware</button>
+                    </span>
+                  </esp-web-install-button>
+                </div>
+              </div>
+
+              <!-- SD Card / File Sync -->
+              <div class="hub-card" style="border-radius: 12px; padding: 30px; box-sizing: border-box;">
+                <h3 style="font-size: 18px; font-weight: 500; margin-top: 0; margin-bottom: 15px;" class="i18n">SD Card Sync</h3>
+                <p style="font-size: 13px; line-height: 1.5; margin-bottom: 25px;" class="i18n">Sync compiled story `.bin` files directly to the device's SD card directory.</p>
+                
+                <div style="margin-bottom: 20px;">
+                  <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #999; margin-bottom: 8px;" class="i18n">Target SD Card Path</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="device-sd-path-input" placeholder="e.g. D:\ or /Volumes/X4" style="flex-grow: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: transparent; color: inherit;"/>
+                    <button class="btn btn-default" id="device-btn-browse-sd" class="i18n">Browse...</button>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary" id="device-btn-sync-stories" style="width: 100%;" class="i18n">Sync Stories to SD</button>
+                <div id="device-sync-status" style="margin-top: 15px; font-size: 12px; text-align: center;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="main" class="hidden">
            <div class="sidebar hidden">
 
             
@@ -146,46 +243,23 @@
           </div>
         </div>
 
-        <!-- EENKY panels -->
-        <div id="eenky-panel-compiler" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 40; padding: 20px; overflow: auto; font-family: system-ui;">
-          <h2>Compile</h2>
-          <button class="btn btn-primary" id="btn-compile">Compile Current Project</button>
-          <div style="margin-top:20px;">
-            <pre id="compiler-log" style="background:#f5f5f4; padding:10px; border:1px solid #ddd; min-height:100px; white-space:pre-wrap;"></pre>
-          </div>
-        </div>
-
-        <div id="eenky-panel-simulator" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 40; padding: 20px; overflow: auto; font-family: system-ui;">
-          <h2>Simulate</h2>
-          <div id="sim-missing-warn" class="hidden" style="color:red; margin-bottom:10px;">
-            <strong>eenk-sim binary not found.</strong><br>
-            Build the native target with: <code>pio run -e native</code><br>
-            Then copy <code>.pio/build/native/program.exe</code> to <code>tools/eenky/bin/win/eenk-sim.exe</code>
-          </div>
-          <button class="btn btn-primary" id="btn-sim-launch">Launch Simulator for Current Project</button>
-          <button class="btn btn-default" id="btn-sim-stop" disabled>Stop Simulator</button>
-          <div style="margin-top:20px;">
-            <pre id="simulator-log" style="background:#f5f5f4; padding:10px; border:1px solid #ddd; min-height:100px; white-space:pre-wrap;"></pre>
-          </div>
-        </div>
-
-        <div id="eenky-panel-flasher" class="hidden" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 40; padding: 20px; overflow: auto; font-family: system-ui;">
-          <h2>Flash Firmware</h2>
-          <p>Connect your Xteink X4 via USB, then select the firmware file to flash.</p>
-          
-          <div style="margin-bottom: 20px;">
-            <button class="btn btn-default" id="btn-pick-fw">Select firmware binary (.bin)</button>
-            <span id="fw-path-label" style="margin-left: 10px; color: #666;">No firmware selected</span>
-          </div>
-
-          <div id="install-wrapper">
-            <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
-            <esp-web-install-button id="install-btn">
-              <span slot="unsupported">Web Serial is not available in this environment.</span>
-              <span slot="activate">
-                <button class="btn btn-primary" id="flash-trigger" disabled>Flash Firmware</button>
-              </span>
-            </esp-web-install-button>
+        <!-- COMPILER MODAL -->
+        <div id="compiler-modal" class="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+          <div class="modal-container" style="border-radius: 12px; width: 600px; max-width: 95%; display: flex; flex-direction: column; max-height: 80%; border: 1px solid rgba(0,0,0,0.15); box-sizing: border-box;">
+            <div class="modal-header" style="padding: 20px; border-bottom: 1px solid rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="margin: 0; font-size: 16px; font-weight: 500;" class="i18n">Compile EENK .bin</h3>
+              <button id="compiler-modal-close-x" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; overflow-y: auto; flex-grow: 1;">
+              <pre id="modal-compiler-log" style="background: #f5f5f4; color: #333; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; white-space: pre-wrap; margin: 0; max-height: 250px; overflow-y: auto; border: 1px solid #e0e0dc;"></pre>
+              <div id="modal-memory-budget-panel" class="hidden" style="margin-top: 20px; padding: 15px; border-left: 4px solid #4caf50; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h4 style="margin-top: 0; font-size: 13px; font-weight: 600; margin-bottom: 8px;" class="i18n">Memory Budget Analysis</h4>
+                <div id="modal-memory-budget-details" style="font-size: 12px; line-height: 1.5;"></div>
+              </div>
+            </div>
+            <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid rgba(0,0,0,0.08); display: flex; justify-content: flex-end; gap: 10px;">
+              <button class="btn btn-default" id="compiler-modal-close-btn" class="i18n">Close</button>
+            </div>
           </div>
         </div>
 
@@ -206,183 +280,516 @@
   <script src="acesrc/ext-language_tools.js"></script>
 
   <script>
-    require('./controller.js');
-  </script>
-
-  <script>
-    // ── EENKY logic ──────────────────────────────────────────────────
+    // ── EENKY logic (defined before controller.js to avoid race conditions) ──────────────────────────────────────────────────
     (function() {
-      console.log('EENKY script starting');
+      console.log('EENKY logic starting');
       const { ipcRenderer } = require('electron');
       const { InkProject } = require('./inkProject.js');
+      const path = require('path');
 
-      // ── Tab switcher ──
-      const tabs = document.querySelectorAll('.eenky-tab');
-      const mainEl = document.getElementById('main');
-      const panels = {
-        compiler: document.getElementById('eenky-panel-compiler'),
-        simulator: document.getElementById('eenky-panel-simulator'),
-        flasher: document.getElementById('eenky-panel-flasher')
-      };
-      
-      // Fix panel position on Win32
-      if (process.platform === 'win32' || process.platform === 'linux') {
-        Object.values(panels).forEach(p => p.style.top = '34px');
-      }
+      // ── View Switcher ──
+      window.switchView = function(viewName) {
+        console.log("Switching view to: " + viewName);
+        const homeHub = document.getElementById('home-hub');
+        const deviceMgmt = document.getElementById('device-management');
+        const mainEditor = document.getElementById('main');
+        const toolbar = document.getElementById('toolbar');
+        const btnHome = document.getElementById('btn-toolbar-home');
+        const btnCompile = document.getElementById('btn-toolbar-compile');
+        const btnSim = document.getElementById('btn-toolbar-sim');
 
-      let activePanel = 'editor';
+        // Hide all first
+        if (homeHub) homeHub.classList.add('hidden');
+        if (deviceMgmt) deviceMgmt.classList.add('hidden');
+        if (mainEditor) mainEditor.classList.add('hidden');
+        if (toolbar) toolbar.classList.add('hidden');
+        
+        if (btnHome) btnHome.style.display = 'none';
+        if (btnCompile) btnCompile.style.display = 'none';
+        if (btnSim) btnSim.style.display = 'none';
 
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          const panel = tab.dataset.panel;
-          if (panel === activePanel) return;
-          activePanel = panel;
-
-          tabs.forEach(t => {
-            if (t === tab) {
-              t.classList.add('selected');
-              t.classList.add('active');
-            } else {
-              t.classList.remove('selected');
-              t.classList.remove('active');
-            }
-          });
-
-          if (panel === 'editor') {
-            mainEl.classList.remove('hidden');
-            Object.values(panels).forEach(p => p.classList.add('hidden'));
-          } else {
-            mainEl.classList.add('hidden');
-            Object.values(panels).forEach(p => p.classList.add('hidden'));
-            panels[panel].classList.remove('hidden');
+        if (viewName === 'home') {
+          if (homeHub) homeHub.classList.remove('hidden');
+          refreshRecentFiles();
+          updateResumeButton();
+        } else if (viewName === 'device') {
+          if (deviceMgmt) deviceMgmt.classList.remove('hidden');
+        } else if (viewName === 'editor') {
+          if (mainEditor) mainEditor.classList.remove('hidden');
+          if (toolbar) toolbar.classList.remove('hidden');
+          if (btnHome) btnHome.style.display = 'inline-block';
+          if (btnCompile) btnCompile.style.display = 'flex';
+          if (btnSim) btnSim.style.display = 'flex';
+          
+          // Force Ace editor resize and focus
+          const EditorView = require("./editorView.js").EditorView;
+          if (EditorView && EditorView.focus) {
+            EditorView.focus();
           }
-        });
-      });
+        }
+      };
 
-      // ── Helper ──
+      // Helper to get active ink path
       function getCurrentInkPath() {
-        if(InkProject.currentProject && InkProject.currentProject.mainInk) {
+        if (InkProject.currentProject && InkProject.currentProject.mainInk) {
            return InkProject.currentProject.mainInk.absolutePath();
         }
         return null;
       }
 
-      // ── Compiler ──
-      const btnCompile = document.getElementById('btn-compile');
-      const compilerLog = document.getElementById('compiler-log');
-      
-      function cLog(msg) {
-        compilerLog.textContent += msg + '\n';
-        compilerLog.scrollTop = compilerLog.scrollHeight;
+      function updateResumeButton() {
+        const btnResume = document.getElementById('hub-btn-resume-project');
+        if (btnResume) {
+          if (InkProject.currentProject && getCurrentInkPath()) {
+            btnResume.style.display = 'inline-block';
+          } else {
+            btnResume.style.display = 'none';
+          }
+        }
       }
 
-      btnCompile.addEventListener('click', async () => {
-        const inkPath = getCurrentInkPath();
-        if (!inkPath) {
-          cLog('[ERROR] No ink project loaded/saved.');
+      // Helper to load project in current window
+      function loadProjectInCurrentWindow(filePath) {
+        InkProject.loadProject(filePath);
+        ipcRenderer.send('main-file-saved', filePath);
+        window.switchView('editor');
+      }
+
+      // ── Recent Files rendering ──
+      async function refreshRecentFiles() {
+        const recentFiles = await ipcRenderer.invoke('eenk:get-recent-files');
+        const listEl = document.getElementById('hub-recent-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        if (!recentFiles || recentFiles.length === 0) {
+          const li = document.createElement('li');
+          li.style.color = '#999';
+          li.style.padding = '5px 0';
+          li.textContent = 'No recent stories';
+          listEl.appendChild(li);
           return;
         }
-        btnCompile.disabled = true;
-        compilerLog.textContent = '';
+        recentFiles.forEach(file => {
+          const li = document.createElement('li');
+          li.style.padding = '6px 0';
+          li.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+          li.style.display = 'flex';
+          li.style.justifyContent = 'space-between';
+          li.style.alignItems = 'center';
+          
+          const link = document.createElement('a');
+          link.href = '#';
+          link.textContent = path.basename(file);
+          link.title = file;
+          link.style.textDecoration = 'none';
+          link.style.color = 'inherit';
+          link.style.fontWeight = '500';
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadProjectInCurrentWindow(file);
+          });
+          li.appendChild(link);
+          listEl.appendChild(li);
+        });
+      }
+
+      // ── DOM Setup on Load ──
+      window.addEventListener('DOMContentLoaded', () => {
+        // Buttons: Home Hub
+        const btnNew = document.getElementById('hub-btn-new-project');
+        const btnOpen = document.getElementById('hub-btn-open-project');
+        const btnResume = document.getElementById('hub-btn-resume-project');
+        const btnManage = document.getElementById('hub-btn-manage-device');
+
+        if (btnNew) {
+          btnNew.addEventListener('click', () => {
+            InkProject.startNew();
+            window.switchView('editor');
+          });
+        }
+
+        if (btnOpen) {
+          btnOpen.addEventListener('click', async () => {
+            const result = await ipcRenderer.invoke('eenk:open-file-dialog', {
+              title: 'Open main ink file',
+              filters: [{ name: 'Ink files', extensions: ['ink'] }],
+              properties: ['openFile']
+            });
+            if (result && !result.canceled && result.filePaths.length > 0) {
+              loadProjectInCurrentWindow(result.filePaths[0]);
+            }
+          });
+        }
+
+        if (btnResume) {
+          btnResume.addEventListener('click', () => {
+            window.switchView('editor');
+          });
+        }
+
+        if (btnManage) {
+          btnManage.addEventListener('click', () => {
+            window.switchView('device');
+          });
+        }
+
+        // Toolbar Buttons
+        const btnHome = document.getElementById('btn-toolbar-home');
+        const btnCompile = document.getElementById('btn-toolbar-compile');
+        const btnSim = document.getElementById('btn-toolbar-sim');
+        const btnBackHome = document.getElementById('device-btn-back-home');
+
+        if (btnHome) btnHome.addEventListener('click', () => window.switchView('home'));
+        if (btnBackHome) btnBackHome.addEventListener('click', () => window.switchView('home'));
+        if (btnCompile) btnCompile.addEventListener('click', runCompilation);
+        if (btnSim) btnSim.addEventListener('click', runSimulation);
+
+        // Compiler Modal Buttons
+        const compilerModalCloseX = document.getElementById('compiler-modal-close-x');
+        const compilerModalCloseBtn = document.getElementById('compiler-modal-close-btn');
+        if (compilerModalCloseX) compilerModalCloseX.addEventListener('click', closeCompilerModal);
+        if (compilerModalCloseBtn) compilerModalCloseBtn.addEventListener('click', closeCompilerModal);
+
+        // SD Card Sync Buttons
+        const btnBrowseSD = document.getElementById('device-btn-browse-sd');
+        const sdPathInput = document.getElementById('device-sd-path-input');
+        const btnSyncStories = document.getElementById('device-btn-sync-stories');
+        const syncStatus = document.getElementById('device-sync-status');
+
+        if (btnBrowseSD) {
+          btnBrowseSD.addEventListener('click', async () => {
+            const result = await ipcRenderer.invoke('eenk:open-file-dialog', {
+              title: 'Select SD Card Root Directory',
+              properties: ['openDirectory']
+            });
+            if (result && !result.canceled && result.filePaths.length > 0) {
+              sdPathInput.value = result.filePaths[0];
+              window.localStorage.setItem('eenk-sd-path', result.filePaths[0]);
+            }
+          });
+        }
+
+        const savedSDPath = window.localStorage.getItem('eenk-sd-path');
+        if (savedSDPath && sdPathInput) {
+          sdPathInput.value = savedSDPath;
+        }
+
+        if (btnSyncStories) {
+          btnSyncStories.addEventListener('click', async () => {
+            const sdPath = sdPathInput.value.trim();
+            if (!sdPath) {
+              syncStatus.innerHTML = '<span style="color: red;">Please select or enter a valid SD card path.</span>';
+              return;
+            }
+            
+            const fs = require('fs');
+            if (!fs.existsSync(sdPath)) {
+              syncStatus.innerHTML = '<span style="color: red;">SD card path does not exist.</span>';
+              return;
+            }
+            
+            syncStatus.innerHTML = 'Syncing stories...';
+            
+            try {
+              let copiedCount = 0;
+              let filesToSync = [];
+              
+              // 1. Current project bin
+              const currentInkPath = getCurrentInkPath();
+              if (currentInkPath) {
+                const currentBinPath = currentInkPath.replace(/\.ink$/i, '.bin');
+                if (fs.existsSync(currentBinPath)) {
+                  filesToSync.push(currentBinPath);
+                }
+              }
+              
+              // 2. Recent stories
+              const recentFiles = await ipcRenderer.invoke('eenk:get-recent-files');
+              if (recentFiles && recentFiles.length > 0) {
+                recentFiles.forEach(file => {
+                  const binPath = file.replace(/\.ink$/i, '.bin');
+                  if (fs.existsSync(binPath) && !filesToSync.includes(binPath)) {
+                    filesToSync.push(binPath);
+                  }
+                });
+              }
+              
+              if (filesToSync.length === 0) {
+                syncStatus.innerHTML = '<span style="color: orange;">No compiled .bin story files found to copy. Compile your stories first!</span>';
+                return;
+              }
+              
+              for (const binFile of filesToSync) {
+                const destPath = path.join(sdPath, path.basename(binFile));
+                fs.copyFileSync(binFile, destPath);
+                copiedCount++;
+              }
+              
+              syncStatus.innerHTML = `<span style="color: green;">✔ Successfully synced ${copiedCount} story binary file(s) to SD card!</span>`;
+            } catch (err) {
+              syncStatus.innerHTML = `<span style="color: red;">Error during sync: ${err.message}</span>`;
+            }
+          });
+        }
+
+        // Flasher: Web Serial & ESP Web Tools
+        const btnPickFw = document.getElementById('device-btn-pick-fw');
+        const fwPathLabel = document.getElementById('device-fw-path-label');
+        const flashTrigger = document.getElementById('device-flash-trigger');
+        const installBtn = document.getElementById('device-install-btn');
+
+        let fwBlobUrl = null;
+        let manifestBlobUrl = null;
+
+        if (btnPickFw) {
+          btnPickFw.addEventListener('click', async () => {
+            const result = await ipcRenderer.invoke('eenk:open-file-dialog', {
+              title: 'Select firmware binary',
+              filters: [{ name: 'Firmware binary', extensions: ['bin'] }],
+              properties: ['openFile']
+            });
+            if (result && !result.canceled && result.filePaths.length > 0) {
+              const filePath = result.filePaths[0];
+              fwPathLabel.textContent = path.basename(filePath);
+              
+              const fs = require('fs');
+              const bytes = fs.readFileSync(filePath);
+              const blob = new Blob([bytes], { type: 'application/octet-stream' });
+              
+              if (fwBlobUrl) URL.revokeObjectURL(fwBlobUrl);
+              if (manifestBlobUrl) URL.revokeObjectURL(manifestBlobUrl);
+              
+              fwBlobUrl = URL.createObjectURL(blob);
+              const manifest = {
+                name: 'EENK X4 Firmware',
+                new_install_prompt_erase: true,
+                builds: [{ chipFamily: 'ESP32-C3', parts: [{ path: fwBlobUrl, offset: 0 }] }]
+              };
+              manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:'application/json'}));
+              
+              installBtn.setAttribute('manifest', manifestBlobUrl);
+              flashTrigger.disabled = false;
+            }
+          });
+        }
+
+        if (flashTrigger) {
+          flashTrigger.addEventListener('click', () => {
+            if (installBtn) installBtn.click();
+          });
+        }
+
+        // Check serial device status initially and when connected/disconnected
+        if (navigator.serial) {
+          navigator.serial.addEventListener('connect', () => updateDeviceStatus(true));
+          navigator.serial.addEventListener('disconnect', () => updateDeviceStatus(false));
+          navigator.serial.getPorts().then(ports => {
+            updateDeviceStatus(ports.length > 0);
+          }).catch(() => {
+            updateDeviceStatus(false);
+          });
+        }
+
+        function updateDeviceStatus(connected) {
+          const dot = document.getElementById('hub-device-status-dot');
+          const text = document.getElementById('hub-device-status-text');
+          if (dot && text) {
+            if (connected) {
+              dot.style.background = '#4caf50';
+              text.textContent = 'Device connected (authorized)';
+            } else {
+              dot.style.background = '#ccc';
+              text.textContent = 'No device connected';
+            }
+          }
+        }
+
+        // Render recent files initially
+        refreshRecentFiles();
+        updateResumeButton();
+      });
+
+      // ── Compilation ──
+      const compilerModal = document.getElementById('compiler-modal');
+      const modalCompilerLog = document.getElementById('modal-compiler-log');
+      const modalMemoryBudgetPanel = document.getElementById('modal-memory-budget-panel');
+      const modalMemoryBudgetDetails = document.getElementById('modal-memory-budget-details');
+
+      function openCompilerModal() {
+        if (compilerModal) compilerModal.classList.add('active');
+      }
+
+      function closeCompilerModal() {
+        if (compilerModal) compilerModal.classList.remove('active');
+      }
+
+      // Helper to force save project asynchronously and return a Promise
+      function saveProject() {
+        return new Promise((resolve) => {
+          if (!InkProject.currentProject) {
+            resolve(false);
+            return;
+          }
+          const fs = require('fs');
+          const inkPath = getCurrentInkPath();
+          const fileExists = inkPath && fs.existsSync(inkPath);
+
+          if (!InkProject.currentProject.hasUnsavedChanges && fileExists) {
+            resolve(true);
+            return;
+          }
+          
+          const originalDidSave = InkProject.events.didSave;
+          InkProject.events.didSave = () => {
+            if (originalDidSave) originalDidSave();
+            InkProject.events.didSave = originalDidSave;
+            resolve(true);
+          };
+          
+          InkProject.currentProject.save();
+          
+          let checkInterval = setInterval(() => {
+            if (!InkProject.currentProject.saveActive) {
+              clearInterval(checkInterval);
+              const pathNowExists = getCurrentInkPath() && fs.existsSync(getCurrentInkPath());
+              if (!pathNowExists) {
+                InkProject.events.didSave = originalDidSave;
+                resolve(false);
+              } else {
+                resolve(true);
+              }
+            }
+          }, 100);
+        });
+      }
+
+      async function runCompilation() {
+        const saved = await saveProject();
+        if (!saved) {
+          return;
+        }
+
+        const inkPath = getCurrentInkPath();
+        if (!inkPath) {
+          alert('No ink project loaded/saved. Please save your file first.');
+          return;
+        }
+        
+        openCompilerModal();
+        if (modalCompilerLog) modalCompilerLog.textContent = 'Starting compilation...\n';
+        if (modalMemoryBudgetPanel) modalMemoryBudgetPanel.classList.add('hidden');
+        
         try {
           const result = await ipcRenderer.invoke('eenk:compile', inkPath);
-          cLog('\n[SUCCESS] Compiled successfully.');
-          cLog('JSON: ' + result.jsonFile);
-          cLog('BIN: ' + result.binFile);
-        } catch(err) {
-          cLog('\n[ERROR] ' + err);
-        } finally {
-          btnCompile.disabled = false;
+          if (modalCompilerLog) {
+            modalCompilerLog.textContent += '\n[SUCCESS] Compiled successfully.\n';
+            modalCompilerLog.textContent += 'BIN: ' + result.binFile + '\n';
+          }
+          
+          let heapKb = (result.heapRequirement / 1024).toFixed(1);
+          let fileMb = (result.totalFileSize / (1024 * 1024)).toFixed(2);
+          
+          let html = `<strong>State Memory Required:</strong> ${heapKb} KB<br>`;
+          html += `<strong>Total Containers:</strong> ${result.numContainers}<br>`;
+          html += `<strong>Total File Size:</strong> ${fileMb} MB<br>`;
+          
+          let warnings = [];
+          if (result.heapRequirement > 150 * 1024) {
+              warnings.push(`⚠️ Heap memory usage (${heapKb} KB) exceeds safe threshold of 150 KB. May cause abort on ESP32-C3!`);
+          }
+          if (result.totalFileSize > 8 * 1024 * 1024) {
+              warnings.push(`⚠️ File size (${fileMb} MB) exceeds the 8 MB MMAP limit of the ESP32-C3 flash partition!`);
+          }
+          
+          if (modalMemoryBudgetPanel) {
+            if (warnings.length > 0) {
+                modalMemoryBudgetPanel.style.borderLeftColor = 'red';
+                html += `<br><span style="color:red; font-weight:bold;">${warnings.join('<br>')}</span>`;
+            } else {
+                modalMemoryBudgetPanel.style.borderLeftColor = '#4caf50';
+            }
+          }
+          
+          if (modalMemoryBudgetDetails) modalMemoryBudgetDetails.innerHTML = html;
+          if (modalMemoryBudgetPanel) modalMemoryBudgetPanel.classList.remove('hidden');
+        } catch (err) {
+          if (modalCompilerLog) modalCompilerLog.textContent += '\n[ERROR] ' + err + '\n';
         }
-      });
-      ipcRenderer.on('eenk:compile-progress', (_, msg) => cLog(msg));
-
-      // ── Simulator ──
-      const btnSimLaunch = document.getElementById('btn-sim-launch');
-      const btnSimStop = document.getElementById('btn-sim-stop');
-      const simulatorLog = document.getElementById('simulator-log');
-      const simMissingWarn = document.getElementById('sim-missing-warn');
-
-      ipcRenderer.invoke('eenk:check-sim').then(ok => {
-        if (!ok) simMissingWarn.classList.remove('hidden');
-      });
-
-      function sLog(msg) {
-        simulatorLog.textContent += msg + '\n';
-        simulatorLog.scrollTop = simulatorLog.scrollHeight;
       }
 
-      btnSimLaunch.addEventListener('click', async () => {
-        const inkPath = getCurrentInkPath();
-        if (!inkPath) {
-          sLog('[ERROR] No ink project loaded/saved.');
+      ipcRenderer.on('eenk:compile-progress', (_, msg) => {
+        if (modalCompilerLog) {
+          modalCompilerLog.textContent += msg + '\n';
+          modalCompilerLog.scrollTop = modalCompilerLog.scrollHeight;
+        }
+      });
+
+      // ── Simulation ──
+      async function runSimulation() {
+        const saved = await saveProject();
+        if (!saved) {
           return;
         }
-        // Assume bin is next to ink file with .bin extension
-        const binPath = inkPath.replace(/\.ink$/i, '.bin');
+
+        const inkPath = getCurrentInkPath();
+        if (!inkPath) {
+          alert('No ink project loaded/saved. Please save your file first.');
+          return;
+        }
         
-        btnSimLaunch.disabled = true;
-        btnSimStop.disabled = false;
-        simulatorLog.textContent = '';
-        const result = await ipcRenderer.invoke('eenk:sim-launch', binPath);
-        if(!result.ok) {
-          sLog('[ERROR] ' + result.error);
-          btnSimLaunch.disabled = false;
-          btnSimStop.disabled = true;
+        const btnSim = document.getElementById('btn-toolbar-sim');
+        if (btnSim) btnSim.disabled = true;
+        
+        try {
+          openCompilerModal();
+          if (modalCompilerLog) {
+            modalCompilerLog.textContent = 'Compiling story for simulation...\n';
+            modalMemoryBudgetPanel.classList.add('hidden');
+          }
+          
+          const compileResult = await ipcRenderer.invoke('eenk:compile', inkPath);
+          if (modalCompilerLog) modalCompilerLog.textContent += '\n[SUCCESS] Compiled successfully.\n';
+          
+          setTimeout(() => {
+            closeCompilerModal();
+          }, 1000);
+          
+          const binPath = compileResult.binFile;
+          const simResult = await ipcRenderer.invoke('eenk:sim-launch', binPath);
+          if (!simResult.ok) {
+            alert('Error launching simulator: ' + simResult.error);
+          }
+        } catch (err) {
+          if (modalCompilerLog) modalCompilerLog.textContent += '\n[ERROR] Compilation failed: ' + err + '\n';
+        } finally {
+          if (btnSim) btnSim.disabled = false;
+        }
+      }
+
+      // Menu IPC trigger handlers
+      ipcRenderer.on('eenk:trigger-compile', () => {
+        const mainEditor = document.getElementById('main');
+        if (mainEditor && !mainEditor.classList.contains('hidden')) {
+          runCompilation();
         }
       });
-      btnSimStop.addEventListener('click', async () => {
-        await ipcRenderer.invoke('eenk:sim-stop');
-      });
-      ipcRenderer.on('eenk:sim-log', (_, msg) => sLog(msg));
-      ipcRenderer.on('eenk:sim-exited', (_, { code, error }) => {
-        if(error) sLog('[ERROR] ' + error);
-        else sLog('[INFO] Exited with code ' + code);
-        btnSimLaunch.disabled = false;
-        btnSimStop.disabled = true;
+
+      ipcRenderer.on('eenk:open-device-management', () => {
+        window.switchView('device');
       });
 
-      // ── Flasher ──
-      const btnPickFw = document.getElementById('btn-pick-fw');
-      const fwPathLabel = document.getElementById('fw-path-label');
-      const flashTrigger = document.getElementById('flash-trigger');
-      const installBtn = document.getElementById('install-btn');
-      
-      let fwBlobUrl = null;
-      let manifestBlobUrl = null;
-
-      btnPickFw.addEventListener('click', async () => {
-        const result = await ipcRenderer.invoke('eenk:open-file-dialog', {
-          title: 'Select firmware binary',
-          filters: [{ name: 'Firmware binary', extensions: ['bin'] }],
-          properties: ['openFile']
-        });
-        if (!result.canceled && result.filePaths.length > 0) {
-          const filePath = result.filePaths[0];
-          fwPathLabel.textContent = filePath;
-          
-          const fs = require('fs');
-          const bytes = fs.readFileSync(filePath);
-          const blob = new Blob([bytes], { type: 'application/octet-stream' });
-          
-          if(fwBlobUrl) URL.revokeObjectURL(fwBlobUrl);
-          if(manifestBlobUrl) URL.revokeObjectURL(manifestBlobUrl);
-          
-          fwBlobUrl = URL.createObjectURL(blob);
-          const manifest = {
-            name: 'EENK X4 Firmware',
-            new_install_prompt_erase: true,
-            builds: [{ chipFamily: 'ESP32-C3', parts: [{ path: fwBlobUrl, offset: 0 }] }]
-          };
-          manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:'application/json'}));
-          
-          installBtn.setAttribute('manifest', manifestBlobUrl);
-          flashTrigger.disabled = false;
+      ipcRenderer.on('eenk:launch-simulator', () => {
+        const mainEditor = document.getElementById('main');
+        if (mainEditor && !mainEditor.classList.contains('hidden')) {
+          runSimulation();
         }
       });
-      flashTrigger.addEventListener('click', () => installBtn.click());
 
     })();
+  </script>
+
+  <script>
+    require('./controller.js');
   </script>
 
 </html>

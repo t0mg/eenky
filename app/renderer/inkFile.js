@@ -229,7 +229,13 @@ InkFile.prototype.tryLoadFromDisk = function(loadCallback) {
 
     fs.stat(absPath, (err, stats) => {
         if( err || !stats.isFile() ) { 
-            loadCallback(err.message || "ink file not found");
+            loadCallback(err ? err.message : "ink file not found");
+            return;
+        }
+
+        if( stats.size > 2 * 1024 * 1024 ) {
+            console.warn(`File ${absPath} is ${stats.size} bytes. Too large to auto-load. Ignoring.`);
+            loadCallback("File too large");
             return;
         }
 

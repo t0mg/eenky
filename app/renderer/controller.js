@@ -2,7 +2,6 @@ const electron = require("electron");
 const ipc = electron.ipcRenderer;
 
 const path = require("path");
-const $ = window.jQuery = require('./jquery-2.2.3.min.js');
 
 // Debug
 const loadTestInk = false;
@@ -36,6 +35,9 @@ InkProject.setEvents({
         NavView.setMainInkFilename(filename);
         NavHistory.reset();
         NavHistory.addStep();
+        if (window.switchView && project.mainInk && project.mainInk.absolutePath()) {
+            window.switchView('editor');
+        }
     },
     "didSave": () => {
         var activeInk = InkProject.currentProject.activeInkFile;
@@ -57,7 +59,7 @@ InkProject.setEvents({
 
 // Wait for DOM to be ready before kicking most stuff off
 // (some of the views get confused otherwise)
-$(document).ready(() => {
+window.addEventListener("DOMContentLoaded", () => {
     if( InkProject.currentProject == null ) {
         InkProject.startNew();
         // Debug
@@ -263,7 +265,10 @@ PlayerView.setEvents({
 ExpressionWatchView.setEvents({
     "change": () => {
         LiveCompiler.setEdited();
-        $("#player .scrollContainer").css("top", ExpressionWatchView.totalHeight()+"px");
+        var scrollContainer = document.querySelector("#player .scrollContainer");
+        if (scrollContainer) {
+            scrollContainer.style.top = ExpressionWatchView.totalHeight() + "px";
+        }
     }
 });
 
@@ -323,10 +328,13 @@ GotoAnything.setEvents({
 });
 
 ipc.on("set-tags-visible", (event, visible) => {
-    if( visible )
-        $("#main").removeClass("hideTags");
-    else
-        $("#main").addClass("hideTags");
+    var mainEl = document.getElementById("main");
+    if (mainEl) {
+        if( visible )
+            mainEl.classList.remove("hideTags");
+        else
+            mainEl.classList.add("hideTags");
+    }
 });
 
 ipc.on("set-animation-enabled", (event, animationEnabled) => {
@@ -341,12 +349,15 @@ ipc.on("set-autocomplete-disabled", (event, autoCompleteDisabled) => {
 function updateTheme(event, newTheme) {
     let themes = ["dark", "contrast", "focus"];
     themes = themes.filter(e => e !== newTheme);
-    if (newTheme && newTheme.toLowerCase() !== 'main')
-    {
-        $(".window").addClass(newTheme);
-    }
-    for (const theme of themes) {
-        $(".window").removeClass(theme);
+    var winEl = document.querySelector(".window");
+    if (winEl) {
+        if (newTheme && newTheme.toLowerCase() !== 'main')
+        {
+            winEl.classList.add(newTheme);
+        }
+        for (const theme of themes) {
+            winEl.classList.remove(theme);
+        }
     }
 	LiveCompiler.setEdited();
 }

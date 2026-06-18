@@ -1,4 +1,3 @@
-const $ = window.jQuery = require('./jquery-2.2.3.min.js');
 const ipc = require("electron").ipcRenderer;
 require("./util.js");
 
@@ -13,18 +12,19 @@ var expressionViews = [];
 var events = {};
 
 function ExpressionWatchView() {
-    this.$expression = $(`
-        <tr>
-            <td class="expressionLabel">${i18n._("Every turn:")}</td>
-            <td class="expressionInput">
-                <div class="expressionEditor"></div>
-                <div class="removeButton"><span class="icon icon-cancel-circled"></span></div>
-            </td>
-        </tr>`);
-    $(".expressionWatch tbody").append(this.$expression);
+    var row = document.createElement("tr");
+    row.innerHTML = `
+        <td class="expressionLabel">${i18n._("Every turn:")}</td>
+        <td class="expressionInput">
+            <div class="expressionEditor"></div>
+            <div class="removeButton"><span class="icon icon-cancel-circled"></span></div>
+        </td>
+    `;
+    this.expressionEl = row;
+    document.querySelector(".expressionWatch tbody").appendChild(row);
 
     // Create input field as an ace editor so we get full syntax highlighting etc
-    this.editor = ace.edit(this.$expression.find(".expressionEditor").get(0));
+    this.editor = ace.edit(row.querySelector(".expressionEditor"));
 
     // Set up as single line editor
     this.editor.setOptions({
@@ -78,8 +78,8 @@ function ExpressionWatchView() {
     });
 
     // Hook up remove button
-    this.$expression.find(".removeButton").on("click", (event) => {
-        this.$expression.remove();
+    row.querySelector(".removeButton").addEventListener("click", (event) => {
+        row.remove();
         expressionViews.remove(this);
         event.preventDefault();
         events.change();
@@ -101,7 +101,10 @@ ExpressionWatchView.setEvents = (e) => {
 ExpressionWatchView.numberOfExpressions = () => expressionViews.length;
 ExpressionWatchView.getExpression = (i) => expressionViews[i].editor.getValue();
 
-ExpressionWatchView.totalHeight = () => $(".expressionWatch").height();
+ExpressionWatchView.totalHeight = () => {
+    const el = document.querySelector(".expressionWatch");
+    return el ? el.offsetHeight : 0;
+};
 
 ipc.on("add-watch-expression", () => {
     var expressionWatchView = new ExpressionWatchView();

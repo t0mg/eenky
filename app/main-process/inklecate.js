@@ -363,5 +363,6 @@ ipc.on("get-runtime-path-in-source", (event, runtimePath, sessionId) => {
 
 
 exports.Inklecate = {
+    compile: compile,
     killSessions: killSessions
 }

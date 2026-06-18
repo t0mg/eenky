@@ -928,3 +928,99 @@ img.issue-icon.warning {
 .sidebar .nav-wrapper::-webkit-scrollbar-thumb {
   background: #DDDDDD;
 }
+
+/* EENKY Modernized Views */
+.window-panel {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  box-sizing: border-box;
+}
+
+.mac .window-panel {
+  top: 56px;
+}
+
+#home-hub {
+  background: #fdfdfc;
+  color: #333330;
+}
+
+.hub-card {
+  background: #ffffff;
+  border: 1px solid #e2e2dc;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hub-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.04);
+}
+
+.hub-card p {
+  color: #666660;
+}
+
+#hub-recent-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+#hub-recent-list li:last-child {
+  border-bottom: none;
+}
+
+#hub-recent-list li a {
+  color: #337ab7;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#hub-recent-list li a:hover {
+  text-decoration: underline;
+}
+
+/* Device Status indicator */
+#hub-device-status-dot {
+  background-color: #cccccc;
+}
+#hub-device-status-dot.connected {
+  background-color: #4caf50;
+}
+
+/* Device Management */
+#device-management {
+  background: #fdfdfc;
+  color: #333330;
+}
+
+#device-sync-status {
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+#device-sync-status.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+#device-sync-status.error {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Compiler Modal */
+.modal-overlay {
+  transition: opacity 0.2s ease;
+  display: none;
+}
+.modal-overlay.active {
+  display: flex !important;
+}
+.modal-container {
+  background: #ffffff;
+  color: #333330;
+}

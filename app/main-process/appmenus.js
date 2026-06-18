@@ -225,6 +225,13 @@ function refresh() {
                     click: callbacks.exportJSOnly
                 },
                 {
+                    label: i18n._('Compile to EENK .bin...'),
+                    accelerator: 'CmdOrCtrl+B',
+                    click: () => {
+                        if (callbacks.compileEenkBin) callbacks.compileEenkBin();
+                    }
+                },
+                {
                     type: 'separator'
                 },
                 {
@@ -357,6 +364,26 @@ function refresh() {
         },
         
         inkMenu,
+        
+        {
+            label: i18n._('&Device'),
+            submenu: [
+                {
+                    label: i18n._('Device Management...'),
+                    accelerator: 'CmdOrCtrl+D',
+                    click: () => {
+                        if (callbacks.openDeviceManagement) callbacks.openDeviceManagement();
+                    }
+                },
+                {
+                    label: i18n._('Launch Simulator'),
+                    accelerator: 'CmdOrCtrl+L',
+                    click: () => {
+                        if (callbacks.launchSimulator) callbacks.launchSimulator();
+                    }
+                }
+            ]
+        },
         
         {
             label: i18n._('&Window'),

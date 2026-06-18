@@ -98,6 +98,7 @@ function reloadInklecateSession() {
     currentTurnIdx = 0;
 
     var instr = buildCompileInstruction();
+    console.log("Sending compile instruction! size: ", JSON.stringify(instr).length);
     instr.play = true;
 
     events.resetting(instr.sessionId);
