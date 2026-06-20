@@ -69,7 +69,8 @@ export const ProjectController = {
       window.api.fs.onWatcherEvent(async (eventData) => {
         const store = useProjectStore();
         const { eventName, path: absFilePath } = eventData;
-        const file = store.files.find(f => f.absolutePath === absFilePath);
+        const normalizedAbsFilePath = absFilePath.replace(/[\\]/g, '/');
+        const file = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsFilePath);
         
         if (file && eventName === 'change') {
           if (file.justSaved) {
@@ -113,6 +114,60 @@ export const ProjectController = {
     
     await this.loadFileContent(store.mainInkFile);
     await this.loadIncludes(store.mainInkFile);
+    await this.loadUnusedFiles(store.mainInkFile);
+  },
+
+  async loadUnusedFiles(mainFile) {
+    const store = useProjectStore();
+    const mainDir = this._dirname(mainFile.absolutePath);
+    try {
+        const files = await window.api.fs.readdir(mainDir);
+        for (const filename of files) {
+            if (filename.endsWith('.ink')) {
+                const absPath = this._join(mainDir, filename);
+                const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
+                let existing = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
+                if (!existing) {
+                    const rawFile = this.createFile(absPath, false);
+                    rawFile.relPath = filename;
+                    store.addFile(rawFile);
+                    let incFile = store.files.find(f => f.id === rawFile.id);
+                    await this.loadFileContent(incFile);
+                }
+            }
+        }
+    } catch(err) {
+        console.error("Could not load unused files", err);
+    }
+    this.refreshUnusedStatus();
+  },
+
+  refreshUnusedStatus() {
+    const store = useProjectStore();
+    const mainFile = store.mainInkFile;
+    if (!mainFile) return;
+    
+    const includedIds = new Set();
+    const queue = [mainFile];
+    includedIds.add(mainFile.id);
+    
+    while(queue.length > 0) {
+        const curr = queue.shift();
+        const dir = this._dirname(curr.absolutePath);
+        for (const inc of curr.includes) {
+            const absPath = this._join(dir, inc);
+            const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
+            const incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
+            if (incFile && !includedIds.has(incFile.id)) {
+                includedIds.add(incFile.id);
+                queue.push(incFile);
+            }
+        }
+    }
+    
+    for (const f of store.files) {
+        f.isUnused = !includedIds.has(f.id);
+    }
   },
 
   async loadIncludes(mainFile) {
@@ -120,7 +175,8 @@ export const ProjectController = {
     const mainDir = this._dirname(mainFile.absolutePath);
     for (const inc of mainFile.includes) {
       const absPath = this._join(mainDir, inc);
-      let incFile = store.files.find(f => f.absolutePath === absPath);
+      const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
+      let incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
       if (!incFile) {
         const rawFile = this.createFile(absPath, false);
         rawFile.relPath = inc; 
@@ -144,7 +200,8 @@ export const ProjectController = {
       includes: [],
       hasUnsavedChanges: isBrandNew,
       isLoading: !isBrandNew,
-      isActive: false
+      isActive: false,
+      isUnused: false
     };
     return file;
   },
@@ -258,13 +315,14 @@ export const ProjectController = {
       };
       file._symbolsObj = new InkFileSymbols(mockInkFile, {
         includesChanged: () => {
-          // Trigger include refresh here in the future
+          this.refreshUnusedStatus();
         }
       });
     }
     file._symbolsObj.parse();
     file.symbols = file._symbolsObj.getSymbols();
     file.includes = file._symbolsObj.includes || [];
+    this.refreshUnusedStatus();
   },
 
   async exportProject(exportType) {

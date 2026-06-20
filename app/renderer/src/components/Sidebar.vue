@@ -10,12 +10,13 @@
       
       <div class="file-list">
         <div 
-          v-for="file in projectStore.files" 
+          v-for="file in usedFiles" 
           :key="file.id + '-' + getFilename(file)"
           class="file-item"
           :class="{ active: projectStore.activeInkFile === file, unsaved: file.hasUnsavedChanges }"
           @click="selectFile(file)"
           @dblclick="startRename(file)"
+          @contextmenu.prevent="showFileContextMenu(file, $event)"
         >
           <span class="material-symbols-outlined file-icon">description</span>
           <input 
@@ -26,7 +27,36 @@
             @keyup.esc="cancelRename"
             ref="renameInputRefs"
             class="rename-input"
-            onClick="event.stopPropagation()"
+            @click.stop
+          />
+          <span v-else class="filename">{{ getFilename(file) }}</span>
+          <span v-if="file.hasUnsavedChanges && renamingFile !== file" class="unsaved-indicator">•</span>
+        </div>
+      </div>
+      
+      <div v-if="unusedFiles.length > 0" class="sidebar-header unused-header">
+        <span class="title">Unused Files</span>
+      </div>
+      <div v-if="unusedFiles.length > 0" class="file-list unused-list">
+        <div 
+          v-for="file in unusedFiles" 
+          :key="file.id + '-' + getFilename(file)"
+          class="file-item unused-item"
+          :class="{ active: projectStore.activeInkFile === file, unsaved: file.hasUnsavedChanges }"
+          @click="selectFile(file)"
+          @dblclick="startRename(file)"
+          @contextmenu.prevent="showFileContextMenu(file, $event)"
+        >
+          <span class="material-symbols-outlined file-icon">description</span>
+          <input 
+            v-if="renamingFile === file"
+            v-model="renameInput"
+            @blur="commitRename(file)"
+            @keyup.enter="commitRename(file)"
+            @keyup.esc="cancelRename"
+            ref="renameInputRefs"
+            class="rename-input"
+            @click.stop
           />
           <span v-else class="filename">{{ getFilename(file) }}</span>
           <span v-if="file.hasUnsavedChanges && renamingFile !== file" class="unsaved-indicator">•</span>
@@ -58,11 +88,22 @@
         </div>
       </div>
     </div>
+    
+    <!-- Custom Context Menu for Files -->
+    <div 
+      v-if="contextMenu.visible" 
+      class="context-menu" 
+      :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+      @click.stop
+    >
+      <div class="context-menu-item" @click="contextMenuAction('rename')">Rename</div>
+      <div class="context-menu-item delete" @click="contextMenuAction('delete')">Delete</div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useUiStore } from '../stores/uiStore';
 import { useProjectStore } from '../stores/projectStore';
 import KnotBrowser from './KnotBrowser.vue';
@@ -75,6 +116,57 @@ const projectStore = useProjectStore();
 const renamingFile = ref(null);
 const renameInput = ref("");
 const renameInputRefs = ref([]);
+
+const usedFiles = computed(() => projectStore.files.filter(f => !f.isUnused));
+const unusedFiles = computed(() => projectStore.files.filter(f => f.isUnused));
+
+const contextMenu = ref({ visible: false, x: 0, y: 0, file: null });
+
+const hideContextMenu = () => {
+  contextMenu.value.visible = false;
+};
+
+const showFileContextMenu = (file, event) => {
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    file: file
+  };
+};
+
+const contextMenuAction = async (action) => {
+  const file = contextMenu.value.file;
+  hideContextMenu();
+  if (!file) return;
+  
+  if (action === 'rename') {
+    startRename(file);
+  } else if (action === 'delete') {
+    if (file === projectStore.mainInkFile) {
+      alert("Cannot delete the main ink file.");
+      return;
+    }
+    if (confirm(`Are you sure you want to delete ${file.relPath}? This cannot be undone.`)) {
+      try {
+        await window.api.fs.unlink(file.absolutePath);
+        projectStore.removeFile(file.id);
+        // Also remove include statement if present
+        const mainFile = projectStore.mainInkFile;
+        if (mainFile) {
+          const escapedPath = file.relPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`^(\\s*INCLUDE\\s+)${escapedPath}(\\s*)$`, 'gm');
+          if (regex.test(mainFile.content)) {
+            const newContent = mainFile.content.replace(regex, '');
+            ProjectController.updateFileContent(mainFile, newContent);
+          }
+        }
+      } catch (err) {
+        alert("Failed to delete file: " + err);
+      }
+    }
+  }
+};
 
 const getFilename = (file) => {
   return file.relPath ? file.relPath.split(/[/\\]/).pop() : "Untitled.ink";
@@ -109,10 +201,18 @@ const commitRename = async (file) => {
   if (!renamingFile.value) return; // Already committed/cancelled
   
   const newName = renameInput.value.trim();
-  renamingFile.value = null; // Exit rename mode
   
   if (newName && newName !== file.relPath) {
+    // Validate filename against common invalid characters (< > : " / \ | ? *)
+    const invalidChars = /[<>:"/\\|?*]/;
+    if (invalidChars.test(newName)) {
+      alert('Invalid file name. Names cannot contain the following characters: < > : " / \\ | ? *');
+      return; // Do not clear renamingFile so user can fix it
+    }
+    renamingFile.value = null; // Exit rename mode
     await ProjectController.renameFile(file, newName);
+  } else {
+    renamingFile.value = null;
   }
 };
 
@@ -151,11 +251,13 @@ const selectIssue = (issue) => {
 
 onMounted(() => {
   window.addEventListener('focus-new-include', addFile);
+  window.addEventListener('click', hideContextMenu);
   LiveCompiler.events.selectIssue = selectIssue;
 });
 
 onUnmounted(() => {
   window.removeEventListener('focus-new-include', addFile);
+  window.removeEventListener('click', hideContextMenu);
   if (LiveCompiler.events.selectIssue === selectIssue) {
     LiveCompiler.events.selectIssue = null;
   }
@@ -198,8 +300,38 @@ onUnmounted(() => {
 }
 
 .icon-btn:hover {
-  background-color: var(--hover-bg, rgba(0,0,0,0.05));
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background: var(--bg-color, #ffffff);
+  border: 1px solid var(--border-color, #d0d0d0);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  z-index: 1000;
+  min-width: 120px;
+  padding: 4px 0;
+  font-size: calc(13px * var(--zoom-factor, 1));
+}
+
+.context-menu-item {
+  padding: 8px 16px;
+  cursor: pointer;
   color: var(--text-color, #333);
+}
+
+.context-menu-item:hover {
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.context-menu-item.delete {
+  color: #d32f2f;
+}
+
+.context-menu-item.delete:hover {
+  background-color: rgba(211, 47, 47, 0.1);
 }
 
 .file-list {

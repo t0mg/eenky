@@ -1,5 +1,5 @@
 <template>
-  <div id="editor-container" ref="editorContainer"></div>
+  <div id="editor-container" ref="editorContainer" @contextmenu.prevent="showContextMenu"></div>
 </template>
 
 <script setup>
@@ -29,6 +29,12 @@ const projectStore = useProjectStore();
 const uiStore = useUiStore();
 const editorContainer = ref(null);
 let view = null;
+
+const showContextMenu = () => {
+  if (window.api && window.api.send) {
+    window.api.send('show-context-menu', { type: 'editor' });
+  }
+};
 
 const themeCompartment = new Compartment();
 const languageCompartment = new Compartment();

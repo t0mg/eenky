@@ -55,7 +55,7 @@ let pendingPathToOpen = null;
 let hasFinishedLaunch = false;
 
 // main
-ipcMain.on('show-context-menu', (event) => {
+ipcMain.on('show-context-menu', (event, options) => {
     const template = [
         {
             label: 'Cut',
@@ -68,12 +68,20 @@ ipcMain.on('show-context-menu', (event) => {
         {
             label: 'Paste',
             role: 'paste' 
-        },
-      { type: 'separator' },
-    ]
-    const menu = Menu.buildFromTemplate(template)
-    menu.popup(BrowserWindow.fromWebContents(event.sender))
-})
+        }
+    ];
+
+    if (options && options.type === 'editor') {
+        template.push({ type: 'separator' });
+        template.push({ 
+            label: 'Find / Replace', 
+            click: () => { event.sender.send("find"); } 
+        });
+    }
+
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup(BrowserWindow.fromWebContents(event.sender));
+});
 
 
 ipcMain.handle("showSaveDialog", async (event, options) => {
