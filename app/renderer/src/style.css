@@ -82,6 +82,13 @@ body {
   background-color: var(--bg-color);
   color: var(--text-color);
   transition: background-color 0.2s, color 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cm-editor, .player-content, input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 * {
