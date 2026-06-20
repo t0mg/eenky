@@ -45,8 +45,8 @@ pre code {
 
 /* Dark Mode Colors */
 html.dark body {
-    background-color: #222;
-    color: #eee;
+    background-color: #181818;
+    color: #e3e3dd;
 }
 
 html.dark p {
@@ -76,7 +76,7 @@ html.dark *::-webkit-scrollbar-track,
 html.dark *::-webkit-scrollbar-track-piece,
 html.dark *::-webkit-scrollbar-corner,
 html.dark *::-webkit-resizer {
-    background-color: #222;
+    background-color: #181818;
 }
 
 html.dark *::-webkit-scrollbar-thumb {

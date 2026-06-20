@@ -13,9 +13,9 @@ const electronWindowOptions = {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-        preload: path.join(__dirname, '..', 'renderer', 'preload.js'),
-        nodeIntegration: true,
-        contextIsolation: false
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true
     }
 };
 
@@ -25,7 +25,7 @@ const inklecateRootPathDev = __dirname;
 var fullVersionFilePath = path.join(inklecateRootPathRelease, versionFilePath);
 
 try { fs.accessSync(versionFilePath) }
-catch(e) {
+catch (e) {
     fullVersionFilePath = path.join(inklecateRootPathDev, versionFilePath);
 }
 
@@ -36,10 +36,16 @@ var aboutWindow = null;
 
 
 function AboutWindow(theme) {
-    electronWindowOptions.title = i18n._("About Inky");
+    electronWindowOptions.title = i18n._("About EENKY");
 
     var w = new BrowserWindow(electronWindowOptions);
-    w.loadURL("file://" + __dirname + "/../renderer/about/about.html");
+
+    const isDev = process.defaultApp || /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || /[\\/]electron[\\/]/.test(process.execPath);
+    if (isDev) {
+        w.loadURL("http://localhost:5173/about/about.html");
+    } else {
+        w.loadURL("file://" + __dirname + "/../renderer/dist/about/about.html");
+    }
 
     w.webContents.on("did-finish-load", () => {
         w.webContents.send("set-about-data", {
@@ -59,13 +65,13 @@ function AboutWindow(theme) {
     });
 }
 AboutWindow.showAboutWindow = function (theme) {
-    if( aboutWindow == null ) {
+    if (aboutWindow == null) {
         aboutWindow = new AboutWindow(theme);
         return aboutWindow;
     }
 }
 AboutWindow.changeTheme = function (theme) {
-    if( aboutWindow != null ) {
+    if (aboutWindow != null) {
         aboutWindow.browserWindow.webContents.send("change-theme", theme);
     }
 }

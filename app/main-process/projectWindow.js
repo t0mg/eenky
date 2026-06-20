@@ -14,9 +14,9 @@ var electronWindowOptions = {
   minWidth: 350,
   minHeight: 250,
   webPreferences: {
-    preload: path.join(__dirname, '..', 'renderer', 'preload.js'),
-    nodeIntegration: true,
-  contextIsolation: false
+    preload: path.join(__dirname, 'preload.js'),
+    nodeIntegration: false,
+    contextIsolation: true
   },
   
 };
@@ -53,8 +53,19 @@ function ProjectWindow(filePath) {
 
     electronWindowOptions.title = i18n._("Inky");
     this.browserWindow = new BrowserWindow(electronWindowOptions);
-    this.browserWindow.loadURL("file://" + __dirname + "/../renderer/index.html");
+    
+    // Check if we are running in development by looking for the default electron app
+    const isDev = process.defaultApp || /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || /[\\/]electron[\\/]/.test(process.execPath);
+    if (isDev) {
+        this.browserWindow.loadURL("http://localhost:5173");
+    } else {
+        this.browserWindow.loadURL("file://" + __dirname + "/../renderer/dist/index.html");
+    }
+    
     this.browserWindow.setSheetOffset(49);
+
+    // TEMPORARILY OPEN DEVTOOLS
+    this.browserWindow.webContents.openDevTools();
 
     this.safeToClose = false;
     this.mainInkAbsPath = filePath;
@@ -79,12 +90,17 @@ function ProjectWindow(filePath) {
 
     windows.push(this);
 
-    this.browserWindow.on("close", (event) => {
-        if( !this.safeToClose ) {
+    let self = this;
+    this.browserWindow.on('close', function (event) {
+        console.log("[DEBUG] browserWindow close event fired. isSafeToClose:", self.isSafeToClose);
+        if( self.isSafeToClose ) {
+            // Already saved, or nothing to save
+        } else {
             event.preventDefault();
-            this.tryClose();
+            console.log("[DEBUG] Calling self.tryClose()...");
+            self.tryClose();
         }
-    })
+    });
 
     this.browserWindow.on("closed", () => {
         var idx = windows.indexOf(this);
@@ -98,8 +114,11 @@ function ProjectWindow(filePath) {
 
         let settings = ProjectWindow.getViewSettings();
         this.zoom(settings.zoom);
-        this.browserWindow.webContents.send('set-animation-enabled', settings.animationEnabled);
         this.browserWindow.webContents.send('set-autocomplete-disabled', !!settings.autoCompleteDisabled);
+        this.browserWindow.webContents.send('toggle-toolbar', settings.showToolbar !== false);
+        this.browserWindow.webContents.send('toggle-file-browser', settings.showFileBrowser !== false);
+        this.browserWindow.webContents.send('toggle-knot-browser', settings.showKnotBrowser === true);
+        this.browserWindow.webContents.send('toggle-preview', settings.showPreview === true);
     });
 
     // Project settings may affect menus etc, so we refresh that
@@ -115,6 +134,7 @@ ProjectWindow.prototype.newInclude = function() {
 }
 
 ProjectWindow.prototype.save = function() {
+    console.log("[DEBUG] ProjectWindow.prototype.save called. Sending project-save to renderer...");
     this.browserWindow.webContents.send('project-save');
 }
 
@@ -143,7 +163,8 @@ ProjectWindow.prototype.keyboardShortcuts = function() {
 }
 
 ProjectWindow.prototype.finalClose = function() {
-    this.safeToClose = true;
+    this.isSafeToClose = true;
+    this.safeToClose = true; // just in case
     Inklecate.killSessions(this.browserWindow);
     this.browserWindow.close();
 }
@@ -228,23 +249,19 @@ ProjectWindow.createEmpty = function() {
 }
 
 ProjectWindow.focused = function() {
-    var browWin = BrowserWindow.getFocusedWindow();
-    if( browWin )
-        return ProjectWindow.withWebContents(browWin.webContents);
-    else
-        return null;
+    let win = BrowserWindow.getFocusedWindow();
+    if( win ) {
+        let pwin = windows.find(pwin => pwin.browserWindow === win);
+        if (pwin) return pwin;
+    }
+    // Fallback: Since it's a single-window app now, return the first window
+    return windows.length > 0 ? windows[0] : null;
 }
 
 
 ProjectWindow.withWebContents = function(webContents) {
-    if( !webContents )
-        return null;
-
-    for(var i=0; i<windows.length; i++) {
-        if( windows[i].browserWindow.webContents === webContents )
-            return windows[i];
-    }
-    return null;
+    if (!webContents) return null;
+    return windows.find(pwin => pwin.browserWindow && pwin.browserWindow.webContents && pwin.browserWindow.webContents.id === webContents.id);
 }
 
 
@@ -293,25 +310,43 @@ function addRecentFile(filePath) {
     }
 }
 
-ProjectWindow.open = function(filePath) {
+ProjectWindow.open = async function(filePath) {
+    console.log("[DEBUG] ProjectWindow.open called with filePath:", filePath);
+    if (typeof filePath !== 'string') {
+        filePath = null;
+    }
+    
     if( !filePath ) {
-        var multiSelectPaths = dialog.showOpenDialogSync({
+        console.log("[DEBUG] No filePath provided, showing dialog...");
+        var result = await dialog.showOpenDialog({
             title: i18n._("Open main ink file"),
             properties: ['openFile'],
             filters: [
                 { name: i18n._('Ink files'), extensions: ['ink'] }
             ]
         });
-        if( multiSelectPaths && multiSelectPaths.length > 0 )
-            filePath = multiSelectPaths[0];
+        console.log("[DEBUG] dialog returned:", result.filePaths);
+        if( result && !result.canceled && result.filePaths.length > 0 )
+            filePath = result.filePaths[0];
     }
 
-    // TODO: Could check whether the filepath is relative to any of our
-    // existing open projects, and switch to that window?
-    console.log("Testing!")
     if( filePath) {
+        console.log("[DEBUG] filePath selected:", filePath);
         addRecentFile(filePath);
-        return new ProjectWindow(filePath);
+        let win = ProjectWindow.focused() || (windows.length > 0 ? windows[0] : null);
+        if (win) {
+            console.log("[DEBUG] using existing window");
+            win.mainInkAbsPath = filePath;
+            win.browserWindow.setRepresentedFilename(filePath);
+            win.browserWindow.webContents.send('set-project-main-ink-filepath', filePath);
+            win.refreshProjectSettings(filePath);
+            return win;
+        } else {
+            console.log("[DEBUG] creating new window");
+            return new ProjectWindow(filePath);
+        }
+    } else {
+        console.log("[DEBUG] No filePath selected, aborting.");
     }
 }
 
@@ -361,8 +396,10 @@ ipc.on("main-file-saved", (event, absFilePath) => {
 });
 
 ipc.on("project-final-close", (event) => {
+    console.log("[DEBUG] project-final-close received! webContents id:", event.sender ? event.sender.id : 'none');
     var win = ProjectWindow.withWebContents(event.sender);
-    win.finalClose();
+    console.log("[DEBUG] withWebContents returned win?", !!win);
+    if (win) win.finalClose();
 });
 
 ipc.on("project-settings-needs-reload", (event, rootInkFilePath) => {

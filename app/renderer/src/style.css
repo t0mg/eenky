@@ -1,0 +1,233 @@
+:root {
+  /* Light Theme Variables */
+  --bg-color: #ffffff;
+  --sidebar-bg: #fafafa;
+  --toolbar-bg: #f5f5f5;
+  --text-color: #333333;
+  --text-muted: #777777;
+  --border-color: #e0e0e0;
+  --primary-color: #1976d2;
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --active-bg: rgba(25, 118, 210, 0.1);
+  --error-color: #d32f2f;
+  --warning-color: #f57c00;
+  
+  /* CodeMirror Theme Variables */
+  --cm-background-color: #ffffff;
+  --cm-text-color: #333333;
+  --cm-gutter-background-color: #f9f9f9;
+  --cm-gutter-text-color: #999999;
+  --cm-knot-color: #1976d2;
+  --cm-stitch-color: #0d47a1;
+  --cm-keyword-color: #d81b60;
+  --cm-control-color: #d81b60;
+  --cm-operator-color: #333333;
+  --cm-comment-color: #388e3c;
+  --cm-tag-color: #7b1fa2;
+  --cm-brace-color: #333333;
+  --cm-bracket-color: #333333;
+  --cm-string-color: #e65100;
+  --cm-number-color: #009688;
+  --cm-bool-color: #d81b60;
+  
+  /* CodeMirror Editor Background/Selection */
+  --cm-selection-bg: rgba(25, 118, 210, 0.2);
+  --cm-selection-match-bg: rgba(25, 118, 210, 0.15);
+  --cm-matching-bracket-bg: rgba(25, 118, 210, 0.15);
+  --cm-active-line-bg: rgba(0, 0, 0, 0.05);
+}
+
+body.dark {
+  /* Dark Theme Variables */
+  --bg-color: #1e1e1e;
+  --sidebar-bg: #252526;
+  --toolbar-bg: #333333;
+  --text-color: #d4d4d4;
+  --text-muted: #888888;
+  --border-color: #444444;
+  --primary-color: #4fc3f7;
+  --hover-bg: rgba(255, 255, 255, 0.1);
+  --active-bg: rgba(79, 195, 247, 0.15);
+  --error-color: #ef5350;
+  --warning-color: #ffa726;
+
+  /* CodeMirror Theme Variables - Dark */
+  --cm-background-color: #1e1e1e;
+  --cm-text-color: #d4d4d4;
+  --cm-gutter-background-color: #252526;
+  --cm-gutter-text-color: #858585;
+  --cm-knot-color: #4fc3f7;
+  --cm-stitch-color: #81d4fa;
+  --cm-keyword-color: #f48fb1;
+  --cm-control-color: #f48fb1;
+  --cm-operator-color: #d4d4d4;
+  --cm-comment-color: #6a9955;
+  --cm-tag-color: #ce93d8;
+  --cm-brace-color: #d4d4d4;
+  --cm-bracket-color: #d4d4d4;
+  --cm-string-color: #ffcc80;
+  --cm-number-color: #80cbc4;
+  --cm-bool-color: #f48fb1;
+  
+  /* CodeMirror Editor Background/Selection */
+  --cm-selection-bg: rgba(73, 110, 150, 0.5);
+  --cm-selection-match-bg: rgba(73, 110, 150, 0.4);
+  --cm-matching-bracket-bg: rgba(73, 110, 150, 0.4);
+  --cm-active-line-bg: rgba(255, 255, 255, 0.05);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Global button styles */
+button {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.primary-btn {
+  background-color: var(--primary-color);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.primary-btn:hover {
+  opacity: 0.8;
+}
+
+.secondary-btn {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondary-btn:hover {
+  background-color: var(--hover-bg);
+}
+
+.no-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color); 
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color); 
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted); 
+}
+
+/* GotoAnything CSS */
+#goto-anything-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.2);
+  z-index: 60;
+}
+
+#goto-anything {
+  position: absolute;
+  top: 15%;
+  left: 100px;
+  right: 100px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 5px 6px rgba(0,0,0,0.2);
+  z-index: 80;
+  padding: 10px;
+  font-family: monospace;
+}
+
+#goto-anything input {
+  width: 100%;
+  padding: 5px;
+  font-size: 16pt;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-color);
+  outline: none;
+}
+
+#goto-anything ul.results {
+  max-height: 400px;
+  overflow-y: scroll;
+  list-style: none;
+  padding-left: 0;
+  margin-left: 10px;
+  margin-bottom: 0;
+}
+
+#goto-anything ul.results li {
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12pt;
+  position: relative;
+  height: 48px;
+  color: var(--text-color);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#goto-anything ul.results li p {
+  white-space: nowrap;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#goto-anything ul.results li.content .main-text {
+  color: var(--text-color);
+  opacity: 0.8;
+}
+
+#goto-anything ul.results li p.meta {
+  font-size: 9pt;
+  color: var(--text-muted);
+}
+
+#goto-anything ul.results li.selected {
+  background: var(--hover-bg);
+}
+
+.goto-highlight {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+#goto-anything .ancestor {
+  color: var(--text-muted);
+}

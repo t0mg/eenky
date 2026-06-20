@@ -1,20 +1,20 @@
 
 body.dark {
-     background-color: #222;
-     color: #eee;
+     background-color: #181818;
+     color: #e3e3dd;
  }
 
  body.dark ul {
-     background-color: #282828;
-     border-right-color: #444;
+     background-color: #1e1e1e;
+     border-right-color: #323232;
  }
 
  body.dark li a {
-     color: #EEE;
+     color: #e3e3dd;
  }
 
  body.dark li:hover {
-     background: #444;
+     background: #323232;
  }
 
  body.dark .nav-h1 {
@@ -26,7 +26,7 @@ body.dark {
  }
 
  body.dark .nav-h2 {
-     color: #EEE;
+     color: #e3e3dd;
  }
 
  body.dark .nav-h3, body.dark .nav-h4, body.dark .nav-h5, body.dark .nav-h6 {
@@ -43,7 +43,7 @@ body.dark {
  body.dark *::-webkit-scrollbar-track-piece,
  body.dark *::-webkit-scrollbar-corner,
  body.dark *::-webkit-resizer {
-     background-color: #222;
+     background-color: #181818;
  }
 
  body.dark *::-webkit-scrollbar-thumb {

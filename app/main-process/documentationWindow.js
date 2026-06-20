@@ -8,7 +8,12 @@ const electronWindowOptions = {
   minWidth: 700,
   minHeight: 300,
   title: "Documentation",
-  autoHideMenuBar: true
+  autoHideMenuBar: true,
+  webPreferences: {
+    preload: path.join(__dirname, 'preload.js'),
+    nodeIntegration: false,
+    contextIsolation: true
+  }
 };
 
 var documentationWindow = null;
@@ -16,7 +21,13 @@ var documentationWindow = null;
 function DocumentationWindow(theme) {
 	electronWindowOptions.theme = theme;
   var w = new BrowserWindow(electronWindowOptions);
-  w.loadURL("file://" + __dirname + "/../renderer/documentation/window.html");
+  
+  const isDev = process.defaultApp || /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || /[\\/]electron[\\/]/.test(process.execPath);
+  if (isDev) {
+      w.loadURL("http://localhost:5173/documentation/window.html");
+  } else {
+      w.loadURL("file://" + __dirname + "/../renderer/dist/documentation/window.html");
+  }
 
   // w.webContents.openDevTools();
 	

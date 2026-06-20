@@ -11,23 +11,29 @@ const i18n = require('./i18n/i18n.js');
 
 let recentFiles = [];
 let customInkSnippets = [];
-let theme = null;
+let theme = 'system';
 let zoom = null;
-let animationEnabled = null;
 let autoCompleteDisabled = null; // default on
+let showToolbar = true;
+let showFileBrowser = true;
+let showKnotBrowser = false;
+let showPreview = false;
 
 
 let callbacks = {
 };
 
-function refresh() {
-    
+function refresh(appState = { isHome: false }) {
+
     let themes = [];
 
     // Create the themes menu, with the correct current theme ticked
-    for (const t of ['light', 'dark', 'contrast', 'focus']) {
+    for (const t of ['os', 'light', 'dark']) {
+        let label = t.substring(0, 1).toUpperCase() + t.substring(1);
+        if (t === 'system') label = 'Match System';
+
         themes.push({
-            label: t.substring(0, 1).toUpperCase() + t.substring(1),
+            label: label,
             type: 'radio',
             checked: t === theme,
             click: () => {
@@ -40,39 +46,26 @@ function refresh() {
         });
     }
 
-    // Create the zoom menu, with the correct current zoom ticked
-    let zoom_percents = [];
-    for (const zoom_percent of ['50%', '75%', '100%', '125%', '150%', '175%', '200%', '250%', '300%']) {
-        zoom_percents.push({
-            label: zoom_percent.substring(0, 4),
-            type: 'radio',
-            checked: zoom_percent === (zoom + "%"),
-            click: () => {
-                zoom = zoom_percent.replace('%', '');
-                callbacks.zoom(zoom);
-            }
-        });
-    }
-
     // Create menus for ink snippets (built in snippets)
     let inkMenu = {
         label: i18n._('&Ink'),
+        visible: !appState.isHome,
         submenu: [],
         id: "ink"
     };
-    for(var category of inkSnippets) {
+    for (var category of inkSnippets) {
 
         // Category separator?
-        if( category.separator ) {
+        if (category.separator) {
             inkMenu.submenu.push({
                 type: 'separator'
             });
             continue;
         }
-        
+
         // Main categories
         var items = category.snippets.map(snippet => {
-            if( snippet.separator ) {
+            if (snippet.separator) {
                 return {
                     type: 'separator'
                 };
@@ -82,9 +75,9 @@ function refresh() {
                     click: (item, focussedWindow) => callbacks.insertSnippet(focussedWindow, snippet.ink)
                 }
             }
-            
+
         });
-        
+
         inkMenu.submenu.push({
             label: i18n._(category.categoryName),
             submenu: items
@@ -92,37 +85,37 @@ function refresh() {
 
         // Custom snippets are added later during a callback after settings has been loaded  
     }
-    
+
     // Remember how many built in menu items we have so we can
     // remove any custom ones when refreshing them.
     inkMenuOriginalCount = inkMenu.submenu.length;
 
     // Recursively convert our settings format into the Electron template menu format.
     // Very similar, but we rename things a bit and turn "ink" into a callback.
-    if( Array.isArray(customInkSnippets) && customInkSnippets.length > 0 ) {
+    if (Array.isArray(customInkSnippets) && customInkSnippets.length > 0) {
 
         // Add separator between built-in and custom snippets
-        inkMenu.submenu.push({type: "separator"});
+        inkMenu.submenu.push({ type: "separator" });
 
         function createSnippetMenuItems(menuItemsArray, parentMenuItem) {
 
-            if( !Array.isArray(menuItemsArray) ) return;
+            if (!Array.isArray(menuItemsArray)) return;
 
             // Create new custom menus
-            for(let menuItem of menuItemsArray) {
+            for (let menuItem of menuItemsArray) {
 
                 let templateMenuItem = {};
                 let valid = false;
 
-                if( menuItem.separator ) {
+                if (menuItem.separator) {
                     templateMenuItem.type = "separator";
                     valid = true;
                 }
 
-                else if( menuItem.name ) {
+                else if (menuItem.name) {
                     templateMenuItem.label = menuItem.name;
 
-                    if( menuItem.ink ) {
+                    if (menuItem.ink) {
                         templateMenuItem.click = (item, focussedWindow) => callbacks.insertSnippet(focussedWindow, menuItem.ink)
                         valid = true;
                         if (menuItem.accelerator)
@@ -131,14 +124,14 @@ function refresh() {
                             templateMenuItem.accelerator = menuItem.shortcut;
                     }
 
-                    else if( menuItem.submenu && Array.isArray(menuItem.submenu) ) {
+                    else if (menuItem.submenu && Array.isArray(menuItem.submenu)) {
                         valid = true;
                         templateMenuItem.submenu = [];
                         createSnippetMenuItems(menuItem.submenu, templateMenuItem);
                     }
                 }
-                
-                if( valid )
+
+                if (valid)
                     parentMenuItem.submenu.push(templateMenuItem);
             }
 
@@ -152,14 +145,14 @@ function refresh() {
         click: () => ProjectWindow.open(path)
     }));
     let hasRecentFiles = recentFiles.length > 0;
-    if( !hasRecentFiles ) {
+    if (!hasRecentFiles) {
         recentFilesSubmenu.push({
             label: i18n._('None'),
             enabled: false
         });
     }
-    if( hasRecentFiles ) {
-        recentFilesSubmenu.push({"type": "separator"});
+    if (hasRecentFiles) {
+        recentFilesSubmenu.push({ "type": "separator" });
         recentFilesSubmenu.push({
             label: i18n._('Clear'),
             enabled: hasRecentFiles,
@@ -243,6 +236,7 @@ function refresh() {
         },
         {
             label: i18n._('&Edit'),
+            visible: !appState.isHome,
             submenu: [
                 {
                     label: i18n._('Undo'),
@@ -281,9 +275,9 @@ function refresh() {
                     type: 'separator'
                 },
                 {
-                    label: i18n._('Useful Keyboard Shortcuts'),
-                    enabled: callbacks.isFocusedWindow,
-                    click: callbacks.keyboardShortcuts
+                    label: i18n._('Find / Replace'),
+                    accelerator: 'CmdOrCtrl+F',
+                    click: callbacks.find
                 }
             ]
         },
@@ -303,18 +297,19 @@ function refresh() {
                     submenu: themes
                 },
                 {
-                    label: i18n._("Zoom %"),
-                    submenu: zoom_percents
-                },
-                {
                     label: i18n._("Zoom (Increase) "),
-                    accelerator: 'CmdOrCtrl+=',
+                    accelerator: 'CmdOrCtrl+Plus',
                     click: callbacks.zoomIn
                 },
                 {
                     label: i18n._("Zoom (Decrease) "),
-                    accelerator: 'CmdOrCtrl+-',
+                    accelerator: 'CmdOrCtrl+=',
                     click: callbacks.zoomOut
+                },
+                {
+                    label: i18n._("Reset Zoom"),
+                    accelerator: 'CmdOrCtrl+0',
+                    click: callbacks.zoomReset
                 },
                 {
                     label: i18n._("Auto-complete"),
@@ -323,16 +318,35 @@ function refresh() {
                     click: callbacks.toggleAutoComplete
                 },
                 {
-                    label: i18n._("Play view animation"),
+                    label: i18n._("Toolbar"),
                     type: "checkbox",
-                    checked: animationEnabled,
-                    click: callbacks.toggleAnimation
+                    checked: showToolbar,
+                    click: callbacks.toggleToolbar
+                },
+                {
+                    label: i18n._("File Browser"),
+                    type: "checkbox",
+                    checked: showFileBrowser,
+                    click: callbacks.toggleFileBrowser
+                },
+                {
+                    label: i18n._("Knot Browser"),
+                    type: "checkbox",
+                    checked: showKnotBrowser,
+                    click: callbacks.toggleKnotBrowser
+                },
+                {
+                    label: i18n._("Preview Panel"),
+                    type: "checkbox",
+                    checked: showPreview,
+                    click: callbacks.togglePreview
                 }
 
             ]
         },
         {
             label: i18n._('&Story'),
+            visible: !appState.isHome,
             submenu: [
                 {
                     label: i18n._('Go to anything...'),
@@ -355,18 +369,19 @@ function refresh() {
                     click: callbacks.toggleTags
                 },
                 {
-                        label: i18n._('Word count and more'),
-                        accelerator: 'CmdOrCtrl+Shift+C',
-                        enabled: callbacks.isFocusedWindow,
-                        click: callbacks.stats
+                    label: i18n._('Word count and more'),
+                    accelerator: 'CmdOrCtrl+Shift+C',
+                    enabled: callbacks.isFocusedWindow,
+                    click: callbacks.stats
                 }
             ]
         },
-        
+
         inkMenu,
-        
+
         {
             label: i18n._('&Device'),
+            visible: !appState.isHome,
             submenu: [
                 {
                     label: i18n._('Device Management...'),
@@ -384,7 +399,7 @@ function refresh() {
                 }
             ]
         },
-        
+
         {
             label: i18n._('&Window'),
             role: 'window',
@@ -414,7 +429,7 @@ function refresh() {
                                     message: i18n._('Are you sure you want to reload the current window? Any unsaved changes will be lost.')
                                 }).then(result => {
                                     let clickedOkay = result.response == 0;
-                                    if( clickedOkay ) {
+                                    if (clickedOkay) {
                                         focusedWindow.reload();
                                     }
                                 })
@@ -442,6 +457,11 @@ function refresh() {
                     accelerator: 'F1',
                     click: callbacks.showDocs
                 },
+                {
+                    label: i18n._('Useful Keyboard Shortcuts'),
+                    enabled: callbacks.isFocusedWindow,
+                    click: callbacks.keyboardShortcuts
+                }
             ]
         },
     ];
@@ -506,8 +526,7 @@ function refresh() {
             }
         );
     }
-    else
-    {
+    else {
         // Windows specific menu items
         menuTemplate.find(x => x.role === 'help').submenu.push(
             {
@@ -516,7 +535,7 @@ function refresh() {
             }
         );
     }
-    
+
 
     const menu = Menu.buildFromTemplate(menuTemplate);
     Menu.setApplicationMenu(menu);
@@ -524,12 +543,15 @@ function refresh() {
 
 exports.AppMenus = {
 
-    setCallbacks : (c) => {callbacks = c},
-    setRecentFiles : (files) => {recentFiles = files},
-    setTheme : (t) => theme = t,
-    setZoom : (z) => zoom = z,
-    setAnimationEnabled : (e) => animationEnabled = e,
-    setAutoCompleteDisabled : (e) => autoCompleteDisabled = e,
-    setCustomSnippetMenus : (snippets) => {customInkSnippets = snippets},
-    refresh : refresh
+    setCallbacks: (c) => { callbacks = c },
+    setRecentFiles: (files) => { recentFiles = files },
+    setTheme: (t) => theme = t,
+    setZoom: (z) => zoom = z,
+    setAutoCompleteDisabled: (e) => autoCompleteDisabled = e,
+    setShowToolbar: (e) => showToolbar = e,
+    setShowFileBrowser: (e) => showFileBrowser = e,
+    setShowKnotBrowser: (e) => showKnotBrowser = e,
+    setShowPreview: (e) => showPreview = e,
+    setCustomSnippetMenus: (snippets) => { customInkSnippets = snippets },
+    refresh: refresh
 }

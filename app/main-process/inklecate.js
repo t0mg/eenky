@@ -316,9 +316,6 @@ function killSessions(optionalBrowserWindow) {
     }
 }
 
-ipc.on("compile", (event, compileInstruction) => {
-    compile(compileInstruction, event.sender);
-});
 
 ipc.on("play-stop-ink", (event, sessionId) => {
     const requester = event.sender;

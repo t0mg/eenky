@@ -1,4 +1,11 @@
 const {app, BrowserWindow, ipcMain, dialog, ipcRenderer, Menu, session} = require('electron')
+const path = require('path');
+const isDev = process.env.NODE_ENV !== 'production';
+
+if (isDev) {
+    process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
+}
+
 const i18n = require("./i18n/i18n.js")
 const {ProjectWindow} = require("./projectWindow.js");
 const {DocumentationWindow} = require("./documentationWindow.js");
@@ -7,7 +14,10 @@ const {AppMenus} = require('./appmenus.js');
 const {onForceQuit} = require('./forceQuitDetect');
 const {Inklecate} = require("./inklecate.js");
 const { fstat } = require('original-fs');
-const {fs} = require("fs");
+const fs = require("fs");
+
+// Set the app name so that the OS and default menus display "EENKY" instead of "Electron"
+app.setName('EENKY');
 
 // ── EENK extensions ───────────────────────────────────────────────────────────
 require('./eenkCompiler.js');   // registers eenk:compile IPC
@@ -66,9 +76,32 @@ ipcMain.on('show-context-menu', (event) => {
 })
 
 
-ipcMain.handle("showSaveDialog", async (event,saveOptions) => {
-    return dialog.showSaveDialog(saveOptions) 
+ipcMain.handle("showSaveDialog", async (event, options) => {
+    return await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options);
+});
 
+ipcMain.handle('change-theme', async (event, nextTheme) => {
+    // We update the view settings
+    ProjectWindow.addOrChangeViewSetting('theme', nextTheme);
+    AboutWindow.changeTheme(nextTheme);
+    DocumentationWindow.changeTheme(nextTheme);
+
+    // Let the main menu know
+    AppMenus.setTheme(nextTheme);
+    AppMenus.refresh(AppMenus.currentState);
+
+    for (let window of ProjectWindow.all()) {
+        window.browserWindow.webContents.send('change-theme', nextTheme);
+    }
+});
+
+ipcMain.handle('set-view-setting', async (event, key, value) => {
+    ProjectWindow.addOrChangeViewSetting(key, value);
+});
+
+ipcMain.handle("showMessageBox", async (event, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return dialog.showMessageBox(win, options);
 })
 
 ipcMain.handle("try-close", async (event) =>{
@@ -89,6 +122,12 @@ ipcMain.handle("try-close", async (event) =>{
 ipcMain.on("compile", (event, compileInstruction) => {
     console.log("Received compile IPC, session: ", compileInstruction.sessionId);
     Inklecate.compile(compileInstruction, event.sender);
+});
+
+app.on('web-contents-created', (event, contents) => {
+    contents.on('console-message', (event, level, message, line, sourceId) => {
+        console.log(`[Renderer] ${sourceId}:${line} - ${message}`);
+    });
 });
 
 app.on('will-finish-launching', function () {
@@ -133,6 +172,23 @@ app.on('before-quit', function () {
 
 ipcMain.on("project-cancelled-close", (event) => {
     isQuitting = false;
+    var win = ProjectWindow.withBrowserWindow(event.sender.getOwnerBrowserWindow());
+    if( win ) win.cancelClose();
+});
+
+ipcMain.handle("get-template-dir", () => {
+    return path.join(__dirname, "..", "export-for-web-template");
+});
+
+ipcMain.on('app-state-changed', (event, state) => {
+    AppMenus.refresh(state);
+});
+
+
+
+ipcMain.handle('launch-simulator', async (event) => {
+    var win = ProjectWindow.withBrowserWindow(event.sender.getOwnerBrowserWindow());
+    if (win) win.browserWindow.webContents.send('eenk:launch-simulator');
 });
 
 // This method will be called when Electron has finished
@@ -261,6 +317,9 @@ app.on('ready', function () {
         addWatchExpression: (item, focusedWindow) => {
             focusedWindow.webContents.send("add-watch-expression");
         },
+        find: (item, focusedWindow) => {
+            if (focusedWindow) focusedWindow.webContents.send("find");
+        },
         showDocs: () => {
             DocumentationWindow.openDocumentation(ProjectWindow.getViewSettings().theme);
         },
@@ -278,7 +337,6 @@ app.on('ready', function () {
         zoomIn: () => {
             var win = ProjectWindow.focused();
             if (win != null) {
-                win.zoom(2);
                 // Convert change from font size to zoom percentage
                 let zoom = ProjectWindow.getViewSettings().zoom;
                 zoom = (parseInt(zoom) + Math.floor(2*100/12)).toString();
@@ -288,28 +346,63 @@ app.on('ready', function () {
         zoomOut: () => {
           var win = ProjectWindow.focused();
           if (win != null) {
-              win.zoom(-2);
               // Convert change from font size to zoom percentage
               let zoom = ProjectWindow.getViewSettings().zoom
               zoom = (parseInt(zoom) - Math.floor(2*100/12)).toString();
               ProjectWindow.addOrChangeViewSetting('zoom', zoom);
             }
         },
+        zoomReset: () => {
+          var win = ProjectWindow.focused();
+          if (win != null) {
+              ProjectWindow.addOrChangeViewSetting('zoom', '100');
+          }
+        },
         zoom: (zoom_percent) => {
             var win = ProjectWindow.focused();
             if (win != null) {
-                win.zoom(zoom_percent);
                 let zoom = zoom_percent.toString();
                 ProjectWindow.addOrChangeViewSetting('zoom', zoom)
             }
         },
-        toggleAnimation: () => {
-            let animEnabled = !ProjectWindow.getViewSettings().animationEnabled;
-            ProjectWindow.addOrChangeViewSetting('animationEnabled', animEnabled)
-
-            for(let i=0; i<ProjectWindow.all().length; i++) {
-                let eachWindow = ProjectWindow.all()[i];
-                eachWindow.browserWindow.webContents.send("set-animation-enabled", animEnabled);
+        toggleToolbar: () => {
+            let win = ProjectWindow.focused();
+            if (win) {
+                let showToolbar = !ProjectWindow.getViewSettings().showToolbar;
+                ProjectWindow.addOrChangeViewSetting('showToolbar', showToolbar);
+                win.browserWindow.webContents.send("toggle-toolbar", showToolbar);
+                AppMenus.setShowToolbar(showToolbar);
+                AppMenus.refresh(AppMenus.currentState);
+            }
+        },
+        toggleFileBrowser: () => {
+            let win = ProjectWindow.focused();
+            if (win) {
+                let showFileBrowser = !ProjectWindow.getViewSettings().showFileBrowser;
+                ProjectWindow.addOrChangeViewSetting('showFileBrowser', showFileBrowser);
+                win.browserWindow.webContents.send("toggle-file-browser", showFileBrowser);
+                AppMenus.setShowFileBrowser(showFileBrowser);
+                AppMenus.refresh(AppMenus.currentState);
+            }
+        },
+        toggleKnotBrowser: () => {
+            let win = ProjectWindow.focused();
+            if (win) {
+                let showKnotBrowser = !ProjectWindow.getViewSettings().showKnotBrowser;
+                ProjectWindow.addOrChangeViewSetting('showKnotBrowser', showKnotBrowser);
+                win.browserWindow.webContents.send("toggle-knot-browser", showKnotBrowser);
+                AppMenus.setShowKnotBrowser(showKnotBrowser);
+                AppMenus.refresh(AppMenus.currentState);
+            }
+        },
+        togglePreview: () => {
+            let win = ProjectWindow.focused();
+            if (win) {
+                let showPreview = !ProjectWindow.getViewSettings().showPreview;
+                ProjectWindow.addOrChangeViewSetting('showPreview', showPreview);
+                win.browserWindow.webContents.send("toggle-preview", showPreview);
+                AppMenus.setShowPreview(showPreview);
+                AppMenus.refresh(AppMenus.currentState);
             }
         },
         toggleAutoComplete: () => {
@@ -336,8 +429,11 @@ app.on('ready', function () {
     AppMenus.setRecentFiles(ProjectWindow.getRecentFiles());
     AppMenus.setTheme(ProjectWindow.getViewSettings().theme);
     AppMenus.setZoom(ProjectWindow.getViewSettings().zoom);
-    AppMenus.setAnimationEnabled(ProjectWindow.getViewSettings().animationEnabled);
-    AppMenus.setAutoCompleteDisabled(ProjectWindow.getViewSettings().autoCompleteDisabled)
+    AppMenus.setShowToolbar(ProjectWindow.getViewSettings().showToolbar !== false);
+    AppMenus.setShowFileBrowser(ProjectWindow.getViewSettings().showFileBrowser !== false);
+    AppMenus.setShowKnotBrowser(ProjectWindow.getViewSettings().showKnotBrowser === true);
+    AppMenus.setShowPreview(ProjectWindow.getViewSettings().showPreview === true);
+    AppMenus.setAutoCompleteDisabled(ProjectWindow.getViewSettings().autoCompleteDisabled);
 
     AppMenus.refresh();
     ProjectWindow.setEvents({
@@ -353,9 +449,17 @@ app.on('ready', function () {
         onViewSettingsChanged: (viewSettings) => {
             AppMenus.setTheme(viewSettings.theme);
             AppMenus.setZoom(viewSettings.zoom);
-            AppMenus.setAnimationEnabled(viewSettings.animationEnabled);
+            AppMenus.setShowToolbar(viewSettings.showToolbar !== false);
+            AppMenus.setShowFileBrowser(viewSettings.showFileBrowser !== false);
+            AppMenus.setShowKnotBrowser(viewSettings.showKnotBrowser === true);
+            AppMenus.setShowPreview(viewSettings.showPreview === true);
             AppMenus.setAutoCompleteDisabled(viewSettings.autoCompleteDisabled);
             AppMenus.refresh();
+            
+            // Broadcast zoom to all windows
+            for (let window of ProjectWindow.all()) {
+                window.browserWindow.webContents.send('zoom', viewSettings.zoom);
+            }
         }
     });
 
@@ -399,3 +503,142 @@ function finalQuit() {
 
 onForceQuit(finalQuit);
 app.on("will-quit", finalQuit);
+
+
+// --- File System Operations via IPC ---
+ipcMain.handle('fs:readFile', async (event, filePath, options) => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filePath, options, (err, data) => {
+            if (err) reject(err);
+            else resolve(data);
+        });
+    });
+});
+
+ipcMain.handle('fs:writeFile', async (event, filePath, data, options) => {
+    return new Promise((resolve, reject) => {
+        fs.writeFile(filePath, data, options, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+});
+
+ipcMain.handle('fs:exists', async (event, filePath) => {
+    return new Promise((resolve) => {
+        fs.exists(filePath, (exists) => resolve(exists));
+    });
+});
+
+ipcMain.handle('fs:unlink', async (event, filePath) => {
+    return new Promise((resolve, reject) => {
+        fs.unlink(filePath, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+});
+
+ipcMain.handle('fs:stat', async (event, filePath) => {
+    return new Promise((resolve, reject) => {
+        fs.stat(filePath, (err, stats) => {
+            if (err) reject(err);
+            else resolve({
+                isFile: stats.isFile(),
+                isDirectory: stats.isDirectory(),
+                mtimeMs: stats.mtimeMs,
+                size: stats.size
+            });
+        });
+    });
+});
+
+// --- Path Operations via IPC ---
+ipcMain.handle('path:join', (event, ...paths) => path.join(...paths));
+ipcMain.handle('path:basename', (event, p, ext) => path.basename(p, ext));
+ipcMain.handle('path:dirname', (event, p) => path.dirname(p));
+ipcMain.handle('path:relative', (event, from, to) => path.relative(from, to));
+ipcMain.handle('path:extname', (event, p) => path.extname(p));
+ipcMain.handle('path:resolve', (event, ...paths) => path.resolve(...paths));
+ipcMain.handle('path:format', (event, pathObject) => path.format(pathObject));
+ipcMain.handle('path:parse', (event, p) => path.parse(p));
+
+ipcMain.handle('fs:mkdir', async (event, dirPath) => {
+    return new Promise((resolve, reject) => {
+        console.log("IN FS:MKDIR, fs is:", typeof fs, "dirPath:", dirPath);
+        if (!fs) {
+            console.error("fs is undefined! Using require('fs') locally");
+            require('fs').mkdir(dirPath, { recursive: true }, (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+            return;
+        }
+        fs.mkdir(dirPath, { recursive: true }, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+});
+
+ipcMain.handle('fs:copyFile', async (event, src, dest) => {
+    return new Promise((resolve, reject) => {
+        fs.copyFile(src, dest, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+});
+
+ipcMain.handle('fs:readdir', async (event, dirPath) => {
+    return new Promise((resolve, reject) => {
+        fs.readdir(dirPath, (err, files) => {
+            if (err) reject(err);
+            else resolve(files);
+        });
+    });
+});
+
+ipcMain.handle('fs:rename', async (event, oldPath, newPath) => {
+    return new Promise((resolve, reject) => {
+        fs.rename(oldPath, newPath, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+});
+
+const chokidar = require('chokidar');
+let watchers = {};
+ipcMain.handle('fs:watch', (event, dirPath) => {
+    if (watchers[dirPath]) return;
+    const watcher = chokidar.watch(dirPath, {
+        disableGlobbing: true,
+        ignored: [
+            /(^|[\/\\])\../,
+            "**/node_modules/**",
+            "**/bin/**",
+            "**/build/**",
+            "**/Inky-win32-x64/**"
+        ]
+    });
+    const sender = event.sender;
+    const emit = (eventName, path) => {
+        if (!sender.isDestroyed()) {
+            sender.send('fs:watcher-event', { dirPath, eventName, path });
+        }
+    };
+    watcher.on('add', (p) => emit('add', p));
+    watcher.on('change', (p) => emit('change', p));
+    watcher.on('unlink', (p) => emit('unlink', p));
+    watcher.on('ready', () => emit('ready', null));
+    watchers[dirPath] = watcher;
+});
+
+ipcMain.handle('fs:unwatch', (event, dirPath) => {
+    if (watchers[dirPath]) {
+        watchers[dirPath].close();
+        delete watchers[dirPath];
+    }
+});
+
