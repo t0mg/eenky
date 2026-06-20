@@ -4185,8 +4185,3 @@ var InkLanguageSupport = (config = {}) => {
   const configured = InkLanguage.configure(config);
   return new import_language.LanguageSupport(configured);
 };
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  InkLanguage,
-  InkLanguageSupport
-});

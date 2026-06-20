@@ -64,8 +64,10 @@ function ProjectWindow(filePath) {
     
     this.browserWindow.setSheetOffset(49);
 
-    // TEMPORARILY OPEN DEVTOOLS
-    this.browserWindow.webContents.openDevTools();
+    // Open DevTools only in development
+    if (isDev) {
+        this.browserWindow.webContents.openDevTools();
+    }
 
     this.safeToClose = false;
     this.mainInkAbsPath = filePath;

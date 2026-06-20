@@ -19,6 +19,9 @@ bin/win/
 bin/mac/
 bin/linux/
 
+# Build outputs
+dist-eenky/
+
 # Platform-specific eenk tool binaries inside ink/ (inkcpp_cl, eenk-sim)
 app/main-process/ink/win/
 app/main-process/ink/mac/

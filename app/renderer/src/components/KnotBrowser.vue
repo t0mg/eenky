@@ -8,21 +8,6 @@
       <div v-for="file in projectStore.files" :key="file.id" class="file-knots-group">
         <div class="file-name" v-if="Object.keys(getKnots(file)).length > 0 || Object.keys(getFunctions(file)).length > 0">{{ getFilename(file) }}</div>
         
-        <!-- Knots -->
-        <div v-for="(knot, knotName) in getKnots(file)" :key="knotName" class="knot-container">
-          <div class="knot-item symbol-item" @click="jumpToSymbol(file, knot)">
-            <span class="material-symbols-outlined knot-icon">commit</span>
-            <span class="symbol-name">{{ knotName }}</span>
-          </div>
-          
-          <div v-if="knot.innerSymbols" class="stitches">
-            <div v-for="(stitch, stitchName) in knot.innerSymbols" :key="stitchName" class="stitch-item symbol-item" @click="jumpToSymbol(file, stitch)">
-              <span class="material-symbols-outlined stitch-icon">wounds_injuries</span>
-              <span class="symbol-name">{{ stitchName }}</span>
-            </div>
-          </div>
-        </div>
-        
         <!-- Functions -->
         <div v-for="(func, funcName) in getFunctions(file)" :key="'fn_' + funcName" class="knot-container">
           <div class="knot-item symbol-item function-item" @click="jumpToSymbol(file, func)">
@@ -32,6 +17,24 @@
           
           <div v-if="func.innerSymbols" class="stitches">
             <div v-for="(stitch, stitchName) in func.innerSymbols" :key="stitchName" class="stitch-item symbol-item" @click="jumpToSymbol(file, stitch)">
+              <span class="material-symbols-outlined stitch-icon">wounds_injuries</span>
+              <span class="symbol-name">{{ stitchName }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Separator -->
+        <div v-if="Object.keys(getFunctions(file)).length > 0 && Object.keys(getKnots(file)).length > 0" class="symbol-separator"></div>
+
+        <!-- Knots -->
+        <div v-for="(knot, knotName) in getKnots(file)" :key="knotName" class="knot-container">
+          <div class="knot-item symbol-item" @click="jumpToSymbol(file, knot)">
+            <span class="material-symbols-outlined knot-icon">commit</span>
+            <span class="symbol-name">{{ knotName }}</span>
+          </div>
+          
+          <div v-if="knot.innerSymbols" class="stitches">
+            <div v-for="(stitch, stitchName) in knot.innerSymbols" :key="stitchName" class="stitch-item symbol-item" @click="jumpToSymbol(file, stitch)">
               <span class="material-symbols-outlined stitch-icon">wounds_injuries</span>
               <span class="symbol-name">{{ stitchName }}</span>
             </div>
@@ -161,5 +164,11 @@ const jumpToSymbol = (file, symbol) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.symbol-separator {
+  height: 1px;
+  background-color: var(--border-color, #e0e0e0);
+  margin: 4px 10px;
 }
 </style>

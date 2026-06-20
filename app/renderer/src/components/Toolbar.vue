@@ -51,11 +51,40 @@ import { ProjectController } from '../core/projectController.js';
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
 
+const saveAllFiles = async () => {
+  let success = true;
+  for (const file of projectStore.files) {
+    if (file.hasUnsavedChanges) {
+      const saved = await ProjectController.saveFile(file.id);
+      if (!saved) success = false;
+    }
+  }
+  return success;
+};
+
+const checkAndSave = async (actionName) => {
+  if (projectStore.hasUnsavedChanges) {
+    if (confirm(`You have unsaved changes. Would you like to save them before ${actionName}?`)) {
+      const saved = await saveAllFiles();
+      if (!saved) {
+        alert("Failed to save all files. Action aborted.");
+        return false;
+      }
+    } else {
+      return false; // User cancelled
+    }
+  }
+  return true;
+};
+
 const runCompilation = async () => {
+  if (!await checkAndSave('compiling')) return;
   ProjectController.exportProject('eenk');
 };
 
 const runSimulation = async () => {
+  if (!await checkAndSave('running the simulator')) return;
+  
   if (!projectStore.mainInkFile) {
     alert("No ink project loaded.");
     return;

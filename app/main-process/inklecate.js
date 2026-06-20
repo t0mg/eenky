@@ -6,21 +6,17 @@ const electron = require('electron');
 const ipc = electron.ipcMain;
 const mkdirp = require('mkdirp');
 
-// inklecate is packaged outside of the main asar bundle since it's executable
 const inklecateNames = {
-    "darwin": "/ink/inklecate_mac",
-    "win32":  "/ink/inklecate_win.exe",
-    "linux": "/ink/inklecate_linux"
-}
-const inklecateRootPathRelease = path.join(__dirname, "../../app.asar.unpacked/main-process");
-const inklecateRootPathDev = __dirname;
+    "darwin": "inklecate_mac",
+    "win32":  "inklecate_win.exe",
+    "linux": "inklecate_linux"
+};
 
-var inklecatePath = path.join(inklecateRootPathRelease, inklecateNames[process.platform]);
-
-// If inklecate isn't available here, we're probably in development mode (not packaged into a release asar)
-try { fs.accessSync(inklecatePath) }
-catch(e) {
-    inklecatePath = path.join(inklecateRootPathDev, inklecateNames[process.platform]);
+let inklecatePath;
+if (electron.app.isPackaged) {
+    inklecatePath = path.join(process.resourcesPath, 'ink', inklecateNames[process.platform]);
+} else {
+    inklecatePath = path.join(__dirname, 'ink', inklecateNames[process.platform]);
 }
 
 var tempInkPath;

@@ -16,11 +16,10 @@ const fs = require('fs');
 // ── Binary resolution ────────────────────────────────────────────────────────
 
 function getInkDir() {
-    const isPackaged = __dirname.includes('app.asar');
-    const root = isPackaged 
-        ? path.join(__dirname, '../../app.asar.unpacked/main-process')
-        : __dirname;
-    return path.join(root, 'ink');
+    const { app } = require('electron');
+    return app.isPackaged 
+        ? path.join(process.resourcesPath, 'ink')
+        : path.join(__dirname, 'ink');
 }
 
 function getInkcppBinary() {

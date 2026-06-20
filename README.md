@@ -1,12 +1,25 @@
 # EENKY — EENK Story Editor
 
-A forked and extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device via the **EENK** firmware.
+A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device via the **EENK** firmware.
+
+## ✨ Features & Differences from original Inky
+
+EENKY completely overhauls the original Inky architecture to support modern development, better usability, and deep hardware integration:
+
+- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery), giving EENKY a much snappier, reactive, and responsive interface.
+- **Improved Authoring Tools**: 
+  - An enhanced **Knot Browser** that distinctly categorizes Knots, Stitches, and Functions with unique iconography.
+  - A fast **Goto Anything (`Ctrl+P` / `Cmd+P`)** popup for instantly jumping across project files and symbols.
+  - Better view controls, including a Line Wrap toggle and refined Light/Dark themes.
+- **Embedded SDL Simulator**: Contains a pixel-accurate e-ink preview of the Xteink X4 hardware, compiled directly from the EENK firmware.
+- **One-Click Flashing**: Seamlessly flash compiled stories directly to your ESP32-based hardware via USB using the built-in Web Serial tool.
+- **Hardware Compilation Pipeline**: Retains `inklecate` for compiling `.ink` to `.json`, but automatically passes the output to the custom `inkcpp_cl` compiler to produce the `.bin` format required by the hardware.
 
 ## What's included
 
 | Tab | What it does |
 |-----|-------------|
-| **Editor** | Full-featured Ink script editor (from Inky) |
+| **Editor** | Full-featured Ink script editor, overhauled with Vue 3 and CodeMirror |
 | **Compile** | Compiles `.ink` → `.json` → `.bin` using inklecate + inkcpp_cl |
 | **Simulate** | Runs the story in the native SDL simulator (pixel-accurate e-ink preview built from EENK) |
 | **Flash** | Flashes the compiled firmware to the Xteink X4 via USB using ESP Web Tools |
@@ -19,33 +32,65 @@ A forked and extended version of [inkle's Inky](https://github.com/inkle/inky) I
 
 ## Getting Started
 
+> [!NOTE]  
+> The instructions below are generally **platform-agnostic**, however building native backends (step 2 & 3) require different toolchains depending on your OS. The CMake `-G "MinGW Makefiles"` flag in step 3 is Windows-specific; on macOS or Linux, omit that flag.
+
 ```sh
 # 1. Clone with submodules
 git clone --recurse-submodules https://github.com/t0mg/eenky.git
 cd eenky
 
-# 2. Install Node dependencies
-cd app && npm install
-
-# 3. Build the SDL simulator backend
-#    (Windows: make sure C:\msys64\mingw64\bin is in your PATH first for the native build)
-cd ../eenk
+# 2. Build the SDL simulator backend
+#    (Windows: requires MSYS2/MinGW in PATH)
+cd eenk
 pio run -e native
 cd ..
 
-# 4. Build the inkcpp_cl compiler backend
+# 3. Build the inkcpp_cl compiler backend
+#    (Mac/Linux: Omit the -G "MinGW Makefiles" flag)
 cd inkcpp
 cmake -B build -G "MinGW Makefiles" -DCMAKE_EXE_LINKER_FLAGS="-static"
 cmake --build build --config Release
 cd ..
 
-# 5. Copy binaries into place
+# 4. Install Node dependencies
 cd app
+npm install
+cd renderer
+npm install
+cd ..
+
+# 5. Copy binaries into place & setup
 npm run setup
 
 # 6. Launch EENKY
 npm start
 ```
+
+### Development Mode
+
+If you want to work on the UI, EENKY uses Vite for hot-module replacement (HMR) in the renderer. Simply running `npm start` from the `app` folder handles everything:
+```sh
+cd app
+npm start
+```
+*Note: `npm start` in the `app` folder uses `concurrently` to automatically start the Vite dev server and then open the Electron main process connected to it.*
+
+## Packaging for Production
+
+EENKY uses `electron-builder` to create distributable installers and binaries. To build a production package:
+
+```sh
+# 1. Build the Vue renderer
+cd app/renderer
+npm run build
+cd ..
+
+# 2. Package the app
+#    This creates the installer for your current operating system
+npm run dist
+```
+The output installers will be placed in the `dist-eenky` folder located at the root level of the project.
 
 ## Submodule Architecture
 

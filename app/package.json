@@ -76,6 +76,7 @@
     "chai-as-promised": "^7.1.2",
     "concurrently": "^10.0.3",
     "electron": "^30.0.4",
+    "electron-builder": "^26.15.3",
     "jsdom": "^24.0.0",
     "markdown-html": "^0.0.8",
     "mocha": "^10.4.0",

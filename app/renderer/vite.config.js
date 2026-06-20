@@ -13,5 +13,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+  },
+  build: {
+    chunkSizeWarningLimit: 1500,
   }
 })
