@@ -229,8 +229,9 @@ function refresh(appState = { isHome: false }) {
                 },
                 {
                     label: i18n._('Close'),
-                    accelerator: 'CmdOrCtrl+W',
-                    role: 'close'
+                    click: (item, focusedWindow) => {
+                        if (focusedWindow) focusedWindow.close();
+                    }
                 }
             ]
         },
@@ -360,6 +361,7 @@ function refresh(appState = { isHome: false }) {
                 },
                 {
                     label: i18n._('Add watch expression...'),
+                    accelerator: 'CmdOrCtrl+W',
                     click: callbacks.addWatchExpression
                 },
                 {
@@ -411,8 +413,9 @@ function refresh(appState = { isHome: false }) {
                 },
                 {
                     label: i18n._('Close'),
-                    accelerator: 'CmdOrCtrl+W',
-                    role: 'close'
+                    click: (item, focusedWindow) => {
+                        if (focusedWindow) focusedWindow.close();
+                    }
                 },
                 {
                     label: i18n._('Developer'),
@@ -453,12 +456,13 @@ function refresh(appState = { isHome: false }) {
             role: 'help',
             submenu: [
                 {
-                    label: i18n._('Show Documentation'),
+                    label: i18n._('Open Ink Documentation'),
                     accelerator: 'F1',
                     click: callbacks.showDocs
                 },
                 {
-                    label: i18n._('Useful Keyboard Shortcuts'),
+                    label: i18n._('Keyboard Shortcuts'),
+                    accelerator: 'CmdOrCtrl+?',
                     enabled: callbacks.isFocusedWindow,
                     click: callbacks.keyboardShortcuts
                 }

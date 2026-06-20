@@ -20,9 +20,6 @@
       <button @click="launchSimulator" title="Run in external simulator" class="toolbar-btn">
         <span class="material-symbols-outlined">document_scanner</span>
       </button>
-      <button @click="toggleSimulator" title="Toggle Preview Panel" class="toolbar-btn" :class="{ active: uiStore.showSimulator }">
-        <span class="material-symbols-outlined">right_panel_close</span>
-      </button>
       <button @click="exportJson" title="Export JSON" class="toolbar-btn">
         <span class="material-symbols-outlined">file_json</span>
       </button>
@@ -36,6 +33,9 @@
         <span class="material-symbols-outlined">
           {{ uiStore.theme === 'dark' ? 'dark_mode' : (uiStore.theme === 'light' ? 'light_mode' : 'light_mode_auto') }}
         </span>
+      </button>
+      <button @click="toggleSimulator" title="Toggle Preview Panel" class="toolbar-btn" :class="{ active: uiStore.showSimulator }">
+        <span class="material-symbols-outlined">right_panel_close</span>
       </button>
     </div>
   </div>

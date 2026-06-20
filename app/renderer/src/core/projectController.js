@@ -326,16 +326,28 @@ export const ProjectController = {
         defaultExportPath = await window.api.path.format(pathObj);
     }
 
-    const saveOptions = { defaultPath: defaultExportPath };
+    let targetSavePath;
+    
+    if (exportType === "web") {
+        const result = await window.api.invoke('eenk:open-file-dialog', {
+            title: "Select Export Folder",
+            defaultPath: defaultExportPath,
+            properties: ['openDirectory', 'createDirectory', 'promptToCreate']
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+            targetSavePath = result.filePaths[0];
+        }
+    } else {
+        const saveOptions = { defaultPath: defaultExportPath };
 
-    if (exportType === "json") {
-        saveOptions.filters = [{ name: "JSON files", extensions: ["json"] }];
-    } else if (exportType === "js") {
-        saveOptions.filters = [{ name: "JavaScript files", extensions: ["js"] }];
+        if (exportType === "json") {
+            saveOptions.filters = [{ name: "JSON files", extensions: ["json"] }];
+        } else if (exportType === "js") {
+            saveOptions.filters = [{ name: "JavaScript files", extensions: ["js"] }];
+        }
+        const result = await window.api.invoke('showSaveDialog', saveOptions);
+        targetSavePath = result.filePath;
     }
-
-    const result = await window.api.invoke('showSaveDialog', saveOptions);
-    const targetSavePath = result.filePath;
     
     if (targetSavePath) {
         if (exportType === "json" || exportType === "js") {
@@ -384,8 +396,11 @@ export const ProjectController = {
   },
 
   async copyDir(src, dest) {
-    await window.api.fs.mkdir(dest);
-    const files = await window.api.invoke('fs:readdir', src);
+    const stats = await window.api.fs.stat(dest).catch(() => null);
+    if (!stats) {
+        await window.api.fs.mkdir(dest);
+    }
+    const files = await window.api.fs.readdir(src);
     for (const file of files) {
         const srcFile = await window.api.path.join(src, file);
         const destFile = await window.api.path.join(dest, file);
@@ -417,11 +432,10 @@ export const ProjectController = {
 
         let indexHtmlPath = await window.api.path.join(targetDirectory, "index.html");
         let htmlContent = await window.api.fs.readFile(indexHtmlPath, "utf8");
-        htmlContent = htmlContent.replace("<title>Story</title>", `<title>${storyTitle}</title>`);
-        htmlContent = htmlContent.replace("<h1>Story</h1>", `<h1>${storyTitle}</h1>`);
+        htmlContent = htmlContent.replace(/##STORY TITLE##/g, storyTitle);
         
         let jsContentFilename = await this.jsFilename(store.mainInkFile);
-        htmlContent = htmlContent.replace('<script src="story.js"></script>', `<script src="${jsContentFilename}"></script>`);
+        htmlContent = htmlContent.replace(/##JAVASCRIPT FILENAME##/g, jsContentFilename);
         
         await window.api.fs.writeFile(indexHtmlPath, htmlContent, "utf8");
 

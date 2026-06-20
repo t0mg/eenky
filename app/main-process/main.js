@@ -324,7 +324,39 @@ app.on('ready', function () {
             DocumentationWindow.openDocumentation(ProjectWindow.getViewSettings().theme);
         },
         showAbout: () => {
-            AboutWindow.showAboutWindow(ProjectWindow.getViewSettings().theme);
+            var win = ProjectWindow.focused();
+            if (win) {
+                const versionFilePath = "ink/version.txt";
+                const eenkVersionFilePath = "ink/eenk_version.txt";
+                const inklecateRootPathRelease = path.join(__dirname, "../../app.asar.unpacked/main-process");
+                const inklecateRootPathDev = __dirname;
+                
+                var fullVersionFilePath = path.join(inklecateRootPathRelease, versionFilePath);
+                try { fs.accessSync(versionFilePath) } catch (e) {
+                    fullVersionFilePath = path.join(inklecateRootPathDev, versionFilePath);
+                }
+                
+                var fullEenkVersionFilePath = path.join(inklecateRootPathRelease, eenkVersionFilePath);
+                try { fs.accessSync(eenkVersionFilePath) } catch (e) {
+                    fullEenkVersionFilePath = path.join(inklecateRootPathDev, eenkVersionFilePath);
+                }
+
+                var inkVersion = "Unknown";
+                try { inkVersion = fs.readFileSync(fullVersionFilePath, "utf8").trim(); } catch(e){}
+                
+                var eenkVersion = "Unknown";
+                try { eenkVersion = fs.readFileSync(fullEenkVersionFilePath, "utf8").trim(); } catch(e){}
+                
+                let inkjsVersion = "Unknown";
+                try { inkjsVersion = require('inkjs/package.json').version; } catch(e){}
+                
+                win.browserWindow.webContents.send('show-about', {
+                    eenkyVersion: app.getVersion(),
+                    inkVersion: inkVersion,
+                    inkjsVersion: inkjsVersion,
+                    eenkVersion: eenkVersion
+                });
+            }
         },
         keyboardShortcuts: () => {
             var win = ProjectWindow.focused();

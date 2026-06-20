@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('api', {
             'insertSnippet', 'eenk:trigger-compile', 'eenk:launch-simulator',
             'toggle-toolbar', 'toggle-file-browser', 'toggle-knot-browser', 'toggle-preview',
             'zoom', 'goto-anything', 'add-watch-expression', 'set-tags-visible',
-            'keyboard-shortcuts', 'project-stats', 'find', 'replace'
+            'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about'
         ];
         if (validChannels.includes(channel)) {
             // Deliberately strip event as it includes `sender` 

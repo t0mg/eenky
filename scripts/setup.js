@@ -129,6 +129,29 @@ if (fs.existsSync(inklecatePath)) {
     allOk = false;
 }
 
+// ── 4. Write eenk_version.txt ──────────────────────────────────────────────
+console.log('\n4. Write eenk_version.txt');
+try {
+    const { execSync } = require('child_process');
+    const hash = execSync('git rev-parse --short HEAD', { cwd: EENK }).toString().trim();
+    const versionFile = path.join(ROOT, 'app', 'main-process', 'ink', 'eenk_version.txt');
+    if (!checkOnly) fs.writeFileSync(versionFile, hash, 'utf8');
+    console.log(`  ✔  eenk_version.txt -> ${hash}`);
+} catch(e) {
+    console.warn(`  ⚠  Could not get git hash for eenk: ${e.message}`);
+}
+
+// ── 5. Copy ink.js to export-for-web-template ───────────────────────────────
+console.log('\n5. Copy ink.js to export-for-web-template');
+try {
+    const srcInk = path.join(ROOT, 'app', 'node_modules', 'inkjs', 'dist', 'ink.js');
+    const dstInk = path.join(ROOT, 'app', 'export-for-web-template', 'ink.js');
+    if (!checkOnly) fs.copyFileSync(srcInk, dstInk);
+    console.log(`  ✔  ink.js copied to export-for-web-template`);
+} catch(e) {
+    console.warn(`  ⚠  Could not copy ink.js: ${e.message}`);
+}
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 console.log('');
 if (allOk) {

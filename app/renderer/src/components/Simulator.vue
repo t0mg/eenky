@@ -9,7 +9,7 @@
       </button>
     </div>
     
-    <div class="expressionWatch" v-if="watchExpressions.length > 0">
+    <div class="expressionWatch" v-if="watchExpressions.length > 0" style="border-bottom: 1px solid var(--border-color, #e0e0e0);">
       <table class="expressionTable" style="width: 100%; border-collapse: collapse;">
         <tr v-for="(watchObj, index) in watchExpressions" :key="index">
           <td class="expressionLabel" style="width: 80px; font-size: 0.9em; color: var(--text-muted, #777); padding-left: 8px;">Every turn:</td>
@@ -17,7 +17,7 @@
             <input 
               type="text" 
               v-model="watchObj.expr" 
-              @change="evaluateAllWatches"
+              @change="() => evaluateAllWatches()"
               placeholder="x is {x}"
               style="flex: 1; border: none; background: transparent; color: inherit; padding: 4px; outline: none; font-family: monospace;"
             />
@@ -27,11 +27,6 @@
           </td>
         </tr>
       </table>
-      <div v-if="watchResults.length > 0" class="evaluationResults">
-        <div v-for="(res, i) in watchResults" :key="i" class="evaluationResult" :class="{ error: res.error }">
-          <span v-if="res.result !== null">{{ res.result }}</span>
-        </div>
-      </div>
     </div>
     
     <div class="player-content" ref="scrollContainer">
@@ -39,6 +34,11 @@
         <div v-if="block.type === 'text'" class="story-text" v-html="formatText(block.text)"></div>
         <div v-else-if="block.type === 'tags'" class="story-tags">
           <span v-for="tag in block.tags" :key="tag" class="tag"># {{ tag }}</span>
+        </div>
+        <div v-else-if="block.type === 'watch-result'" class="story-watch-result">
+          <div v-for="(res, i) in block.results" :key="i" class="watch-pill" :class="{ error: res.error }" :title="res.expr">
+            {{ res.result }}
+          </div>
         </div>
         <div v-else-if="block.type === 'choice'" class="story-choice">
           <button @click="makeChoice(block.choice)" class="choice-btn">
@@ -65,35 +65,35 @@ const projectStore = useProjectStore();
 const blocks = ref([]);
 const scrollContainer = ref(null);
 const watchExpressions = ref([]);
-const watchResults = ref([]);
 
-const evaluateAllWatches = () => {
+const evaluateAllWatches = (onComplete) => {
   if (watchExpressions.value.length === 0) {
-    watchResults.value = [];
+    if (onComplete) onComplete();
     return;
   }
   
-  // Create a clean copy of the expressions to evaluate
-  const expressionsToEval = watchExpressions.value.map(w => w.expr);
-  watchResults.value = new Array(expressionsToEval.length).fill({ result: null, error: false });
+  const expressionsToEval = watchExpressions.value.filter(w => w.expr && w.expr.trim() !== '');
+  if (expressionsToEval.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
   
-  // Evaluate them sequentially since the backend only supports one callback at a time
+  const results = [];
+  
   const evalNext = (index) => {
-    if (index >= expressionsToEval.length) return;
-    
-    const expr = expressionsToEval[index];
-    if (!expr || expr.trim() === '') {
-      watchResults.value[index] = { result: null, error: false };
-      evalNext(index + 1);
+    if (index >= expressionsToEval.length) {
+      blocks.value.push({ type: 'watch-result', results });
+      scrollToBottom();
+      if (onComplete) onComplete();
       return;
     }
     
-    LiveCompiler.evaluateExpression(expr, (result, error) => {
-      if (error) {
-        watchResults.value[index] = { result: error, error: true };
-      } else {
-        watchResults.value[index] = { result: result, error: false };
-      }
+    LiveCompiler.evaluateExpression(expressionsToEval[index].expr, (result, error) => {
+      results.push({
+        expr: expressionsToEval[index].expr,
+        result: error ? error : result,
+        error: !!error
+      });
       evalNext(index + 1);
     });
   };
@@ -103,12 +103,10 @@ const evaluateAllWatches = () => {
 
 const addWatchExpression = () => {
   watchExpressions.value.push({ expr: '' });
-  watchResults.value.push({ result: null, error: false });
 };
 
 const removeWatch = (index) => {
   watchExpressions.value.splice(index, 1);
-  watchResults.value.splice(index, 1);
   evaluateAllWatches();
 };
 
@@ -144,20 +142,22 @@ onMounted(() => {
         blocks.value.push({ type: 'choice', choice });
         scrollToBottom();
       }
-      evaluateAllWatches();
     },
     errorsAdded: (errors) => {
       projectStore.setIssues(errors);
     },
     storyCompleted: () => {
-      blocks.value.push({ type: 'end' });
-      scrollToBottom();
+      evaluateAllWatches(() => {
+        blocks.value.push({ type: 'end' });
+        scrollToBottom();
+      });
     },
     playerPrompt: (replaying, callback) => {
-      evaluateAllWatches();
-      if (replaying) {
-        callback();
-      }
+      evaluateAllWatches(() => {
+        if (replaying) {
+          callback();
+        }
+      });
     },
     exitDueToError: () => {
       blocks.value.push({ type: 'error', message: 'Story exited due to error.' });
@@ -285,5 +285,29 @@ const formatText = (text) => {
 .story-error {
   color: var(--error-color, #d32f2f);
   font-weight: bold;
+}
+
+.story-watch-result {
+  text-align: center;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.watch-pill {
+  background-color: var(--border-color, #e0e0e0);
+  color: var(--text-color, #777);
+  padding: 4px 16px;
+  border-radius: 16px;
+  font-size: calc(13px * var(--zoom-factor, 1));
+  display: inline-block;
+  font-family: monospace;
+}
+
+.watch-pill.error {
+  background-color: var(--error-color, #d32f2f);
+  color: white;
 }
 </style>

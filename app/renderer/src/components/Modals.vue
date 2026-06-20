@@ -3,26 +3,40 @@
     <div class="modal-content" role="dialog" aria-modal="true">
       
       <!-- Issue Popup / Settings / About etc. -->
-      <div v-if="uiStore.modalState.type === 'about'" class="modal-body">
-        <h2>About EENKY</h2>
-        <p>EENKY is a minimalist editor and player for ink, forked from Inky by inkle.</p>
+      <div v-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
+        <div class="about-header">
+          <!-- <img src="/about/icon256.png" class="about-icon" alt="EENKY icon" draggable="false" /> -->
+          <h2>EENKY</h2>
+          <p>a child of inkle's Inky</p>
+        </div>
+        <div class="about-versions" v-if="aboutData">
+          <p v-if="aboutData.eenkyVersion">EENKY v{{ aboutData.eenkyVersion }}</p>
+          <p v-if="aboutData.inkVersion">Inky Compiler v{{ aboutData.inkVersion }}</p>
+          <p v-if="aboutData.inkjsVersion">InkJS v{{ aboutData.inkjsVersion }}</p>
+          <p v-if="aboutData.eenkVersion">EENK Compiler v{{ aboutData.eenkVersion }}</p>
+          <p v-if="aboutData.eenkVersion">EENK Simulator v{{ aboutData.eenkVersion }}</p>
+        </div>
         <button @click="closeModal" class="primary-btn">Close</button>
       </div>
 
       <div v-else-if="uiStore.modalState.type === 'shortcuts'" class="modal-body">
         <h2>Useful Keyboard Shortcuts</h2>
         <table class="shortcuts-table">
+          <tbody>
           <tr><td>New Project</td><td>{{ ctrlCmd }} + N</td></tr>
           <tr><td>Save Project</td><td>{{ ctrlCmd }} + S</td></tr>
           <tr><td>Compile to EENK</td><td>{{ ctrlCmd }} + B</td></tr>
           <tr><td>Undo</td><td>{{ ctrlCmd }} + Z</td></tr>
           <tr><td>Redo</td><td>{{ ctrlCmd }} + Shift + Z</td></tr>
-          <tr><td>Find / Replace</td><td>{{ ctrlCmd }} + F</td></tr>
+          <tr><td>Find / Replace</td><td>{{ ctrlCmd }} + F / H</td></tr>
           <tr><td>Go to Anything</td><td>{{ ctrlCmd }} + P</td></tr>
           <tr><td>Next Issue</td><td>{{ ctrlCmd }} + .</td></tr>
+          <tr><td>Add watch expression</td><td>{{ ctrlCmd }} + W</td></tr>
           <tr><td>Rewind Story</td><td>{{ ctrlCmd }} + R</td></tr>
           <tr><td>Step Back Story</td><td>{{ ctrlCmd }} + [</td></tr>
           <tr><td>Zoom In / Out / Reset</td><td>{{ ctrlCmd }} + + / - / 0</td></tr>
+          <tr><td>Keyboard Shortcuts</td><td>{{ ctrlCmd }} + ?</td></tr>
+          </tbody>
         </table>
         <button @click="closeModal" class="primary-btn">Close</button>
       </div>
@@ -66,6 +80,14 @@ import { LiveCompiler } from '../core/liveCompiler';
 const uiStore = useUiStore();
 const overlay = ref(null);
 const statsData = ref(null);
+const aboutData = ref(null);
+
+if (window.api && window.api.receive) {
+  window.api.receive('show-about', (data) => {
+    aboutData.value = data;
+    uiStore.openModal('about');
+  });
+}
 
 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 const ctrlCmd = isMac ? '⌘' : 'Ctrl';
@@ -140,9 +162,29 @@ watch(() => uiStore.modalState.isOpen, async (isOpen) => {
 .shortcuts-table td {
   padding: 4px 8px;
   border-bottom: 1px solid var(--border-color, #e0e0e0);
+  font-size: 0.9em;
 }
 
 .shortcuts-table td:first-child {
-  font-weight: bold;
+  font-weight: 500;
+}
+
+.about-header {
+  text-align: center;
+}
+.about-icon {
+  width: 100px;
+  height: 100px;
+  margin-top: 10px;
+}
+.about-versions {
+  text-align: center;
+  font-family: monospace;
+  font-size: 0.9em;
+  color: var(--text-muted, #777);
+  margin: 10px 0;
+}
+.about-versions p {
+  margin: 4px 0;
 }
 </style>
