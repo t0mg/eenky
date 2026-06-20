@@ -6,17 +6,33 @@
     
     <div class="knot-list">
       <div v-for="file in projectStore.files" :key="file.id" class="file-knots-group">
-        <div class="file-name" v-if="Object.keys(getSymbols(file)).length > 0">{{ getFilename(file) }}</div>
+        <div class="file-name" v-if="Object.keys(getKnots(file)).length > 0 || Object.keys(getFunctions(file)).length > 0">{{ getFilename(file) }}</div>
         
-        <div v-for="(knot, knotName) in getSymbols(file)" :key="knotName" class="knot-container">
+        <!-- Knots -->
+        <div v-for="(knot, knotName) in getKnots(file)" :key="knotName" class="knot-container">
           <div class="knot-item symbol-item" @click="jumpToSymbol(file, knot)">
-            <span class="material-symbols-outlined knot-icon">flag</span>
+            <span class="material-symbols-outlined knot-icon">commit</span>
             <span class="symbol-name">{{ knotName }}</span>
           </div>
           
           <div v-if="knot.innerSymbols" class="stitches">
             <div v-for="(stitch, stitchName) in knot.innerSymbols" :key="stitchName" class="stitch-item symbol-item" @click="jumpToSymbol(file, stitch)">
-              <span class="material-symbols-outlined stitch-icon">commit</span>
+              <span class="material-symbols-outlined stitch-icon">wounds_injuries</span>
+              <span class="symbol-name">{{ stitchName }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Functions -->
+        <div v-for="(func, funcName) in getFunctions(file)" :key="'fn_' + funcName" class="knot-container">
+          <div class="knot-item symbol-item function-item" @click="jumpToSymbol(file, func)">
+            <span class="material-symbols-outlined knot-icon">function</span>
+            <span class="symbol-name">{{ funcName }}</span>
+          </div>
+          
+          <div v-if="func.innerSymbols" class="stitches">
+            <div v-for="(stitch, stitchName) in func.innerSymbols" :key="stitchName" class="stitch-item symbol-item" @click="jumpToSymbol(file, stitch)">
+              <span class="material-symbols-outlined stitch-icon">wounds_injuries</span>
               <span class="symbol-name">{{ stitchName }}</span>
             </div>
           </div>
@@ -31,8 +47,22 @@ import { useProjectStore } from '../stores/projectStore';
 
 const projectStore = useProjectStore();
 
-const getSymbols = (file) => {
-  return file.symbols || {};
+const getKnots = (file) => {
+  const symbols = file.symbols || {};
+  const knots = {};
+  for (const [key, val] of Object.entries(symbols)) {
+    if (!val.isfunc) knots[key] = val;
+  }
+  return knots;
+};
+
+const getFunctions = (file) => {
+  const symbols = file.symbols || {};
+  const funcs = {};
+  for (const [key, val] of Object.entries(symbols)) {
+    if (val.isfunc) funcs[key] = val;
+  }
+  return funcs;
 };
 
 const getFilename = (file) => {

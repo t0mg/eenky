@@ -78,7 +78,10 @@ watch([() => projectStore.mainInkFile, () => projectStore.hasUnsavedChanges], as
 
 const updateAppMenuState = () => {
   if (window.api && window.api.send) {
-    window.api.send('app-state-changed', { isHome: !projectStore.mainInkFile });
+    window.api.send('app-state-changed', { 
+      isHome: !projectStore.mainInkFile,
+      hasUnsavedChanges: projectStore.hasUnsavedChanges
+    });
   }
 };
 
@@ -155,7 +158,7 @@ onMounted(() => {
   updateAppMenuState();
 });
 
-watch(() => projectStore.mainInkFile, () => {
+watch([() => projectStore.mainInkFile, () => projectStore.hasUnsavedChanges], () => {
   updateAppMenuState();
 });
 

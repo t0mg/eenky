@@ -196,9 +196,13 @@ export const ProjectController = {
       absolutePath: anyPath,
       relPath: anyPath ? this._basename(anyPath) : 'Untitled.ink',
       content: '',
+      savedContent: '',
+      get hasUnsavedChanges() {
+        if (this.isBrandNew) return true;
+        return this.content !== this.savedContent;
+      },
       symbols: {},
       includes: [],
-      hasUnsavedChanges: isBrandNew,
       isLoading: !isBrandNew,
       isActive: false,
       isUnused: false
@@ -216,20 +220,19 @@ export const ProjectController = {
       let data = await window.api.fs.readFile(file.absolutePath, 'utf8');
       data = data.replace(/^\uFEFF/, '');
       file.content = data;
-      file.hasUnsavedChanges = false;
+      file.savedContent = data;
       file.isLoading = false;
       
       this.parseSymbols(file);
     } catch(err) {
       console.error("Failed to load file:", err);
-      file.hasUnsavedChanges = true;
+      file.savedContent = null;
       file.isLoading = false;
     }
   },
 
   updateFileContent(file, newContent) {
     file.content = newContent;
-    file.hasUnsavedChanges = true;
     file.compilerVersionDirty = true;
     this.parseSymbols(file);
     LiveCompiler.setEdited();
@@ -523,7 +526,8 @@ export const ProjectController = {
         console.log("[DEBUG] writing file to disk:", file.absolutePath);
         await window.api.fs.writeFile(file.absolutePath, file.content || "", "utf8");
         
-        file.hasUnsavedChanges = false;
+        file.savedContent = file.content;
+        file.isBrandNew = false;
         file.justSaved = true; // flag to ignore watcher
         
         console.log("[DEBUG] sending main-file-saved IPC...");

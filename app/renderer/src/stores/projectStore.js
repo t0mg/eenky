@@ -6,12 +6,16 @@ export const useProjectStore = defineStore('project', {
     files: [],
     mainInkFile: null,
     activeInkFile: null,
-    hasUnsavedChanges: false,
     compilerBusy: false,
     issues: [],
     ready: false,
     instructionPrefix: "",
   }),
+  getters: {
+    hasUnsavedChanges(state) {
+      return state.files.some(f => f.hasUnsavedChanges);
+    }
+  },
   actions: {
     setProjectInfo({ files, mainInkFile, instructionPrefix }) {
       this.files = files;
@@ -51,14 +55,10 @@ export const useProjectStore = defineStore('project', {
     setIssues(issues) {
       this.issues = issues;
     },
-    setHasUnsavedChanges(unsaved) {
-      this.hasUnsavedChanges = unsaved;
-    },
     closeProject() {
       this.files = [];
       this.mainInkFile = null;
       this.activeInkFile = null;
-      this.hasUnsavedChanges = false;
       this.compilerBusy = false;
       this.issues = [];
       this.ready = false;

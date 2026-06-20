@@ -42,7 +42,6 @@ describe('Project Controller', () => {
 
     const file = store.mainInkFile;
     file.content = 'New Content!';
-    file.hasUnsavedChanges = true;
 
     await ProjectController.saveFile(file.id);
 
