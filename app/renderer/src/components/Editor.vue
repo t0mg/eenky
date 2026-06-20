@@ -176,32 +176,34 @@ const onUpdate = EditorView.updateListener.of((update) => {
   }
 });
 
+const getEditorExtensions = () => [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  history(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  syntaxHighlighting(inkHighlightStyle),
+  inkEditorTheme,
+  highlightActiveLine(),
+  keymap.of([
+    ...defaultKeymap,
+    ...customHistoryKeymap,
+    ...searchKeymap,
+    indentWithTab
+  ]),
+  search({top: true}),
+  lintGutter(),
+  languageCompartment.of(InkLanguageSupport()),
+  autocompleteCompartment.of(uiStore.autoCompleteDisabled ? [] : autocompletion({ override: [inkCompletionSource] })),
+  onUpdate
+];
+
 onMounted(() => {
   view = new EditorView({
     state: EditorState.create({
       doc: projectStore.activeInkFile ? (projectStore.activeInkFile.content || "") : "",
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        history(),
-        drawSelection(),
-        dropCursor(),
-        EditorState.allowMultipleSelections.of(true),
-        syntaxHighlighting(inkHighlightStyle),
-        inkEditorTheme,
-        highlightActiveLine(),
-        keymap.of([
-          ...defaultKeymap,
-          ...customHistoryKeymap,
-          ...searchKeymap,
-          indentWithTab
-        ]),
-        search({top: true}),
-        lintGutter(),
-        languageCompartment.of(InkLanguageSupport()),
-        autocompleteCompartment.of(uiStore.autoCompleteDisabled ? [] : autocompletion({ override: [inkCompletionSource] })),
-        onUpdate
-      ]
+      extensions: getEditorExtensions()
     }),
     parent: editorContainer.value
   });
@@ -294,9 +296,10 @@ watch(() => projectStore.activeInkFile, (newFile, oldFile) => {
   if (view && newFile) {
     const text = newFile.content || "";
     if (view.state.doc.toString() !== text) {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: text }
-      });
+      view.setState(EditorState.create({
+        doc: text,
+        extensions: getEditorExtensions()
+      }));
     }
   }
 });
@@ -304,9 +307,11 @@ watch(() => projectStore.activeInkFile, (newFile, oldFile) => {
 // Watch for content changes from external sources (e.g. disk load)
 watch(() => projectStore.activeInkFile?.content, (newContent) => {
     if (view && newContent !== undefined && view.state.doc.toString() !== newContent) {
-        view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: newContent }
-        });
+      // Create new state to avoid adding initial load to undo history
+      view.setState(EditorState.create({
+        doc: newContent,
+        extensions: getEditorExtensions()
+      }));
     }
 });
 
