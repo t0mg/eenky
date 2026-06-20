@@ -52,14 +52,14 @@ function initializeNavigation() {
 
                 var headlineType;
                 headlineType = 'h' + numberOfOccurrences(line, '#', false);
-                output = output + ' ' + '<li><a id="#' + id + ' "onclick="openPath(this.id)" class="nav-' + headlineType + '">' + headline + '</a></li>\n';
+                output = output + ' ' + '<li><a id="#' + id + ' "href="#" onclick="openPath(this.id); return false;" class="nav-' + headlineType + '">' + headline + '</a></li>\n';
 
             }
             output = output + originalFile[1];
 
-            mkdirp.sync("../app/renderer/documentation/");
+            mkdirp.sync("../app/renderer/public/documentation/");
             
-            fs.writeFile('../app/renderer/documentation/window.html', output, function (thirdErr) {
+            fs.writeFile('../app/renderer/public/documentation/window.html', output, function (thirdErr) {
                 if (thirdErr) {
                     return console.log(thirdErr);
                 }

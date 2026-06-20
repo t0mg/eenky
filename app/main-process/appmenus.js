@@ -18,6 +18,7 @@ let showToolbar = true;
 let showFileBrowser = true;
 let showKnotBrowser = false;
 let showPreview = false;
+let lineWrap = true;
 
 
 let callbacks = {
@@ -319,6 +320,12 @@ function refresh(appState = { isHome: false }) {
                     click: callbacks.toggleAutoComplete
                 },
                 {
+                    label: i18n._("Line Wrap"),
+                    type: "checkbox",
+                    checked: lineWrap,
+                    click: callbacks.toggleLineWrap
+                },
+                {
                     label: i18n._("Toolbar"),
                     type: "checkbox",
                     checked: showToolbar,
@@ -556,6 +563,7 @@ exports.AppMenus = {
     setShowFileBrowser: (e) => showFileBrowser = e,
     setShowKnotBrowser: (e) => showKnotBrowser = e,
     setShowPreview: (e) => showPreview = e,
+    setLineWrap: (e) => lineWrap = e,
     setCustomSnippetMenus: (snippets) => { customInkSnippets = snippets },
     refresh: refresh
 }

@@ -1,5 +1,6 @@
 body {
-     font-family: Helvetica, sans-serif;
+     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+     margin: 0 15px;
 }
 
 h1 {
@@ -22,7 +23,7 @@ h3 {
 
 p {
     font-size: 11pt;
-    color: #444;
+    color: #333;
     line-height: 1.65em;
 }
 
@@ -45,12 +46,12 @@ pre code {
 
 /* Dark Mode Colors */
 html.dark body {
-    background-color: #181818;
-    color: #e3e3dd;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
 }
 
 html.dark p {
-    color: #ccc;
+    color: #d4d4d4;
 }
 
 html.dark h1 {
@@ -67,27 +68,33 @@ html.dark pre code {
 }
 
 
-/* scrollbars */
-html.dark *::-webkit-scrollbar {
-    width: auto;
+/* CSS Variables */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --border-color: #cccccc;
 }
 
-html.dark *::-webkit-scrollbar-track,
-html.dark *::-webkit-scrollbar-track-piece,
-html.dark *::-webkit-scrollbar-corner,
-html.dark *::-webkit-resizer {
-    background-color: #181818;
+html.dark {
+  --bg-color: #1e1e1e;
+  --text-color: #d4d4d4;
+  --border-color: #3c3c3c;
 }
 
-html.dark *::-webkit-scrollbar-thumb {
-    background-color: #777;
-    transition: background-color 0.6s;
-    box-shadow: inset 0px 0px 10px 0px #00000061;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
-
-html.dark *::-webkit-scrollbar-thumb:hover {
-    background-color: #999;
-    transition: background-color 0.6s;
+::-webkit-scrollbar-track {
+  background: var(--bg-color); 
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color); 
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-color); 
 }
 
 /* Don't need table of contents in inky version since we have a sidebar */

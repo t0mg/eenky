@@ -119,6 +119,7 @@ function ProjectWindow(filePath) {
         this.browserWindow.webContents.send('toggle-file-browser', settings.showFileBrowser !== false);
         this.browserWindow.webContents.send('toggle-knot-browser', settings.showKnotBrowser === true);
         this.browserWindow.webContents.send('toggle-preview', settings.showPreview === true);
+        this.browserWindow.webContents.send('toggle-line-wrap', settings.lineWrap !== false);
     });
 
     // Project settings may affect menus etc, so we refresh that

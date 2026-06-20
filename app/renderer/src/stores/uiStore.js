@@ -11,6 +11,7 @@ export const useUiStore = defineStore('ui', {
     theme: 'light',
     zoom: '100',
     autoCompleteDisabled: false,
+    lineWrap: true,
     sidebarWidth: 250,
     simulatorWidth: 350,
     modalState: {
@@ -20,6 +21,9 @@ export const useUiStore = defineStore('ui', {
     }
   }),
   actions: {
+    setLineWrap(wrap) {
+      this.lineWrap = wrap;
+    },
     setActiveView(view) {
       this.activeView = view;
     },

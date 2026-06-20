@@ -66,10 +66,11 @@ const onMouseUp = () => {
   isResizingSimulator.value = false;
 };
 
-watch(() => projectStore.mainInkFile, async (newFile) => {
+watch([() => projectStore.mainInkFile, () => projectStore.hasUnsavedChanges], async ([newFile, hasUnsaved]) => {
   if (newFile) {
     const bn = newFile.relPath ? await window.api.path.basename(newFile.relPath) : 'Untitled';
-    document.title = `${bn} - EENKY`;
+    const star = hasUnsaved ? '*' : '';
+    document.title = `${bn}${star} - EENKY`;
   } else {
     document.title = 'EENKY';
   }
@@ -128,6 +129,9 @@ onMounted(() => {
     });
     window.api.receive('toggle-preview', (show) => {
       uiStore.showSimulator = show;
+    });
+    window.api.receive('toggle-line-wrap', (wrap) => {
+      uiStore.setLineWrap(wrap);
     });
     window.api.receive('zoom', (zoom) => {
       uiStore.setZoom(zoom);

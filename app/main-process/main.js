@@ -454,6 +454,17 @@ app.on('ready', function () {
                 eachWindow.browserWindow.webContents.send("set-autocomplete-disabled", autoCompleteDisabled);
             }
         },
+        toggleLineWrap: () => {
+            let win = ProjectWindow.focused();
+            if (win) {
+                let lineWrap = ProjectWindow.getViewSettings().lineWrap !== false;
+                lineWrap = !lineWrap;
+                ProjectWindow.addOrChangeViewSetting('lineWrap', lineWrap);
+                win.browserWindow.webContents.send("toggle-line-wrap", lineWrap);
+                AppMenus.setLineWrap(lineWrap);
+                AppMenus.refresh(AppMenus.currentState);
+            }
+        },
         insertSnippet: (focussedWindow, snippet) => {
             if( focussedWindow )
             focussedWindow.webContents.send('insertSnippet', snippet);
@@ -474,6 +485,7 @@ app.on('ready', function () {
     AppMenus.setShowKnotBrowser(ProjectWindow.getViewSettings().showKnotBrowser === true);
     AppMenus.setShowPreview(ProjectWindow.getViewSettings().showPreview === true);
     AppMenus.setAutoCompleteDisabled(ProjectWindow.getViewSettings().autoCompleteDisabled);
+    AppMenus.setLineWrap(ProjectWindow.getViewSettings().lineWrap !== false);
 
     AppMenus.refresh();
     ProjectWindow.setEvents({
@@ -494,6 +506,7 @@ app.on('ready', function () {
             AppMenus.setShowKnotBrowser(viewSettings.showKnotBrowser === true);
             AppMenus.setShowPreview(viewSettings.showPreview === true);
             AppMenus.setAutoCompleteDisabled(viewSettings.autoCompleteDisabled);
+            AppMenus.setLineWrap(viewSettings.lineWrap !== false);
             AppMenus.refresh();
             
             // Broadcast zoom to all windows

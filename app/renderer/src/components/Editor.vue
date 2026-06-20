@@ -39,6 +39,7 @@ const showContextMenu = () => {
 const themeCompartment = new Compartment();
 const languageCompartment = new Compartment();
 const autocompleteCompartment = new Compartment();
+const lineWrapCompartment = new Compartment();
 
 const inkHighlightStyle = HighlightStyle.define([
   { tag: tags.heading1, color: "var(--cm-knot-color)", fontWeight: "bold" },
@@ -196,6 +197,7 @@ const getEditorExtensions = () => [
   lintGutter(),
   languageCompartment.of(InkLanguageSupport()),
   autocompleteCompartment.of(uiStore.autoCompleteDisabled ? [] : autocompletion({ override: [inkCompletionSource] })),
+  lineWrapCompartment.of(uiStore.lineWrap ? EditorView.lineWrapping : []),
   onUpdate
 ];
 
@@ -244,6 +246,14 @@ onMounted(() => {
     if (view) {
       view.dispatch({
         effects: autocompleteCompartment.reconfigure(disabled ? [] : autocompletion({ override: [inkCompletionSource] }))
+      });
+    }
+  });
+
+  watch(() => uiStore.lineWrap, (wrap) => {
+    if (view) {
+      view.dispatch({
+        effects: lineWrapCompartment.reconfigure(wrap ? EditorView.lineWrapping : [])
       });
     }
   });

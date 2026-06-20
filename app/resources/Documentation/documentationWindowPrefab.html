@@ -3,8 +3,7 @@
 
 <head>
     <title>Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../resources/Documentation/documentationWindow.css">
-    <link rel="stylesheet" type="text/css" href="../../resources/Documentation/documentationWindow.dark.css">
+    <link rel="stylesheet" type="text/css" href="./documentationWindow.css">
     <script>
         function adjustToScreen() {
             document.getElementById("contentView").height = window.innerHeight - 20;
@@ -16,24 +15,30 @@
             }
             return false;
         }
+
+        if (window.api && window.api.receive) {
+            window.api.receive('change-theme', (theme) => {
+                document.documentElement.className = theme;
+                // also apply to iframe
+                const iframe = document.getElementById("contentView");
+                if (iframe && iframe.contentDocument) {
+                    iframe.contentDocument.documentElement.className = theme;
+                }
+            });
+        }
     </script>
 </head>
 <!-- The content view is resized every time the window is resized. It ist also resized initialy once the window is opend. -->
 
 <body onresize="adjustToScreen()" onload="adjustToScreen();">
+    <button id="toggleTOC" onclick="const n = document.getElementById('nav'); n.style.display = n.style.display === 'none' ? 'block' : 'none';" aria-label="Toggle Table of Contents">☰</button>
     <ul id="nav">
         <!--navigationentries-->
     </ul>
     <div class="contentContainer">
         <section>
-            <iframe id="contentView" height="100" width="100%" src="embedded.html" style="border:none;"></iframe>
+            <iframe id="contentView" height="100" width="100%" src="embedded.html" style="border:none;" onload="if(document.documentElement.className) this.contentDocument.documentElement.className = document.documentElement.className;"></iframe>
         </section>
     </div>
 </body>
-
-<script>
-    require('../../resources/Documentation/controller.js');
-</script>
-
-
 </html>

@@ -1,5 +1,6 @@
 EENKY TODOs
 
+- Modals (About, Shortcuts etc) don't capture focus so it's possible to mess up behind them via keyboard 
 - Upload to SD card via USB ?
 - Preview build size and state data size/budget (this doesnt work currently)
 - Use temp folder for build artefacts, and choose where to export the bin file
@@ -8,3 +9,4 @@ EENKY TODOs
 - Shortcuts (rewind/stepback) use ctrl+alt+arrow or something
 - Reorder shortcuts in the modal and add the missing stuff
 - Work on i18n (redo the files)
+- Parsing errors in the watch expressions are not shown anywhere. We should update the styling to red and display the error somewhere.
