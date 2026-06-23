@@ -10,3 +10,5 @@ EENKY TODOs
 - Reorder shortcuts in the modal and add the missing stuff
 - Work on i18n (redo the files)
 - Parsing errors in the watch expressions are not shown anywhere. We should update the styling to red and display the error somewhere.
+- Would be nice to be able to ctrl+F in the documentation. Also blue links are unreadable in dark mode.
+- Attempting to delete an unsaved (newly created) file throws an error.
