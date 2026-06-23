@@ -19,7 +19,7 @@
     "dist": "electron-builder"
   },
   "build": {
-    "appId": "com.xteink.eenky",
+    "appId": "com.t0mg.eenky",
     "productName": "EENK Story Editor",
     "directories": {
       "output": "../dist-eenky"
@@ -53,10 +53,10 @@
     "narrative",
     "editor"
   ],
-  "author": "Xteink (fork of inkle/inky by inkle Ltd)",
+  "author": "Tom Granger (fork of inkle/inky by inkle Ltd)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/inkly/inky/issues"
+    "url": "https://github.com/t0mg/eenky/issues"
   },
   "homepage": "http://www.inklestudios.com/ink",
   "dependencies": {

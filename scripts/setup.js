@@ -73,6 +73,18 @@ if (!fs.existsSync(submoduleCheck)) {
     console.warn('     Run: git submodule update --init --recursive\n');
     allOk = false;
 } else {
+    if (!checkOnly) {
+        try {
+            console.log('  [build] Pulling latest from eenk HEAD...');
+            const { execSync } = require('child_process');
+            execSync('git fetch origin && git checkout main && git pull --rebase --autostash origin main', { cwd: EENK, stdio: 'inherit' });
+            console.log('  [build] Compiling eenk simulator...');
+            execSync('pio run -e native', { cwd: EENK, stdio: 'inherit' });
+        } catch (e) {
+            console.warn(`  ⚠  Could not pull/build eenk: ${e.message}`);
+        }
+    }
+
     const simSrc = path.join(EENK, '.pio', 'build', 'native', plat.pioExe);
     const simDst = path.join(DEST_DIR, plat.simName);
 
@@ -98,6 +110,26 @@ if (!fs.existsSync(inkcppCheck)) {
     console.warn('     Run: git submodule update --init --recursive\n');
     allOk = false;
 } else {
+    if (!checkOnly) {
+        try {
+            console.log('  [build] Pulling latest from inkcpp HEAD...');
+            const { execSync } = require('child_process');
+            execSync('git fetch origin && git checkout master && git pull --rebase --autostash origin master', { cwd: INKCPP, stdio: 'inherit' });
+            console.log('  [build] Compiling inkcpp...');
+            
+            let cmakeGen = '';
+            if (process.platform === 'win32') {
+                cmakeGen = '-G "MinGW Makefiles" ';
+                // Make sure MinGW bin is in path for CMake
+                process.env.PATH = "C:\\msys64\\mingw64\\bin;" + process.env.PATH;
+            }
+            
+            execSync(`cmake ${cmakeGen}-B build && cmake --build build --config Release`, { cwd: INKCPP, stdio: 'inherit' });
+        } catch (e) {
+            console.warn(`  ⚠  Could not pull/build inkcpp: ${e.message}`);
+        }
+    }
+
     // inkcpp releases drop the binary at the repo root in its build/ dir
     const buildDir = path.join(INKCPP, 'build');
     const candidates = [
