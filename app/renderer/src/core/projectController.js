@@ -27,11 +27,11 @@ export const ProjectController = {
     window.api.receive('project-tryClose', async () => {
       const store = useProjectStore();
       const hasUnsavedChanges = store.files.some(f => f.hasUnsavedChanges);
-      
+
       if (hasUnsavedChanges) {
         const responseObject = await window.api.invoke("try-close");
         const response = responseObject.response;
-        
+
         if (response == 0) { // Save
           for (const file of store.files) {
             if (file.hasUnsavedChanges) {
@@ -39,10 +39,10 @@ export const ProjectController = {
             }
           }
           window.api.send("project-final-close");
-        } 
+        }
         else if (response == 1) { // Don't save
           window.api.send("project-final-close");
-        } 
+        }
         else { // Cancel
           window.api.send("project-cancelled-close");
         }
@@ -71,14 +71,14 @@ export const ProjectController = {
         const { eventName, path: absFilePath } = eventData;
         const normalizedAbsFilePath = absFilePath.replace(/[\\]/g, '/');
         const file = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsFilePath);
-        
+
         if (file && eventName === 'change') {
           if (file.justSaved) {
-             file.justSaved = false;
-             return;
+            file.justSaved = false;
+            return;
           }
           if (!file.hasUnsavedChanges) {
-             await this.loadFileContent(file);
+            await this.loadFileContent(file);
           }
         }
       });
@@ -86,58 +86,66 @@ export const ProjectController = {
   },
 
   _basename(p) { return p ? p.split(/[\\/]/).pop() : ''; },
-  _dirname(p) { 
-    if(!p) return ''; 
-    const parts = p.split(/[\\/]/); 
-    parts.pop(); 
-    return parts.join('/') || '/'; 
+  _dirname(p) {
+    if (!p) return '';
+    const parts = p.split(/[\\/]/);
+    parts.pop();
+    return parts.join('/') || '/';
   },
-  _join(...args) { 
-    return args.join('/').replace(/[\\]/g, '/').replace(/\/+/g, '/'); 
+  _join(...args) {
+    return args.join('/').replace(/[\\]/g, '/').replace(/\/+/g, '/');
   },
 
   async loadProject(mainInkFilePath) {
     const store = useProjectStore();
     store.closeProject();
-    
+
     const file = this.createFile(mainInkFilePath || null, mainInkFilePath === undefined);
     file.isMain = true;
-    
+
+    if (mainInkFilePath === undefined) {
+      file.content = "// Standard EENK metadata header:\n// title: My Ink Story\n// author: Me\n";
+    }
+
     store.setProjectInfo({
       files: [file],
       mainInkFile: file,
       instructionPrefix: "// "
     });
     store.setActiveFile(file);
-    
+
     LiveCompiler.setProject(store);
-    
+
     await this.loadFileContent(store.mainInkFile);
     await this.loadIncludes(store.mainInkFile);
     await this.loadUnusedFiles(store.mainInkFile);
   },
 
   async loadUnusedFiles(mainFile) {
+    if (!mainFile || !mainFile.absolutePath) {
+      this.refreshUnusedStatus();
+      return;
+    }
     const store = useProjectStore();
     const mainDir = this._dirname(mainFile.absolutePath);
     try {
-        const files = await window.api.fs.readdir(mainDir);
-        for (const filename of files) {
-            if (filename.endsWith('.ink')) {
-                const absPath = this._join(mainDir, filename);
-                const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
-                let existing = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
-                if (!existing) {
-                    const rawFile = this.createFile(absPath, false);
-                    rawFile.relPath = filename;
-                    store.addFile(rawFile);
-                    let incFile = store.files.find(f => f.id === rawFile.id);
-                    await this.loadFileContent(incFile);
-                }
-            }
+      const files = await window.api.fs.readdir(mainDir);
+      for (const filename of files) {
+        if (filename.endsWith('.ink')) {
+          const absPath = this._join(mainDir, filename);
+          const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
+          let existing = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
+          if (!existing) {
+            const rawFile = this.createFile(absPath, false);
+            rawFile.relPath = filename;
+            store.addFile(rawFile);
+            let incFile = store.files.find(f => f.id === rawFile.id);
+            await this.loadFileContent(incFile);
+          }
         }
-    } catch(err) {
-        console.error("Could not load unused files", err);
+      }
+    } catch (err) {
+      console.error("Could not load unused files", err);
     }
     this.refreshUnusedStatus();
   },
@@ -146,27 +154,27 @@ export const ProjectController = {
     const store = useProjectStore();
     const mainFile = store.mainInkFile;
     if (!mainFile) return;
-    
+
     const includedIds = new Set();
     const queue = [mainFile];
     includedIds.add(mainFile.id);
-    
-    while(queue.length > 0) {
-        const curr = queue.shift();
-        const dir = this._dirname(curr.absolutePath);
-        for (const inc of curr.includes) {
-            const absPath = this._join(dir, inc);
-            const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
-            const incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
-            if (incFile && !includedIds.has(incFile.id)) {
-                includedIds.add(incFile.id);
-                queue.push(incFile);
-            }
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      const dir = this._dirname(curr.absolutePath);
+      for (const inc of curr.includes) {
+        const absPath = this._join(dir, inc);
+        const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
+        const incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
+        if (incFile && !includedIds.has(incFile.id)) {
+          includedIds.add(incFile.id);
+          queue.push(incFile);
         }
+      }
     }
-    
+
     for (const f of store.files) {
-        f.isUnused = !includedIds.has(f.id);
+      f.isUnused = !includedIds.has(f.id);
     }
   },
 
@@ -179,7 +187,7 @@ export const ProjectController = {
       let incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
       if (!incFile) {
         const rawFile = this.createFile(absPath, false);
-        rawFile.relPath = inc; 
+        rawFile.relPath = inc;
         store.addFile(rawFile);
         incFile = store.files.find(f => f.id === rawFile.id); // get Proxy
         await this.loadFileContent(incFile);
@@ -222,9 +230,9 @@ export const ProjectController = {
       file.content = data;
       file.savedContent = data;
       file.isLoading = false;
-      
+
       this.parseSymbols(file);
-    } catch(err) {
+    } catch (err) {
       console.error("Failed to load file:", err);
       file.savedContent = null;
       file.isLoading = false;
@@ -240,14 +248,14 @@ export const ProjectController = {
 
   addNewInclude(mainFile, newIncludeRelPath) {
     if (!mainFile) return;
-    
+
     // Add include line to main file content
     const includeText = "INCLUDE " + newIncludeRelPath + "\n";
-    
+
     // Find last include row if any, or just prepend
     let newContent = mainFile.content || "";
     const lastIncludeIdx = newContent.lastIndexOf("INCLUDE ");
-    
+
     if (lastIncludeIdx === -1) {
       newContent = includeText + newContent;
     } else {
@@ -258,9 +266,9 @@ export const ProjectController = {
         newContent = newContent.substring(0, nextLineIdx + 1) + includeText + newContent.substring(nextLineIdx + 1);
       }
     }
-    
+
     this.updateFileContent(mainFile, newContent);
-    
+
     // Create the new empty file POJO
     const store = useProjectStore();
     const newFile = this.createFile(this._join(this._dirname(mainFile.absolutePath), newIncludeRelPath), true);
@@ -272,28 +280,28 @@ export const ProjectController = {
   async renameFile(file, newName) {
     if (!newName || newName === file.relPath) return;
     if (!newName.endsWith('.ink')) newName += '.ink';
-    
+
     const store = useProjectStore();
     const oldRelPath = file.relPath;
     const oldAbsolutePath = file.absolutePath;
-    
+
     // Check if new name already exists
     if (store.files.some(f => f.relPath === newName)) {
-        alert("A file with this name already exists.");
-        return;
+      alert("A file with this name already exists.");
+      return;
     }
 
     const fileDirectory = this._dirname(oldAbsolutePath);
     const newAbsolutePath = await window.api.path.join(fileDirectory, newName);
 
     try {
-        const exists = await window.api.fs.exists(oldAbsolutePath);
-        if (exists) {
-            await window.api.fs.rename(oldAbsolutePath, newAbsolutePath);
-        }
-    } catch(err) {
-        alert("Failed to rename file on disk: " + err);
-        return;
+      const exists = await window.api.fs.exists(oldAbsolutePath);
+      if (exists) {
+        await window.api.fs.rename(oldAbsolutePath, newAbsolutePath);
+      }
+    } catch (err) {
+      alert("Failed to rename file on disk: " + err);
+      return;
     }
 
     file.relPath = newName;
@@ -301,12 +309,12 @@ export const ProjectController = {
 
     const mainFile = store.mainInkFile;
     if (mainFile && mainFile !== file) {
-        const escapedOldPath = oldRelPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`^(\\s*INCLUDE\\s+)${escapedOldPath}(\\s*)$`, 'gm');
-        if (regex.test(mainFile.content)) {
-            const newContent = mainFile.content.replace(regex, `$1${newName}$2`);
-            this.updateFileContent(mainFile, newContent);
-        }
+      const escapedOldPath = oldRelPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`^(\\s*INCLUDE\\s+)${escapedOldPath}(\\s*)$`, 'gm');
+      if (regex.test(mainFile.content)) {
+        const newContent = mainFile.content.replace(regex, `$1${newName}$2`);
+        this.updateFileContent(mainFile, newContent);
+      }
     }
   },
 
@@ -331,121 +339,121 @@ export const ProjectController = {
   async exportProject(exportType) {
     const store = useProjectStore();
     if (!store.mainInkFile) {
-        alert("Project not quite fully loaded! Please try exporting again in a couple of seconds...");
-        return;
+      alert("Project not quite fully loaded! Please try exporting again in a couple of seconds...");
+      return;
     }
 
     if (exportType === "eenk") {
-        const inkPath = store.mainInkFile.absolutePath;
-        if (!inkPath) {
-            alert("Please save your project first.");
-            return;
-        }
-        try {
-            store.compilerBusy = true;
-            const result = await window.api.invoke('eenk:compile', inkPath);
-            console.log('Compiled successfully to: ' + result.binFile);
-        } catch (e) {
-            alert('Compilation failed: ' + e);
-        } finally {
-            store.compilerBusy = false;
-        }
+      const inkPath = store.mainInkFile.absolutePath;
+      if (!inkPath) {
+        alert("Please save your project first.");
         return;
+      }
+      try {
+        store.compilerBusy = true;
+        const result = await window.api.invoke('eenk:compile', inkPath);
+        console.log('Compiled successfully to: ' + result.binFile);
+      } catch (e) {
+        alert('Compilation failed: ' + e);
+      } finally {
+        store.compilerBusy = false;
+      }
+      return;
     }
 
     // Always start by building the JSON
     const inkJsCompatible = exportType === "js" || exportType === "web";
-    
+
     let compiledJsonTempPath;
     try {
-        compiledJsonTempPath = await new Promise((resolve, reject) => {
-            LiveCompiler.exportJson(inkJsCompatible, (err, path) => {
-                if (err) reject(err);
-                else resolve(path);
-            });
+      compiledJsonTempPath = await new Promise((resolve, reject) => {
+        LiveCompiler.exportJson(inkJsCompatible, (err, path) => {
+          if (err) reject(err);
+          else resolve(path);
         });
-    } catch(err) {
-        alert(`Could not export: ${err}`);
-        return;
+      });
+    } catch (err) {
+      alert(`Could not export: ${err}`);
+      return;
     }
 
     let defaultExportPath = store.mainInkFile.absolutePath;
     if (defaultExportPath) {
-        const pathObj = await window.api.path.parse(defaultExportPath);
-        if (exportType === "json") {
-            pathObj.ext = ".json";
-        } else if (exportType === "js") {
-            if (pathObj.ext !== ".js") {
-                pathObj.base = await window.api.path.basename(await this.jsFilename(store.mainInkFile));
-            }
-            pathObj.ext = ".js";
-        } else {
-            // Strip existing extension
-            pathObj.base = await window.api.path.basename(pathObj.base, pathObj.ext);
-            pathObj.ext = "";
+      const pathObj = await window.api.path.parse(defaultExportPath);
+      if (exportType === "json") {
+        pathObj.ext = ".json";
+      } else if (exportType === "js") {
+        if (pathObj.ext !== ".js") {
+          pathObj.base = await window.api.path.basename(await this.jsFilename(store.mainInkFile));
         }
-        defaultExportPath = await window.api.path.format(pathObj);
+        pathObj.ext = ".js";
+      } else {
+        // Strip existing extension
+        pathObj.base = await window.api.path.basename(pathObj.base, pathObj.ext);
+        pathObj.ext = "";
+      }
+      defaultExportPath = await window.api.path.format(pathObj);
     }
 
     let targetSavePath;
-    
+
     if (exportType === "web") {
-        const result = await window.api.invoke('eenk:open-file-dialog', {
-            title: "Select Export Folder",
-            defaultPath: defaultExportPath,
-            properties: ['openDirectory', 'createDirectory', 'promptToCreate']
-        });
-        if (!result.canceled && result.filePaths.length > 0) {
-            targetSavePath = result.filePaths[0];
-        }
+      const result = await window.api.invoke('eenk:open-file-dialog', {
+        title: "Select Export Folder",
+        defaultPath: defaultExportPath,
+        properties: ['openDirectory', 'createDirectory', 'promptToCreate']
+      });
+      if (!result.canceled && result.filePaths.length > 0) {
+        targetSavePath = result.filePaths[0];
+      }
     } else {
-        const saveOptions = { defaultPath: defaultExportPath };
+      const saveOptions = { defaultPath: defaultExportPath };
 
-        if (exportType === "json") {
-            saveOptions.filters = [{ name: "JSON files", extensions: ["json"] }];
-        } else if (exportType === "js") {
-            saveOptions.filters = [{ name: "JavaScript files", extensions: ["js"] }];
-        }
-        const result = await window.api.invoke('showSaveDialog', saveOptions);
-        targetSavePath = result.filePath;
+      if (exportType === "json") {
+        saveOptions.filters = [{ name: "JSON files", extensions: ["json"] }];
+      } else if (exportType === "js") {
+        saveOptions.filters = [{ name: "JavaScript files", extensions: ["js"] }];
+      }
+      const result = await window.api.invoke('showSaveDialog', saveOptions);
+      targetSavePath = result.filePath;
     }
-    
-    if (targetSavePath) {
-        if (exportType === "json" || exportType === "js") {
-            try {
-                const stats = await window.api.fs.stat(targetSavePath).catch(() => null);
-                if (stats && stats.isDirectory) {
-                    alert("Could not save because directory exists with the given name");
-                    return;
-                }
-                if (stats) {
-                    await window.api.fs.unlink(targetSavePath);
-                }
 
-                if (exportType === "js") {
-                    await this.convertJSONToJS(compiledJsonTempPath, targetSavePath);
-                } else {
-                    await window.api.fs.copyFile(compiledJsonTempPath, targetSavePath);
-                }
-            } catch (err) {
-                alert(`Sorry, could not save to ${targetSavePath}`);
-            }
-        } else {
-            // Web export
-            await this.buildForWeb(compiledJsonTempPath, targetSavePath, store);
+    if (targetSavePath) {
+      if (exportType === "json" || exportType === "js") {
+        try {
+          const stats = await window.api.fs.stat(targetSavePath).catch(() => null);
+          if (stats && stats.isDirectory) {
+            alert("Could not save because directory exists with the given name");
+            return;
+          }
+          if (stats) {
+            await window.api.fs.unlink(targetSavePath);
+          }
+
+          if (exportType === "js") {
+            await this.convertJSONToJS(compiledJsonTempPath, targetSavePath);
+          } else {
+            await window.api.fs.copyFile(compiledJsonTempPath, targetSavePath);
+          }
+        } catch (err) {
+          alert(`Sorry, could not save to ${targetSavePath}`);
         }
+      } else {
+        // Web export
+        await this.buildForWeb(compiledJsonTempPath, targetSavePath, store);
+      }
     }
   },
 
   async jsFilename(mainInkFile) {
     let mainInkRootName = mainInkFile.relPath || "untitled";
     if (await window.api.path.extname(mainInkRootName) === ".ink") {
-        mainInkRootName = await window.api.path.basename(mainInkRootName, ".ink");
+      mainInkRootName = await window.api.path.basename(mainInkRootName, ".ink");
     }
     let jsContentFilename = mainInkRootName + ".js";
 
     if (jsContentFilename === "main.js") {
-        jsContentFilename = "story.js";
+      jsContentFilename = "story.js";
     }
     return jsContentFilename;
   },
@@ -459,18 +467,18 @@ export const ProjectController = {
   async copyDir(src, dest) {
     const stats = await window.api.fs.stat(dest).catch(() => null);
     if (!stats) {
-        await window.api.fs.mkdir(dest);
+      await window.api.fs.mkdir(dest);
     }
     const files = await window.api.fs.readdir(src);
     for (const file of files) {
-        const srcFile = await window.api.path.join(src, file);
-        const destFile = await window.api.path.join(dest, file);
-        const stat = await window.api.fs.stat(srcFile);
-        if (stat.isDirectory) {
-            await this.copyDir(srcFile, destFile);
-        } else {
-            await window.api.fs.copyFile(srcFile, destFile);
-        }
+      const srcFile = await window.api.path.join(src, file);
+      const destFile = await window.api.path.join(dest, file);
+      const stat = await window.api.fs.stat(srcFile);
+      if (stat.isDirectory) {
+        await this.copyDir(srcFile, destFile);
+      } else {
+        await window.api.fs.copyFile(srcFile, destFile);
+      }
     }
   },
 
@@ -479,32 +487,32 @@ export const ProjectController = {
     const storyTitle = await window.api.path.basename(targetDirectory);
 
     try {
-        const stats = await window.api.fs.stat(targetDirectory).catch(() => null);
-        if (stats && !stats.isDirectory) {
-            alert("Could not save because a file exists with the given name");
-            return;
-        }
+      const stats = await window.api.fs.stat(targetDirectory).catch(() => null);
+      if (stats && !stats.isDirectory) {
+        alert("Could not save because a file exists with the given name");
+        return;
+      }
 
-        if (!stats) {
-            await window.api.fs.mkdir(targetDirectory);
-        }
+      if (!stats) {
+        await window.api.fs.mkdir(targetDirectory);
+      }
 
-        await this.copyDir(templateDir, targetDirectory);
+      await this.copyDir(templateDir, targetDirectory);
 
-        let indexHtmlPath = await window.api.path.join(targetDirectory, "index.html");
-        let htmlContent = await window.api.fs.readFile(indexHtmlPath, "utf8");
-        htmlContent = htmlContent.replace(/##STORY TITLE##/g, storyTitle);
-        
-        let jsContentFilename = await this.jsFilename(store.mainInkFile);
-        htmlContent = htmlContent.replace(/##JAVASCRIPT FILENAME##/g, jsContentFilename);
-        
-        await window.api.fs.writeFile(indexHtmlPath, htmlContent, "utf8");
+      let indexHtmlPath = await window.api.path.join(targetDirectory, "index.html");
+      let htmlContent = await window.api.fs.readFile(indexHtmlPath, "utf8");
+      htmlContent = htmlContent.replace(/##STORY TITLE##/g, storyTitle);
 
-        let targetJsPath = await window.api.path.join(targetDirectory, jsContentFilename);
-        await this.convertJSONToJS(jsonFilePath, targetJsPath);
-    } catch(err) {
-        console.error("Export for Web failed:", err);
-        alert("Failed to export for web: " + err);
+      let jsContentFilename = await this.jsFilename(store.mainInkFile);
+      htmlContent = htmlContent.replace(/##JAVASCRIPT FILENAME##/g, jsContentFilename);
+
+      await window.api.fs.writeFile(indexHtmlPath, htmlContent, "utf8");
+
+      let targetJsPath = await window.api.path.join(targetDirectory, jsContentFilename);
+      await this.convertJSONToJS(jsonFilePath, targetJsPath);
+    } catch (err) {
+      console.error("Export for Web failed:", err);
+      alert("Failed to export for web: " + err);
     }
   },
 
@@ -513,8 +521,8 @@ export const ProjectController = {
     const store = useProjectStore();
     const file = store.files.find(f => f.id === fileId);
     if (!file) {
-        console.log("[DEBUG] saveFile aborted: file not found in store");
-        return false;
+      console.log("[DEBUG] saveFile aborted: file not found in store");
+      return false;
     }
 
     try {
@@ -525,11 +533,11 @@ export const ProjectController = {
         await window.api.fs.mkdir(fileDirectory);
         console.log("[DEBUG] writing file to disk:", file.absolutePath);
         await window.api.fs.writeFile(file.absolutePath, file.content || "", "utf8");
-        
+
         file.savedContent = file.content;
         file.isBrandNew = false;
         file.justSaved = true; // flag to ignore watcher
-        
+
         console.log("[DEBUG] sending main-file-saved IPC...");
         window.api.send('main-file-saved', file.absolutePath);
         return true;
@@ -541,7 +549,7 @@ export const ProjectController = {
           file.absolutePath = result.filePath;
           file.relPath = await window.api.path.basename(result.filePath);
           if (file.isMain) {
-             store.mainInkFile.absolutePath = file.absolutePath;
+            store.mainInkFile.absolutePath = file.absolutePath;
           }
           return await this.saveFile(file.id);
         }

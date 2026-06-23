@@ -12,7 +12,7 @@
     "postinstall": "node ../build/createDocumentnavigation.js && markdown-html resources/Documentation/WritingWithInk.md -s resources/Documentation/documentation.css -o renderer/documentation/embedded.html",
     "setup": "node ../scripts/setup.js",
     "start": "concurrently \"npm run dev --prefix renderer\" \"wait-on http-get://localhost:5173/ && electron main-process/main.js\"",
-    "test": "./node_modules/mocha/bin/mocha",
+    "test": "mocha",
     "generate-locale": "node ../build/generateLocale.js",
     "build-package": "node build-package.js",
     "pack": "electron-builder --dir",

@@ -26,19 +26,62 @@
                 }
             });
         }
+
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                const searchBar = document.getElementById('searchBar');
+                if (searchBar) {
+                    searchBar.focus();
+                    searchBar.select();
+                }
+            }
+        });
+
+        function searchContent(query, backwards = false) {
+            const iframe = document.getElementById('contentView');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.find(query, false, backwards, true, false, false, false);
+            }
+        }
+
+        function injectIframeKeydown() {
+            const iframe = document.getElementById('contentView');
+            if (iframe && iframe.contentDocument) {
+                iframe.contentDocument.addEventListener('keydown', function (e) {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                        e.preventDefault();
+                        const searchBar = document.getElementById('searchBar');
+                        if (searchBar) {
+                            searchBar.focus();
+                            searchBar.select();
+                        }
+                    }
+                });
+            }
+        }
     </script>
 </head>
 <!-- The content view is resized every time the window is resized. It ist also resized initialy once the window is opend. -->
 
 <body onresize="adjustToScreen()" onload="adjustToScreen();">
-    <button id="toggleTOC" onclick="const n = document.getElementById('nav'); n.style.display = n.style.display === 'none' ? 'block' : 'none';" aria-label="Toggle Table of Contents">☰</button>
+    <button id="toggleTOC"
+        onclick="const n = document.getElementById('nav'); n.style.display = n.style.display === 'none' ? 'block' : 'none';"
+        aria-label="Toggle Table of Contents">☰</button>
+    <div id="searchContainer" style="position: absolute; top: 10px; left: 50px; width: 220px; z-index: 100;">
+        <input type="text" id="searchBar" placeholder="Search... (Enter)"
+            style="width: calc(100% - 10px); height: 31px; padding: 4px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-color); color: var(--text-color);"
+            onkeydown="if(event.key === 'Enter') searchContent(this.value, event.shiftKey)">
+    </div>
     <ul id="nav">
         <!--navigationentries-->
     </ul>
     <div class="contentContainer">
         <section>
-            <iframe id="contentView" height="100" width="100%" src="embedded.html" style="border:none;" onload="if(document.documentElement.className) this.contentDocument.documentElement.className = document.documentElement.className;"></iframe>
+            <iframe id="contentView" height="100" width="100%" src="embedded.html" style="border:none;"
+                onload="if(document.documentElement.className) this.contentDocument.documentElement.className = document.documentElement.className; if(window.injectIframeKeydown) injectIframeKeydown();"></iframe>
         </section>
     </div>
 </body>
+
 </html>

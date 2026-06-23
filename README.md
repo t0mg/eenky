@@ -69,12 +69,19 @@ npm start
 
 ### Development Mode
 
-If you want to work on the UI, EENKY uses Vite for hot-module replacement (HMR) in the renderer. Simply running `npm start` from the `app` folder handles everything:
 ```sh
 cd app
 npm start
 ```
 *Note: `npm start` in the `app` folder uses `concurrently` to automatically start the Vite dev server and then open the Electron main process connected to it.*
+
+### Running Unit Tests
+
+EENKY unit tests use `mocha` to verify core package structures and main process utilities (replacing the deprecated Spectron E2E tests). Run them from the `app` folder:
+```sh
+cd app
+npm run test
+```
 
 ## Packaging for Production
 
