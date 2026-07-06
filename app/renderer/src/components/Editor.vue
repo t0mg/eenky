@@ -21,7 +21,7 @@ import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { autocompletion } from "@codemirror/autocomplete";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
-import { InkLanguageSupport } from "../core/codemirror-lang-ink-bundled.js";
+import { InkLanguageSupport } from "@mavnn/codemirror-lang-ink";
 import { inkCompletionSource } from "../core/inkCompleter.js";
 import { search, searchKeymap, openSearchPanel } from "@codemirror/search";
 

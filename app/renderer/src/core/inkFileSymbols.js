@@ -1,4 +1,4 @@
-import { InkLanguage } from "./codemirror-lang-ink-bundled.js";
+import { InkLanguage } from "@mavnn/codemirror-lang-ink";
 
 export function InkFileSymbols(inkFile, events) {
     this.inkFile = inkFile;

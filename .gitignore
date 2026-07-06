@@ -8,7 +8,7 @@ Inky-win32-ia32
 Inky-linux-x64
 Inky_windows.zip
 ReleaseUpload
-app/renderer/documentation/
+app/renderer/public/documentation/
 .idea/
 *.AppImage
 AppImage

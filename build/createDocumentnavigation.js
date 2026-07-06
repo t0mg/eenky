@@ -88,4 +88,8 @@ function numberOfOccurrences(searchIn, searchFor, allowOverlapping) {
     }
     return n;
 }
+
+// Copy the static CSS file to the build output directory
+fs.copyFileSync('../app/resources/Documentation/documentationWindow.css', '../app/renderer/public/documentation/documentationWindow.css');
+
 initializeNavigation();
