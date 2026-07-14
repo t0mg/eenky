@@ -118,11 +118,6 @@ if (!fs.existsSync(inkcppCheck)) {
             console.log('  [build] Compiling inkcpp...');
             
             let cmakeGen = '';
-            if (process.platform === 'win32') {
-                cmakeGen = '-G "MinGW Makefiles" ';
-                // Make sure MinGW bin is in path for CMake
-                process.env.PATH = "C:\\msys64\\mingw64\\bin;" + process.env.PATH;
-            }
             
             execSync(`cmake ${cmakeGen}-B build && cmake --build build --config Release`, { cwd: INKCPP, stdio: 'inherit' });
         } catch (e) {
@@ -134,6 +129,7 @@ if (!fs.existsSync(inkcppCheck)) {
     const buildDir = path.join(INKCPP, 'build');
     const candidates = [
         path.join(buildDir, 'inkcpp_cl', plat.inkcppExe),
+        path.join(buildDir, 'inkcpp_cl', 'Release', plat.inkcppExe),
         path.join(buildDir, plat.inkcppExe),
         path.join(INKCPP, plat.inkcppExe),
     ];
