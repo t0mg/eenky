@@ -1,17 +1,17 @@
-# EENKY — EENK Story Editor
+# eenky — eenk Story Editor
 
-A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device via the **EENK** firmware.
+A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device via the **eenk** firmware.
 
 ## ✨ Features & Differences from original Inky
 
-EENKY completely overhauls the original Inky architecture to support modern development, better usability, and deep hardware integration:
+eenky completely overhauls the original Inky architecture to support modern development, better usability, and deep hardware integration:
 
-- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery), giving EENKY a much snappier, reactive, and responsive interface.
+- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery), giving eenky a much snappier, reactive, and responsive interface.
 - **Improved Authoring Tools**: 
   - An enhanced **Knot Browser** that distinctly categorizes Knots, Stitches, and Functions with unique iconography.
   - A fast **Goto Anything (`Ctrl+P` / `Cmd+P`)** popup for instantly jumping across project files and symbols.
   - Better view controls, including a Line Wrap toggle and refined Light/Dark themes.
-- **Embedded SDL Simulator**: Contains a pixel-accurate e-ink preview of the Xteink X4 hardware, compiled directly from the EENK firmware.
+- **Embedded SDL Simulator**: Contains a pixel-accurate e-ink preview of the Xteink X4 hardware, compiled directly from the eenk firmware.
 - **One-Click Flashing**: Seamlessly flash compiled stories directly to your ESP32-based hardware via USB using the built-in Web Serial tool.
 - **Hardware Compilation Pipeline**: Retains `inklecate` for compiling `.ink` to `.json`, but automatically passes the output to the custom `inkcpp_cl` compiler to produce the `.bin` format required by the hardware.
 
@@ -21,7 +21,7 @@ EENKY completely overhauls the original Inky architecture to support modern deve
 |-----|-------------|
 | **Editor** | Full-featured Ink script editor, overhauled with Vue 3 and CodeMirror |
 | **Compile** | Compiles `.ink` → `.json` → `.bin` using inklecate + inkcpp_cl |
-| **Simulate** | Runs the story in the native SDL simulator (pixel-accurate e-ink preview built from EENK) |
+| **Simulate** | Runs the story in the native SDL simulator (pixel-accurate e-ink preview built from eenk) |
 | **Flash** | Flashes the compiled firmware to the Xteink X4 via USB using ESP Web Tools |
 
 ## Prerequisites
@@ -63,7 +63,7 @@ cd ..
 # 5. Copy binaries into place & setup
 npm run setup
 
-# 6. Launch EENKY
+# 6. Launch eenky
 npm start
 ```
 
@@ -77,7 +77,7 @@ npm start
 
 ### Running Unit Tests
 
-EENKY unit tests use `mocha` to verify core package structures and main process utilities (replacing the deprecated Spectron E2E tests). Run them from the `app` folder:
+eenky unit tests use `mocha` to verify core package structures and main process utilities (replacing the deprecated Spectron E2E tests). Run them from the `app` folder:
 ```sh
 cd app
 npm run test
@@ -85,7 +85,7 @@ npm run test
 
 ## Packaging for Production
 
-EENKY uses `electron-builder` to create distributable installers and binaries. To build a production package:
+eenky uses `electron-builder` to create distributable installers and binaries. To build a production package:
 
 ```sh
 # 1. Build the Vue renderer
@@ -101,14 +101,14 @@ The output installers will be placed in the `dist-eenky` folder located at the r
 
 ## Submodule Architecture
 
-EENK and EENKY work in tandem:
+eenk and eenky work in tandem:
 - The parent project is `eenk` (the firmware).
 - It embeds `eenky` as a submodule to provide an authoring IDE.
 - `eenky` in turn embeds `eenk` and `inkcpp` as submodules to compile the `eenk-sim.exe` and `inkcpp_cl.exe` backends for the simulation and compile tabs.
 
 | Path | Repository | Purpose |
 |------|-----------|---------|
-| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | EENK firmware source — used to build the SDL simulator backend (`eenk-sim`) |
+| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | eenk firmware source — used to build the SDL simulator backend (`eenk-sim`) |
 | `inkcpp/` | [t0mg/inkcpp](https://github.com/t0mg/inkcpp) | Custom C++ Ink runtime — used to build the `inkcpp_cl` compiler backend |
 
 ## Binary Resolution

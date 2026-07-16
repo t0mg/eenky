@@ -104,7 +104,7 @@ export const ProjectController = {
     file.isMain = true;
 
     if (mainInkFilePath === undefined) {
-      file.content = "// Standard EENK metadata header:\n// title: My Ink Story\n// author: Me\n";
+      file.content = "/*\n  @title Untitled Story\n  @author Unknown\n  @font sans\n*/\n\n";
     }
 
     store.setProjectInfo({

@@ -24,47 +24,54 @@ function initializeNavigation() {
         }
         var originalFile = html.split("<!--navigationentries-->");
 
-        fs.readFile('../app/resources/Documentation/WritingWithInk.md', 'utf8', function (secErr, data) {
-            if (secErr) {
-                return console.log(secErr);
+        fs.readFile('../app/resources/Documentation/WritingWithEenk.md', 'utf8', function (eenkErr, eenkData) {
+            if (eenkErr) {
+                return console.log(eenkErr);
             }
 
-            var output = originalFile[0];
+            fs.readFile('../app/resources/Documentation/WritingWithInk.md', 'utf8', function (secErr, inkData) {
+                if (secErr) {
+                    return console.log(secErr);
+                }
 
-            for (var line of data.split("\n")) {
+                var data = eenkData + '\n\n' + inkData;
+                var output = originalFile[0];
+
+                for (var line of data.split("\n")) {
+                    
+                    // checks whether the line does NOT contain a headline (indicated by the character '#'; the indexOf method will return -1 if the string does not contain the argument).
+                    // The second part checks if the first character of a line is a '#' (a markdown header).
+                    
+                    if (line.indexOf('#') === -1 || line.charAt(0) != '#') {
+                        continue;
+                    }
+                    var headline;
+                    headline = line.split('#').join('').trim();
+
+                    //generating the ids for the documentation links
+                    id = headline.toLowerCase();
+                    var activeCharacter;
+                    for (var character of characters) {
+                        activeCharacter = character.split('x');
+                        id = id.split(activeCharacter[0]).join(activeCharacter[1]);
+                    }
+
+                    var headlineType;
+                    headlineType = 'h' + numberOfOccurrences(line, '#', false);
+                    output = output + ' ' + '<li><a id="#' + id + ' "href="#" onclick="openPath(this.id); return false;" class="nav-' + headlineType + '">' + headline + '</a></li>\n';
+
+                }
+                output = output + originalFile[1];
+
+                mkdirp.sync("../app/renderer/public/documentation/");
                 
-                // checks whether the line does NOT contain a headline (indicated by the character '#'; the indexOf method will return -1 if the string does not contain the argument).
-                // The second part checks if the first character of a line is a '#' (a markdown header).
-                
-                if (line.indexOf('#') === -1 || line.charAt(0) != '#') {
-                    continue;
-                }
-                var headline;
-                headline = line.split('#').join('').trim();
+                fs.writeFile('../app/renderer/public/documentation/window.html', output, function (thirdErr) {
+                    if (thirdErr) {
+                        return console.log(thirdErr);
+                    }
 
-                //generating the ids for the documentation links
-                id = headline.toLowerCase();
-                var activeCharacter;
-                for (var character of characters) {
-                    activeCharacter = character.split('x');
-                    id = id.split(activeCharacter[0]).join(activeCharacter[1]);
-                }
-
-                var headlineType;
-                headlineType = 'h' + numberOfOccurrences(line, '#', false);
-                output = output + ' ' + '<li><a id="#' + id + ' "href="#" onclick="openPath(this.id); return false;" class="nav-' + headlineType + '">' + headline + '</a></li>\n';
-
-            }
-            output = output + originalFile[1];
-
-            mkdirp.sync("../app/renderer/public/documentation/");
-            
-            fs.writeFile('../app/renderer/public/documentation/window.html', output, function (thirdErr) {
-                if (thirdErr) {
-                    return console.log(thirdErr);
-                }
-
-                console.log('Documentation was created');
+                    console.log('Documentation was created');
+                });
             });
         });
     });

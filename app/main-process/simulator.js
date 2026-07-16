@@ -1,7 +1,7 @@
 /**
  * simulator.js
  * Manages the lifecycle of the native SDL simulator child process.
- * The simulator is a pre-built PLATFORM_NATIVE binary of the EENK firmware
+ * The simulator is a pre-built PLATFORM_NATIVE binary of the eenk firmware
  * that accepts a .bin story path as argv[1] and opens its own SDL window.
  *
  * IPC channels:

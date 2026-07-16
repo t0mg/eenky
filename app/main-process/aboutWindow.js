@@ -36,7 +36,7 @@ var aboutWindow = null;
 
 
 function AboutWindow(theme) {
-    electronWindowOptions.title = i18n._("About EENKY");
+    electronWindowOptions.title = i18n._("About eenky");
 
     var w = new BrowserWindow(electronWindowOptions);
 

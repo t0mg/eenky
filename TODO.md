@@ -1,4 +1,4 @@
-EENKY TODOs
+eenky TODOs
 
 - Modals (About, Shortcuts etc) don't capture focus so it's possible to mess up behind them via keyboard 
 - Upload to SD card via USB ?

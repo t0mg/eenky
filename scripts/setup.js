@@ -2,7 +2,7 @@
 /**
  * scripts/setup.js
  *
- * Copies the EENK-specific binaries into the places the Electron app expects:
+ * Copies the eenk-specific binaries into the places the Electron app expects:
  *   app/main-process/ink/<platform>/
  *
  * Binaries are sourced from two places:
@@ -21,7 +21,7 @@ const fs   = require('fs');
 const path = require('path');
 
 const ROOT    = path.resolve(__dirname, '..');
-const EENK    = path.resolve(ROOT, 'eenk');
+const eenk    = path.resolve(ROOT, 'eenk');
 const INKCPP  = path.resolve(ROOT, 'inkcpp');
 
 const platformMap = {
@@ -62,12 +62,12 @@ function copyBin(src, dst, label) {
     return true;
 }
 
-console.log('\nEENKY setup — copying binaries\n');
+console.log('\neenky setup — copying binaries\n');
 
 // ── 1. eenk-sim (from eenk PlatformIO native build) ────────────────────────
 console.log('1. eenk-sim (SDL simulator)');
 
-const submoduleCheck = path.join(EENK, '.git');
+const submoduleCheck = path.join(eenk, '.git');
 if (!fs.existsSync(submoduleCheck)) {
     console.warn('  ⚠  `eenk` submodule not initialised.');
     console.warn('     Run: git submodule update --init --recursive\n');
@@ -77,15 +77,15 @@ if (!fs.existsSync(submoduleCheck)) {
         try {
             console.log('  [build] Pulling latest from eenk HEAD...');
             const { execSync } = require('child_process');
-            execSync('git fetch origin && git checkout main && git pull --rebase --autostash origin main', { cwd: EENK, stdio: 'inherit' });
+            execSync('git fetch origin && git checkout main && git pull --rebase --autostash origin main', { cwd: eenk, stdio: 'inherit' });
             console.log('  [build] Compiling eenk simulator...');
-            execSync('pio run -e native', { cwd: EENK, stdio: 'inherit' });
+            execSync('pio run -e native', { cwd: eenk, stdio: 'inherit' });
         } catch (e) {
             console.warn(`  ⚠  Could not pull/build eenk: ${e.message}`);
         }
     }
 
-    const simSrc = path.join(EENK, '.pio', 'build', 'native', plat.pioExe);
+    const simSrc = path.join(eenk, '.pio', 'build', 'native', plat.pioExe);
     const simDst = path.join(DEST_DIR, plat.simName);
 
     if (!fs.existsSync(simSrc)) {
@@ -161,7 +161,7 @@ if (fs.existsSync(inklecatePath)) {
 console.log('\n4. Write eenk_version.txt');
 try {
     const { execSync } = require('child_process');
-    const hash = execSync('git rev-parse --short HEAD', { cwd: EENK }).toString().trim();
+    const hash = execSync('git rev-parse --short HEAD', { cwd: eenk }).toString().trim();
     const versionFile = path.join(ROOT, 'app', 'main-process', 'ink', 'eenk_version.txt');
     if (!checkOnly) fs.writeFileSync(versionFile, hash, 'utf8');
     console.log(`  ✔  eenk_version.txt -> ${hash}`);
@@ -180,10 +180,24 @@ try {
     console.warn(`  ⚠  Could not copy ink.js: ${e.message}`);
 }
 
+// ── 6. Copy WritingWithEenk.md to Documentation ─────────────────────────────
+console.log('\n6. Copy WritingWithEenk.md to Documentation');
+try {
+    const srcEenk = path.join(eenk, 'WritingWithEenk.md');
+    const dstEenk = path.join(ROOT, 'app', 'resources', 'Documentation', 'WritingWithEenk.md');
+    if (!checkOnly) {
+        ensureDir(path.dirname(dstEenk));
+        fs.copyFileSync(srcEenk, dstEenk);
+    }
+    console.log(`  ✔  WritingWithEenk.md copied to Documentation`);
+} catch(e) {
+    console.warn(`  ⚠  Could not copy WritingWithEenk.md: ${e.message}`);
+}
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 console.log('');
 if (allOk) {
-    console.log('✔  All binaries ready. Run `npm start` to launch EENKY.\n');
+    console.log('✔  All binaries ready. Run `npm start` to launch eenky.\n');
 } else {
     console.log('⚠  Some binaries are missing. See warnings above.\n');
     if (!checkOnly) process.exit(1);

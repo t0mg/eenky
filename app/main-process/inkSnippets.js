@@ -168,6 +168,25 @@ exports.snippets = [
     {separator: true},
 
     //-------------------
+    // eenk
+    //-------------------
+    {
+        categoryName: i18n._('eenk'),
+        snippets: [
+            {
+                name: i18n._('Metadata header'),
+                ink: "/*\n"
+                    +"  @title Untitled Story\n"
+                    +"  @author Unknown\n"
+                    +"  @font sans\n"
+                    +"*/\n\n"
+            }
+        ]
+    },
+
+    {separator: true},
+
+    //-------------------
     // LIST FUNCTIONS
     //-------------------
     {

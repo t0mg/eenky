@@ -1,8 +1,8 @@
 {
   "name": "eenky",
-  "productName": "EENK Story Editor",
+  "productName": "eenk Story Editor",
   "version": "0.1.0",
-  "description": "Ink editor, EENK compiler, SDL simulator and firmware flasher for the Xteink X4 device",
+  "description": "Ink editor, eenk compiler, SDL simulator and firmware flasher for the Xteink X4 device",
   "main": "main-process/main.js",
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
   },
   "build": {
     "appId": "com.t0mg.eenky",
-    "productName": "EENK Story Editor",
+    "productName": "eenk Story Editor",
     "directories": {
       "output": "../dist-eenky"
     },

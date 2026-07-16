@@ -5,16 +5,16 @@
       <!-- Issue Popup / Settings / About etc. -->
       <div v-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
         <div class="about-header">
-          <!-- <img src="/about/icon256.png" class="about-icon" alt="EENKY icon" draggable="false" /> -->
-          <h2>EENKY</h2>
+          <!-- <img src="/about/icon256.png" class="about-icon" alt="eenky icon" draggable="false" /> -->
+          <h2>eenky</h2>
           <p>a child of inkle's Inky</p>
         </div>
         <div class="about-versions" v-if="aboutData">
-          <p v-if="aboutData.eenkyVersion">EENKY v{{ aboutData.eenkyVersion }}</p>
+          <p v-if="aboutData.eenkyVersion">eenky v{{ aboutData.eenkyVersion }}</p>
           <p v-if="aboutData.inkVersion">Inky Compiler v{{ aboutData.inkVersion }}</p>
           <p v-if="aboutData.inkjsVersion">InkJS v{{ aboutData.inkjsVersion }}</p>
-          <p v-if="aboutData.eenkVersion">EENK Compiler v{{ aboutData.eenkVersion }}</p>
-          <p v-if="aboutData.eenkVersion">EENK Simulator v{{ aboutData.eenkVersion }}</p>
+          <p v-if="aboutData.eenkVersion">eenk Compiler v{{ aboutData.eenkVersion }}</p>
+          <p v-if="aboutData.eenkVersion">eenk Simulator v{{ aboutData.eenkVersion }}</p>
         </div>
         <button @click="closeModal" class="primary-btn">Close</button>
       </div>
@@ -25,7 +25,7 @@
           <tbody>
           <tr><td>New Project</td><td>{{ ctrlCmd }} + N</td></tr>
           <tr><td>Save Project</td><td>{{ ctrlCmd }} + S</td></tr>
-          <tr><td>Compile to EENK</td><td>{{ ctrlCmd }} + B</td></tr>
+          <tr><td>Compile to eenk</td><td>{{ ctrlCmd }} + B</td></tr>
           <tr><td>Undo</td><td>{{ ctrlCmd }} + Z</td></tr>
           <tr><td>Redo</td><td>{{ ctrlCmd }} + Shift + Z</td></tr>
           <tr><td>Find / Replace</td><td>{{ ctrlCmd }} + F / H</td></tr>

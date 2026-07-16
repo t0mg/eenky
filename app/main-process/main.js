@@ -16,10 +16,10 @@ const {Inklecate} = require("./inklecate.js");
 const { fstat } = require('original-fs');
 const fs = require("fs");
 
-// Set the app name so that the OS and default menus display "EENKY" instead of "Electron"
-app.setName('EENKY');
+// Set the app name so that the OS and default menus display "eenky" instead of "Electron"
+app.setName('eenky');
 
-// ── EENK extensions ───────────────────────────────────────────────────────────
+// ── eenk extensions ───────────────────────────────────────────────────────────
 require('./eenkCompiler.js');   // registers eenk:compile IPC
 const { stopSimulator } = require('./simulator.js'); // registers eenk:sim-* IPC
 

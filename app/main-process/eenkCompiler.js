@@ -75,7 +75,7 @@ async function compileEenk(inkFilePath, onProgress) {
     const inklecate = getInklecateBinary();
     const inkcpp    = getInkcppBinary();
 
-    onProgress(`── Starting EENK compilation for ${baseName}.ink ──`);
+    onProgress(`── Starting eenk compilation for ${baseName}.ink ──`);
 
     // Step 1: inklecate → JSON
     onProgress(`Step 1/2  inklecate: ${path.basename(inkFile)} → ${path.basename(jsonFile)}`);
@@ -87,21 +87,26 @@ async function compileEenk(inkFilePath, onProgress) {
     await runProcess(inkcpp, [jsonFile], inkDir, onProgress);
     onProgress(`✔ BIN written: ${binFile}`);
 
-    // ── Generate EENK Metadata Header ──
+    // ── Generate eenk Metadata Header ──
     const inkContent = fs.readFileSync(inkFile, 'utf8');
-    const lines = inkContent.split('\n').slice(0, 100);
+    const headerText = inkContent.slice(0, 4000);
     let title = '';
     let author = '';
-    for (const line of lines) {
-        const tMatch = line.match(/^\s*\/\/\s*title:\s*(.+)$/i);
-        if (tMatch && !title) title = tMatch[1].trim();
-        const aMatch = line.match(/^\s*\/\/\s*author:\s*(.+)$/i);
-        if (aMatch && !author) author = aMatch[1].trim();
-    }
+    let font = '';
+
+    // Extract metadata from tags (typically inside /* */ block comments)
+    const titleMatch = headerText.match(/@title(?::|\s)\s*([^\n\r*]+)/i);
+    if (titleMatch) title = titleMatch[1].trim();
+
+    const authorMatch = headerText.match(/@author(?::|\s)\s*([^\n\r*]+)/i);
+    if (authorMatch) author = authorMatch[1].trim();
+
+    const fontMatch = headerText.match(/@font(?::|\s)\s*([^\n\r*]+)/i);
+    if (fontMatch) font = fontMatch[1].trim();
 
     const header = Buffer.alloc(128);
-    // Magic "EENK" (0x4B4E4545)
-    header.writeUInt32LE(0x4B4E4545, 0);
+    // Magic "eenk" (0x6B6E6565)
+    header.writeUInt32LE(0x6B6E6565, 0);
     // Version 1
     header.writeUInt16LE(1, 4);
     // Header Size 128
@@ -114,6 +119,13 @@ async function compileEenk(inkFilePath, onProgress) {
     header.writeUInt32LE(Math.floor(Date.now() / 1000), 104);
     // Flags (0 by default, can be extended for things like sidecar media files)
     header.writeUInt32LE(0, 108);
+    // Font Name Length
+    let fontLen = Buffer.byteLength(font, 'utf8');
+    if (fontLen > 15) fontLen = 15;
+    header.writeUInt8(fontLen, 112);
+    // Font Name (max 15 bytes)
+    header.write(font, 113, fontLen, 'utf8');
+
 
     const binContent = fs.readFileSync(binFile);
     fs.writeFileSync(binFile, Buffer.concat([header, binContent]));
@@ -134,7 +146,7 @@ async function compileEenk(inkFilePath, onProgress) {
         fs.closeSync(fd);
         
         const eenkMagic = buffer.readUInt32LE(0);
-        const offset = (eenkMagic === 0x4B4E4545) ? 128 : 0;
+        const offset = (eenkMagic === 0x6B6E6565) ? 128 : 0;
 
         const magic = buffer.readUInt32LE(offset);
         if (magic === 0x424b4e49) { // 'INKB'
