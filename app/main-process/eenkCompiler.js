@@ -175,9 +175,15 @@ async function compileEenk(inkFilePath, onProgress) {
 
     onProgress(`── Compilation complete ──`);
 
+    let warnings = [];
+
     // ── Font Conversion ──
     if (originalFont && originalFont.toLowerCase() !== 'sans' && originalFont.toLowerCase() !== 'serif') {
         const ttfPath = path.join(inkDir, `${originalFont}.ttf`);
+        const fontNameBase = originalFont.replace(/-(regular|regula|bold|italic|bolditalic|medium)$/i, '');
+        
+        let regularConverted = false;
+
         if (fs.existsSync(ttfPath)) {
             onProgress(`[Font] Found side-loaded TTF: ${originalFont}.ttf`);
             try {
@@ -202,14 +208,15 @@ async function compileEenk(inkFilePath, onProgress) {
                         '-o', outDir
                     ], inkDir, onProgress);
 
-                    // fontconvert.py outputs to `outDir/<font>/regular.epdfont`
                     const generatedEpdfont = path.join(outDir, originalFont, 'regular.epdfont');
                     if (fs.existsSync(generatedEpdfont)) {
                         const finalEpdfont = path.join(inkDir, `${headerFont}.epdfont`);
                         fs.copyFileSync(generatedEpdfont, finalEpdfont);
                         onProgress(`✔ Font converted successfully: ${headerFont}.epdfont`);
+                        regularConverted = true;
                     } else {
                         onProgress(`[WARN] Font conversion completed but ${generatedEpdfont} was not found.`);
+                        warnings.push(`Regular font ${originalFont}.ttf could not be converted.`);
                     }
 
                     // Cleanup
@@ -219,11 +226,66 @@ async function compileEenk(inkFilePath, onProgress) {
                 }
             } catch (err) {
                 onProgress(`[WARN] Could not convert TTF font. Please ensure Python 3 and 'freetype-py' are installed globally. (Error: ${err.message})`);
+                warnings.push(`Failed to convert ${originalFont}.ttf: python or freetype missing.`);
+            }
+        } else {
+            warnings.push(`Regular font ${originalFont}.ttf was not found.`);
+        }
+
+        // Check for Bold / Italic usage
+        const usesBold = /\*\*(.*?)\*\*|__(.*?)__/.test(inkContent);
+        // Note: single * is used for choices in ink, so this regex is a heuristic.
+        const usesItalic = /(?<!\S)\*(?!\s)(.*?)(?<!\s)\*(?!\S)|_(.*?)_/.test(inkContent);
+
+        if (usesBold || usesItalic) {
+            onProgress(`[Font] Story uses bold/italic variants. Checking for variants of ${fontNameBase}...`);
+            
+            const tryConvertVariant = async (variantSuffix, epdfontSuffix) => {
+                const variantFileName = `${fontNameBase}-${variantSuffix}`;
+                const variantTtf = path.join(inkDir, `${variantFileName}.ttf`);
+                if (fs.existsSync(variantTtf)) {
+                    onProgress(`[Font] Found variant ${variantFileName}.ttf`);
+                    const rootDir = path.resolve(__dirname, '../../../../');
+                    const fontConvertScript = path.join(rootDir, 'scripts', 'fontconvert.py');
+                    const outDir = path.join(inkDir, 'font_tmp_out');
+                    try {
+                        await runProcess('python', [
+                            fontConvertScript, variantFileName, '-r', variantTtf,
+                            '--size-opt', DEFAULT_FONT_SIZE.toString(), '--2bit', '-o', outDir
+                        ], inkDir, onProgress);
+                        
+                        const generatedVariant = path.join(outDir, variantFileName, 'regular.epdfont');
+                        if (fs.existsSync(generatedVariant)) {
+                            const finalVariantEpdfont = path.join(inkDir, `${headerFont}-${epdfontSuffix}.epdfont`);
+                            fs.copyFileSync(generatedVariant, finalVariantEpdfont);
+                            onProgress(`✔ Variant converted successfully: ${headerFont}-${epdfontSuffix}.epdfont`);
+                            return true;
+                        }
+                    } catch (e) {
+                        onProgress(`[WARN] Failed to convert ${variantFileName}.ttf`);
+                    } finally {
+                        try { fs.rmSync(outDir, { recursive: true, force: true }); } catch (e) { }
+                    }
+                }
+                return false;
+            };
+
+            if (usesBold) {
+                const hasBold = await tryConvertVariant('Bold', 'bold') || await tryConvertVariant('bold', 'bold');
+                if (!hasBold) {
+                    warnings.push(`Story uses bold text, but ${fontNameBase}-Bold.ttf was not provided (eenk will use faux bold).`);
+                }
+            }
+            if (usesItalic) {
+                const hasItalic = await tryConvertVariant('Italic', 'italic') || await tryConvertVariant('italic', 'italic');
+                if (!hasItalic) {
+                    warnings.push(`Story uses italic text, but ${fontNameBase}-Italic.ttf was not provided (eenk will use faux italic).`);
+                }
             }
         }
     }
 
-    return { jsonFile, binFile, numContainers, heapRequirement, totalFileSize };
+    return { jsonFile, binFile, numContainers, heapRequirement, totalFileSize, warnings };
 }
 
 // ── IPC registration ─────────────────────────────────────────────────────────

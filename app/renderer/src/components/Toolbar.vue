@@ -97,6 +97,9 @@ const runSimulation = async () => {
   try {
     projectStore.compilerBusy = true;
     const result = await window.api.invoke('eenk:compile', inkPath);
+    if (result.warnings && result.warnings.length > 0) {
+      alert("Compilation Warnings:\n\n" + result.warnings.join("\n\n"));
+    }
     const simResult = await window.api.invoke('eenk:sim-launch', result.binFile);
     if (!simResult.ok) {
       alert('Simulator error: ' + simResult.error);

@@ -352,6 +352,9 @@ export const ProjectController = {
       try {
         store.compilerBusy = true;
         const result = await window.api.invoke('eenk:compile', inkPath);
+        if (result.warnings && result.warnings.length > 0) {
+          alert("Compilation Warnings:\n\n" + result.warnings.join("\n\n"));
+        }
         console.log('Compiled successfully to: ' + result.binFile);
       } catch (e) {
         alert('Compilation failed: ' + e);
