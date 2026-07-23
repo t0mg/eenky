@@ -1,5 +1,6 @@
 <template>
   <div id="simulator-container">
+    <component is="style" v-if="fontStyle">{{ fontStyle }}</component>
     <div class="toolbar">
       <button class="icon-btn" @click="rewind" title="Restart story">
         <span class="material-symbols-outlined">restart_alt</span>
@@ -57,11 +58,62 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { LiveCompiler } from '../core/liveCompiler.js';
 import { useProjectStore } from '../stores/projectStore';
 
 const projectStore = useProjectStore();
+
+const storyFontRaw = computed(() => {
+  const content = projectStore.mainInkFile?.content || '';
+  const match = content.match(/@font(?::|\s)\s*([^\n\r*]+)/i);
+  return match ? match[1].trim() : '';
+});
+
+const debouncedStoryFont = ref('');
+
+watch(storyFontRaw, (newVal) => {
+  if (debouncedStoryFont.timeoutId) clearTimeout(debouncedStoryFont.timeoutId);
+  debouncedStoryFont.timeoutId = setTimeout(() => {
+    debouncedStoryFont.value = newVal;
+  }, 500);
+}, { immediate: true });
+
+const fontStyle = computed(() => {
+  const originalFont = debouncedStoryFont.value;
+  const font = originalFont.toLowerCase();
+  
+  if (font === 'sans') return '.player-content { font-family: sans-serif !important; }';
+  if (font === 'serif') {
+    return `
+      @font-face {
+        font-family: 'Literata';
+        src: url('/fonts/Literata-VariableFont_opsz,wght.ttf') format('truetype');
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Literata';
+        src: url('/fonts/Literata-Italic-VariableFont_opsz,wght.ttf') format('truetype');
+        font-style: italic;
+      }
+      .player-content { font-family: 'Literata', serif !important; }
+    `;
+  }
+  if (originalFont) {
+    // Sideloaded TTF
+    const dir = projectStore.mainInkFile.absolutePath.replace(/[^\\/]+$/, '');
+    const fontUrl = `file:///${dir}${originalFont}.ttf`.replace(/\\/g, '/');
+    return `
+      @font-face {
+        font-family: '${originalFont}';
+        src: url('${fontUrl}') format('truetype');
+      }
+      .player-content { font-family: '${originalFont}', sans-serif !important; }
+    `;
+  }
+  return '';
+});
+
 const blocks = ref([]);
 const scrollContainer = ref(null);
 const watchExpressions = ref([]);
@@ -185,8 +237,15 @@ const stepBack = () => {
 };
 
 const formatText = (text) => {
+  let formatted = text;
+  // Bold
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  formatted = formatted.replace(/__(.*?)__/g, '<strong>$1</strong>');
+  // Italic
+  formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/_(.*?)_/g, '<em>$1</em>');
   // Replace newlines with <br>
-  return text.replace(/\n/g, '<br>');
+  return formatted.replace(/\n/g, '<br>');
 };
 </script>
 
@@ -227,7 +286,7 @@ const formatText = (text) => {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  font-family: 'Georgia', serif;
+  font-family: 'Georgia', serif; /* fallback */
   font-size: calc(16px * var(--zoom-factor, 1));
   line-height: 1.6;
   color: var(--text-color);

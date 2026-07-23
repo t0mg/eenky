@@ -13,18 +13,22 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+// ── Configuration ────────────────────────────────────────────────────────────
+// Default font size used when converting side-loaded TTF fonts to .epdfont
+const DEFAULT_FONT_SIZE = 14;
+
 // ── Binary resolution ────────────────────────────────────────────────────────
 
 function getInkDir() {
     const { app } = require('electron');
-    return app.isPackaged 
+    return app.isPackaged
         ? path.join(process.resourcesPath, 'ink')
         : path.join(__dirname, 'ink');
 }
 
 function getInkcppBinary() {
     const inkDir = getInkDir();
-    if (process.platform === 'win32')  return path.join(inkDir, 'win', 'inkcpp_cl.exe');
+    if (process.platform === 'win32') return path.join(inkDir, 'win', 'inkcpp_cl.exe');
     if (process.platform === 'darwin') return path.join(inkDir, 'mac', 'inkcpp_cl');
     return path.join(inkDir, 'linux', 'inkcpp_cl');
 }
@@ -32,7 +36,7 @@ function getInkcppBinary() {
 // Use inky's existing inklecate path resolution
 function getInklecateBinary() {
     const inkDir = getInkDir();
-    if (process.platform === 'win32')  return path.join(inkDir, 'inklecate_win.exe');
+    if (process.platform === 'win32') return path.join(inkDir, 'inklecate_win.exe');
     if (process.platform === 'darwin') return path.join(inkDir, 'inklecate_mac');
     return path.join(inkDir, 'inklecate_linux');
 }
@@ -62,18 +66,18 @@ function runProcess(exePath, args, cwd, onProgress) {
 // ── Main export ──────────────────────────────────────────────────────────────
 
 async function compileEenk(inkFilePath, onProgress) {
-    const inkFile  = path.resolve(inkFilePath);
-    const inkDir   = path.dirname(inkFile);
+    const inkFile = path.resolve(inkFilePath);
+    const inkDir = path.dirname(inkFile);
     const baseName = path.basename(inkFile, '.ink');
     const jsonFile = path.join(inkDir, `${baseName}.json`);
-    const binFile  = path.join(inkDir, `${baseName}.bin`);
+    const binFile = path.join(inkDir, `${baseName}.bin`);
 
     if (!fs.existsSync(inkFile)) {
         throw new Error(`File not found: ${inkFile}`);
     }
 
     const inklecate = getInklecateBinary();
-    const inkcpp    = getInkcppBinary();
+    const inkcpp = getInkcppBinary();
 
     onProgress(`── Starting eenk compilation for ${baseName}.ink ──`);
 
@@ -102,7 +106,13 @@ async function compileEenk(inkFilePath, onProgress) {
     if (authorMatch) author = authorMatch[1].trim();
 
     const fontMatch = headerText.match(/@font(?::|\s)\s*([^\n\r*]+)/i);
-    if (fontMatch) font = fontMatch[1].trim();
+    let originalFont = '';
+    let headerFont = '';
+    if (fontMatch) {
+        originalFont = fontMatch[1].trim();
+        // Strip trailing style suffix to derive clean family stem for header
+        headerFont = originalFont.replace(/-(regular|regula|bold|italic|bolditalic|medium)$/i, '');
+    }
 
     const header = Buffer.alloc(128);
     // Magic "eenk" (0x6B6E6565)
@@ -120,11 +130,16 @@ async function compileEenk(inkFilePath, onProgress) {
     // Flags (0 by default, can be extended for things like sidecar media files)
     header.writeUInt32LE(0, 108);
     // Font Name Length
-    let fontLen = Buffer.byteLength(font, 'utf8');
-    if (fontLen > 15) fontLen = 15;
+    let fontLen = Buffer.byteLength(headerFont, 'utf8');
+    while (fontLen > 15) {
+        headerFont = headerFont.slice(0, -1);
+        fontLen = Buffer.byteLength(headerFont, 'utf8');
+    }
     header.writeUInt8(fontLen, 112);
     // Font Name (max 15 bytes)
-    header.write(font, 113, fontLen, 'utf8');
+    if (fontLen > 0) {
+        header.write(headerFont, 113, fontLen, 'utf8');
+    }
 
 
     const binContent = fs.readFileSync(binFile);
@@ -135,16 +150,16 @@ async function compileEenk(inkFilePath, onProgress) {
     let numContainers = 0;
     let heapRequirement = 0;
     let totalFileSize = 0;
-    
+
     try {
         const stats = fs.statSync(binFile);
         totalFileSize = stats.size;
-        
+
         const fd = fs.openSync(binFile, 'r');
         const buffer = Buffer.alloc(168); // 128 header + 40 bytes for INKB check
         fs.readSync(fd, buffer, 0, 168, 0);
         fs.closeSync(fd);
-        
+
         const eenkMagic = buffer.readUInt32LE(0);
         const offset = (eenkMagic === 0x6B6E6565) ? 128 : 0;
 
@@ -159,6 +174,55 @@ async function compileEenk(inkFilePath, onProgress) {
     }
 
     onProgress(`── Compilation complete ──`);
+
+    // ── Font Conversion ──
+    if (originalFont && originalFont.toLowerCase() !== 'sans' && originalFont.toLowerCase() !== 'serif') {
+        const ttfPath = path.join(inkDir, `${originalFont}.ttf`);
+        if (fs.existsSync(ttfPath)) {
+            onProgress(`[Font] Found side-loaded TTF: ${originalFont}.ttf`);
+            try {
+                // Check if Python and freetype are available
+                await runProcess('python', ['-c', 'import freetype'], inkDir, () => {});
+
+                // Paths
+                const rootDir = path.resolve(__dirname, '../../../../'); // e.g. root/tools/eenky/app/main-process -> root
+                const fontConvertScript = path.join(rootDir, 'scripts', 'fontconvert.py');
+                const outDir = path.join(inkDir, 'font_tmp_out');
+
+                if (fs.existsSync(fontConvertScript)) {
+                    onProgress(`[Font] Converting ${originalFont}.ttf to ${headerFont}.epdfont at size ${DEFAULT_FONT_SIZE}pt...`);
+
+                    // fontconvert.py <stem> -r <ttf> --size-opt <size> --2bit -o <outDir>
+                    await runProcess('python', [
+                        fontConvertScript,
+                        originalFont,
+                        '-r', ttfPath,
+                        '--size-opt', DEFAULT_FONT_SIZE.toString(),
+                        '--2bit',
+                        '-o', outDir
+                    ], inkDir, onProgress);
+
+                    // fontconvert.py outputs to `outDir/<font>/regular.epdfont`
+                    const generatedEpdfont = path.join(outDir, originalFont, 'regular.epdfont');
+                    if (fs.existsSync(generatedEpdfont)) {
+                        const finalEpdfont = path.join(inkDir, `${headerFont}.epdfont`);
+                        fs.copyFileSync(generatedEpdfont, finalEpdfont);
+                        onProgress(`✔ Font converted successfully: ${headerFont}.epdfont`);
+                    } else {
+                        onProgress(`[WARN] Font conversion completed but ${generatedEpdfont} was not found.`);
+                    }
+
+                    // Cleanup
+                    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch (e) { }
+                } else {
+                    onProgress(`[WARN] fontconvert.py script not found at ${fontConvertScript}`);
+                }
+            } catch (err) {
+                onProgress(`[WARN] Could not convert TTF font. Please ensure Python 3 and 'freetype-py' are installed globally. (Error: ${err.message})`);
+            }
+        }
+    }
+
     return { jsonFile, binFile, numContainers, heapRequirement, totalFileSize };
 }
 
@@ -171,8 +235,8 @@ ipcMain.handle('eenk:compile', async (event, inkFilePath) => {
                 event.sender.send('eenk:compile-progress', msg);
             }
         })
-        .then(result => resolve(result))
-        .catch(err   => reject(err.message || String(err)));
+            .then(result => resolve(result))
+            .catch(err => reject(err.message || String(err)));
     });
 });
 

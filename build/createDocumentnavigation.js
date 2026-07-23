@@ -35,6 +35,10 @@ function initializeNavigation() {
                 }
 
                 var data = eenkData + '\n\n' + inkData;
+                
+                // Write the combined markdown to a file for markdown-html to use
+                fs.writeFileSync('../app/resources/Documentation/CombinedDocumentation.md', data, 'utf8');
+
                 var output = originalFile[0];
 
                 for (var line of data.split("\n")) {

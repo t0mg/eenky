@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build-docs && vite",
     "build": "npm run build-docs && vite build",
-    "build-docs": "cd ../../build && node createDocumentnavigation.js && markdown-html ../app/resources/Documentation/WritingWithInk.md -s ../app/resources/Documentation/documentation.css -o ../app/renderer/public/documentation/embedded.html",
+    "build-docs": "cd ../../build && node createDocumentnavigation.js && markdown-html ../app/resources/Documentation/CombinedDocumentation.md -s ../app/resources/Documentation/documentation.css -o ../app/renderer/public/documentation/embedded.html",
     "preview": "vite preview",
     "test": "vitest run"
   },
