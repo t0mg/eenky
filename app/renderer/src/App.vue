@@ -1,5 +1,5 @@
 <template>
-  <div id="app-container" :class="theme">
+  <div id="app-container">
     <Toolbar v-if="projectStore.mainInkFile && uiStore.showToolbar" />
     <div id="main-content" v-if="projectStore.mainInkFile" @mousemove="onMouseMove" @mouseup="onMouseUp" @mouseleave="onMouseUp">
       <Sidebar :style="{ width: uiStore.sidebarWidth + 'px' }" v-if="uiStore.showFileBrowser || uiStore.showKnotBrowser" />
@@ -18,6 +18,10 @@
         <div class="actions">
           <button @click="createNewProject" class="primary-btn">New Project</button>
           <button @click="openProject" class="secondary-btn">Open Project...</button>
+          <button @click="openDeviceManager" class="secondary-btn">
+            <span class="material-symbols-outlined">usb</span>
+            Device Manager
+          </button>
         </div>
       </div>
     </div>
@@ -41,8 +45,6 @@ import { LiveCompiler } from './core/liveCompiler.js';
 
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
-
-const theme = uiStore.theme;
 
 // Panel resizing state
 const isResizingSidebar = ref(false);
@@ -103,6 +105,12 @@ const openProject = async () => {
   }
 };
 
+const openDeviceManager = () => {
+  if (window.api && window.api.invoke) {
+    window.api.invoke('eenk:open-device-management');
+  }
+};
+
 onMounted(() => {
   ProjectController.init();
 
@@ -152,6 +160,9 @@ onMounted(() => {
         window.dispatchEvent(customEvent);
       }, 50);
     });
+    window.api.receive('eenk:open-device-management', () => {
+      // Handled by main process directly opening window
+    });
   }
 
   // Initial menu state
@@ -160,10 +171,6 @@ onMounted(() => {
 
 watch([() => projectStore.mainInkFile, () => projectStore.hasUnsavedChanges], () => {
   updateAppMenuState();
-});
-
-watch(() => uiStore.theme, (newTheme) => {
-  document.body.className = newTheme;
 });
 </script>
 

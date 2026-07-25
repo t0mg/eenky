@@ -10,6 +10,7 @@ const i18n = require("./i18n/i18n.js")
 const {ProjectWindow} = require("./projectWindow.js");
 const {DocumentationWindow} = require("./documentationWindow.js");
 const {AboutWindow} = require("./aboutWindow.js");
+const deviceWindow = require("./deviceWindow.js");
 const {AppMenus} = require('./appmenus.js');
 const {onForceQuit} = require('./forceQuitDetect');
 const {Inklecate} = require("./inklecate.js");
@@ -101,6 +102,8 @@ ipcMain.handle('change-theme', async (event, nextTheme) => {
     for (let window of ProjectWindow.all()) {
         window.browserWindow.webContents.send('change-theme', nextTheme);
     }
+    
+    deviceWindow.changeTheme(nextTheme);
 });
 
 ipcMain.handle('set-view-setting', async (event, key, value) => {
@@ -197,6 +200,10 @@ ipcMain.on('app-state-changed', (event, state) => {
 ipcMain.handle('launch-simulator', async (event) => {
     var win = ProjectWindow.withBrowserWindow(event.sender.getOwnerBrowserWindow());
     if (win) win.browserWindow.webContents.send('eenk:launch-simulator');
+});
+
+ipcMain.handle('eenk:open-device-management', async (event) => {
+    deviceWindow.open();
 });
 
 // This method will be called when Electron has finished
@@ -306,8 +313,7 @@ app.on('ready', function () {
             if (win) win.browserWindow.webContents.send('eenk:trigger-compile');
         },
         openDeviceManagement: () => {
-            var win = ProjectWindow.focused();
-            if (win) win.browserWindow.webContents.send('eenk:open-device-management');
+            deviceWindow.open();
         },
         launchSimulator: () => {
             var win = ProjectWindow.focused();
@@ -472,8 +478,9 @@ app.on('ready', function () {
         changeTheme: (newTheme) => {
             AboutWindow.changeTheme(newTheme);
             DocumentationWindow.changeTheme(newTheme);
-            ProjectWindow.addOrChangeViewSetting('theme', newTheme)
-        }
+            ProjectWindow.addOrChangeViewSetting('theme', newTheme);
+            deviceWindow.changeTheme(newTheme);
+        },
     });
     
     console.log("Testing!")

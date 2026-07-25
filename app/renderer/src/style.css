@@ -11,7 +11,7 @@
   --active-bg: rgba(25, 118, 210, 0.1);
   --error-color: #d32f2f;
   --warning-color: #f57c00;
-  
+
   /* CodeMirror Theme Variables */
   --cm-background-color: #ffffff;
   --cm-text-color: #333333;
@@ -29,7 +29,7 @@
   --cm-string-color: #e65100;
   --cm-number-color: #009688;
   --cm-bool-color: #d81b60;
-  
+
   /* CodeMirror Editor Background/Selection */
   --cm-selection-bg: rgba(25, 118, 210, 0.2);
   --cm-selection-match-bg: rgba(25, 118, 210, 0.15);
@@ -68,7 +68,7 @@ body.dark {
   --cm-string-color: #ffcc80;
   --cm-number-color: #80cbc4;
   --cm-bool-color: #f48fb1;
-  
+
   /* CodeMirror Editor Background/Selection */
   --cm-selection-bg: rgba(73, 110, 150, 0.5);
   --cm-selection-match-bg: rgba(73, 110, 150, 0.4);
@@ -86,7 +86,10 @@ body {
   -webkit-user-select: none;
 }
 
-.cm-editor, .player-content, input, textarea {
+.cm-editor,
+.player-content,
+input,
+textarea {
   user-select: text;
   -webkit-user-select: text;
 }
@@ -116,6 +119,8 @@ button {
 }
 
 .secondary-btn {
+  display: flex;
+  align-items: center;
   background-color: transparent;
   color: var(--primary-color);
   border: 1px solid var(--primary-color);
@@ -139,15 +144,18 @@ button {
   width: 10px;
   height: 10px;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--bg-color); 
+  background: var(--bg-color);
 }
+
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color); 
+  background: var(--border-color);
   border-radius: 5px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted); 
+  background: var(--text-muted);
 }
 
 /* GotoAnything CSS */
@@ -157,7 +165,7 @@ button {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   z-index: 60;
 }
 
@@ -169,7 +177,7 @@ button {
   background: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  box-shadow: 0 5px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 5px 6px rgba(0, 0, 0, 0.2);
   z-index: 80;
   padding: 10px;
   font-family: monospace;

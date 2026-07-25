@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld('api', {
         }
     },
     invoke: (channel, data, data2) => {
-        let validChannels = ['eenk:open-file-dialog', 'eenk:get-recent-files', 'eenk:open-project', 'eenk:new-project', 'showSaveDialog', 'try-close', 'launch-simulator', 'eenk:compile', 'eenk:sim-launch', 'get-template-dir', 'change-theme', 'set-view-setting'];
+        let validChannels = ['eenk:open-file-dialog', 'eenk:get-recent-files', 'eenk:open-project', 'eenk:new-project', 'showSaveDialog', 'try-close', 'launch-simulator', 'eenk:compile', 'eenk:sim-launch', 'get-template-dir', 'change-theme', 'set-view-setting', 'eenk:open-device-management'];
         if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, data, data2);
         }

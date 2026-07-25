@@ -18,6 +18,9 @@
 
         if (window.api && window.api.receive) {
             window.api.receive('change-theme', (theme) => {
+                if (theme === 'system' || theme === 'os') {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
                 document.documentElement.className = theme;
                 // also apply to iframe
                 const iframe = document.getElementById("contentView");

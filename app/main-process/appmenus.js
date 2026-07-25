@@ -557,6 +557,7 @@ exports.AppMenus = {
     setCallbacks: (c) => { callbacks = c },
     setRecentFiles: (files) => { recentFiles = files },
     setTheme: (t) => theme = t,
+    getTheme: () => theme,
     setZoom: (z) => zoom = z,
     setAutoCompleteDisabled: (e) => autoCompleteDisabled = e,
     setShowToolbar: (e) => showToolbar = e,
