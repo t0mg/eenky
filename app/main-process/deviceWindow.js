@@ -1,7 +1,6 @@
 const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
 const { AppMenus } = require('./appmenus.js');
-const isDev = process.env.NODE_ENV !== 'production';
 
 let deviceWindow = null;
 
@@ -29,6 +28,7 @@ function open() {
     deviceWindow.setMenu(null);
 
 
+    const isDev = process.defaultApp || /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || /[\\/]electron[\\/]/.test(process.execPath);
     if (isDev) {
         deviceWindow.loadURL('http://localhost:5173/device.html');
     } else {
