@@ -12,6 +12,7 @@ const { ipcMain } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { packImages } = require('./imagePacker');
 
 // ── Configuration ────────────────────────────────────────────────────────────
 // Default font size used when converting side-loaded TTF fonts to .epdfont
@@ -128,7 +129,25 @@ async function compileEenk(inkFilePath, onProgress) {
     // Timestamp
     header.writeUInt32LE(Math.floor(Date.now() / 1000), 104);
     // Flags (0 by default, can be extended for things like sidecar media files)
-    header.writeUInt32LE(0, 108);
+    let flags = 0;
+    
+    // Step 2b: Process Images
+    try {
+        onProgress(`Step 2.5: Packing images to .media sidecar...`);
+        const hasMedia = await packImages(inkDir, jsonFile);
+        if (hasMedia) {
+            flags |= 1; // bit 0 = has_media_sidecar
+            onProgress(`✔ Media sidecar packed successfully.`);
+        } else {
+            onProgress(`✔ No images found to pack.`);
+        }
+    } catch (e) {
+        const { dialog } = require('electron');
+        dialog.showErrorBox("Media Compilation Failed", e.message);
+        throw e;
+    }
+    
+    header.writeUInt32LE(flags, 108);
     // Font Name Length
     let fontLen = Buffer.byteLength(headerFont, 'utf8');
     while (fontLen > 15) {

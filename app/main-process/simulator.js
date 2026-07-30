@@ -44,6 +44,7 @@ function stopSimulator() {
 }
 
 function sendLog(msg) {
+    console.log(msg); // Print to main-process console (npm start output)
     if (senderRef && !senderRef.isDestroyed()) {
         senderRef.send('eenk:sim-log', msg);
     }
