@@ -120,7 +120,7 @@ export const useDeviceStore = defineStore('device', {
                 });
                 
                 // Handle sidecars via preload API if available (Electron environment)
-                const STORY_SIDECAR_EXTENSIONS = ['.epdfont'];
+                const STORY_SIDECAR_EXTENSIONS = ['.epdfont', '.media'];
                 if (file.path && window.api && window.api.fs && window.api.path) {
                     try {
                         const dirPath = await window.api.path.dirname(file.path);
