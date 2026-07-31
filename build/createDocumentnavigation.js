@@ -40,8 +40,16 @@ function initializeNavigation() {
                 fs.writeFileSync('../app/resources/Documentation/CombinedDocumentation.md', data, 'utf8');
 
                 var output = originalFile[0];
+                var inCodeBlock = false;
 
                 for (var line of data.split("\n")) {
+                    if (line.trim().startsWith('```')) {
+                        inCodeBlock = !inCodeBlock;
+                        continue;
+                    }
+                    if (inCodeBlock) {
+                        continue;
+                    }
                     
                     // checks whether the line does NOT contain a headline (indicated by the character '#'; the indexOf method will return -1 if the string does not contain the argument).
                     // The second part checks if the first character of a line is a '#' (a markdown header).
