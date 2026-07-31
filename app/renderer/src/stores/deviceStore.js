@@ -129,7 +129,7 @@ export const useDeviceStore = defineStore('device', {
                         const files = await window.api.fs.readdir(dirPath);
                         for (const f of files) {
                             const ext = await window.api.path.extname(f);
-                            if (STORY_SIDECAR_EXTENSIONS.includes(ext) && f.startsWith(baseName)) {
+                            if (STORY_SIDECAR_EXTENSIONS.includes(ext) && (ext === '.epdfont' || f.startsWith(baseName))) {
                                 const fullPath = await window.api.path.join(dirPath, f);
                                 const buf = await window.api.fs.readFile(fullPath);
                                 const u8 = new Uint8Array(buf);
