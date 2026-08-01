@@ -54,11 +54,15 @@ function initializeNavigation() {
                     // checks whether the line does NOT contain a headline (indicated by the character '#'; the indexOf method will return -1 if the string does not contain the argument).
                     // The second part checks if the first character of a line is a '#' (a markdown header).
                     
-                    if (line.indexOf('#') === -1 || line.charAt(0) != '#') {
+                    if (line.indexOf('#') === -1 || line.trim().charAt(0) != '#') {
                         continue;
                     }
-                    var headline;
-                    headline = line.split('#').join('').trim();
+                    var headline = line.replace(/^#+/, '').trim();
+
+                    // If the entire headline is wrapped in backquotes, it's a code example, not a real heading.
+                    if (headline.startsWith('`') && headline.endsWith('`')) {
+                        continue;
+                    }
 
                     //generating the ids for the documentation links
                     id = headline.toLowerCase();

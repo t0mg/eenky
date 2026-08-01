@@ -115,6 +115,18 @@ async function compileEenk(inkFilePath, onProgress) {
         headerFont = originalFont.replace(/-(regular|regula|bold|italic|bolditalic|medium)$/i, '');
     }
 
+    const coverMatch = headerText.match(/@cover(?::|\s)\s*([^\n\r*]+)/i);
+    let coverFile = '';
+    if (coverMatch) {
+        coverFile = coverMatch[1].trim();
+    }
+
+    const thumbMatch = headerText.match(/@thumbnail(?::|\s)\s*([^\n\r*]+)/i);
+    let thumbnailFile = '';
+    if (thumbMatch) {
+        thumbnailFile = thumbMatch[1].trim();
+    }
+
     const header = Buffer.alloc(128);
     // Magic "eenk" (0x6B6E6565)
     header.writeUInt32LE(0x6B6E6565, 0);
@@ -134,7 +146,7 @@ async function compileEenk(inkFilePath, onProgress) {
     // Step 2b: Process Images
     try {
         onProgress(`Step 2.5: Packing images to .media sidecar...`);
-        const hasMedia = await packImages(inkDir, jsonFile);
+        const hasMedia = await packImages(inkDir, jsonFile, coverFile, thumbnailFile);
         if (hasMedia) {
             flags |= 1; // bit 0 = has_media_sidecar
             onProgress(`✔ Media sidecar packed successfully.`);
