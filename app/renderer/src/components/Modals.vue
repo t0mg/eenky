@@ -35,6 +35,8 @@
           <tr><td>Rewind Story</td><td>{{ ctrlCmd }} + R</td></tr>
           <tr><td>Step Back Story</td><td>{{ ctrlCmd }} + [</td></tr>
           <tr><td>Zoom In / Out / Reset</td><td>{{ ctrlCmd }} + + / - / 0</td></tr>
+          <tr><td>Open Device Manager</td><td>{{ ctrlCmd }} + D</td></tr>
+          <tr><td>Open Documentation</td><td>F1</td></tr>
           <tr><td>Keyboard Shortcuts</td><td>{{ ctrlCmd }} + ?</td></tr>
           </tbody>
         </table>

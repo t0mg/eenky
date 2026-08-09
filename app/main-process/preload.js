@@ -25,11 +25,20 @@ contextBridge.exposeInMainWorld('api', {
         }
     },
     invoke: (channel, data, data2) => {
-        let validChannels = ['eenk:open-file-dialog', 'eenk:get-recent-files', 'eenk:open-project', 'eenk:new-project', 'showSaveDialog', 'try-close', 'launch-simulator', 'eenk:compile', 'eenk:sim-launch', 'get-template-dir', 'change-theme', 'set-view-setting', 'eenk:open-device-management'];
+        let validChannels = ['eenk:open-file-dialog', 'eenk:get-recent-files', 'eenk:open-project', 'eenk:new-project', 'showSaveDialog', 'try-close', 'launch-simulator', 'eenk:compile', 'eenk:sim-launch', 'get-template-dir', 'change-theme', 'set-view-setting', 'eenk:open-device-management', 'eenk:get-flasher-path', 'eenk:open-external'];
         if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, data, data2);
         }
     },
+
+    // Resolve the path to the portable eenk flasher module
+    getFlasherPath: () => ipcRenderer.invoke('eenk:get-flasher-path'),
+
+    // Resolve the path to the portable eenk device manager module
+    getDeviceManagerPath: () => ipcRenderer.invoke('eenk:get-device-manager-path'),
+
+    // Open a URL in the system browser (used by CrossPoint fallback)
+    openExternal: (url) => ipcRenderer.invoke('eenk:open-external', url),
 
     // File System operations
     fs: {

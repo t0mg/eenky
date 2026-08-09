@@ -1,14 +1,17 @@
 eenky TODOs
 
-- Modals (About, Shortcuts etc) don't capture focus so it's possible to mess up behind them via keyboard 
-- Upload to SD card via USB ?
+## Bugs
+
+## Features
+
+- Add a new metadata @custom-font-size to set an override value for the conversion of the local custom font.
+- Add a flashing tool for binary files in the Device Manager. Start with external bin (later we'll provide automated download from github releases).
+
+## UI & UX
+
+- Update eenk metadata template injection with the latest tags 
 - Preview build size and state data size/budget (this doesnt work currently)
 - Use temp folder for build artefacts, and choose where to export the bin file
-- Change icon, etc.
-- Disable developer tools from defaulting to on
+- Change icon.
 - Shortcuts (rewind/stepback) use ctrl+alt+arrow or something
-- Reorder shortcuts in the modal and add the missing stuff
 - Work on i18n (redo the files)
-- Parsing errors in the watch expressions are not shown anywhere. We should update the styling to red and display the error somewhere.
-- Would be nice to be able to ctrl+F in the documentation. Also blue links are unreadable in dark mode.
-- Attempting to delete an unsaved (newly created) file throws an error.

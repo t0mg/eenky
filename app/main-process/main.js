@@ -1,5 +1,6 @@
-const {app, BrowserWindow, ipcMain, dialog, ipcRenderer, Menu, session} = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, ipcRenderer, Menu, session } = require('electron')
 const path = require('path');
+const url = require('url');
 const isDev = process.env.NODE_ENV !== 'production';
 
 if (isDev) {
@@ -7,13 +8,13 @@ if (isDev) {
 }
 
 const i18n = require("./i18n/i18n.js")
-const {ProjectWindow} = require("./projectWindow.js");
-const {DocumentationWindow} = require("./documentationWindow.js");
-const {AboutWindow} = require("./aboutWindow.js");
+const { ProjectWindow } = require("./projectWindow.js");
+const { DocumentationWindow } = require("./documentationWindow.js");
+const { AboutWindow } = require("./aboutWindow.js");
 const deviceWindow = require("./deviceWindow.js");
-const {AppMenus} = require('./appmenus.js');
-const {onForceQuit} = require('./forceQuitDetect');
-const {Inklecate} = require("./inklecate.js");
+const { AppMenus } = require('./appmenus.js');
+const { onForceQuit } = require('./forceQuitDetect');
+const { Inklecate } = require("./inklecate.js");
 const { fstat } = require('original-fs');
 const fs = require("fs");
 
@@ -60,23 +61,23 @@ ipcMain.on('show-context-menu', (event, options) => {
     const template = [
         {
             label: 'Cut',
-            role: 'cut' 
+            role: 'cut'
         },
         {
             label: 'Copy',
-            role: 'copy' 
+            role: 'copy'
         },
         {
             label: 'Paste',
-            role: 'paste' 
+            role: 'paste'
         }
     ];
 
     if (options && options.type === 'editor') {
         template.push({ type: 'separator' });
-        template.push({ 
-            label: 'Find / Replace', 
-            click: () => { event.sender.send("find"); } 
+        template.push({
+            label: 'Find / Replace',
+            click: () => { event.sender.send("find"); }
         });
     }
 
@@ -102,7 +103,7 @@ ipcMain.handle('change-theme', async (event, nextTheme) => {
     for (let window of ProjectWindow.all()) {
         window.browserWindow.webContents.send('change-theme', nextTheme);
     }
-    
+
     deviceWindow.changeTheme(nextTheme);
 });
 
@@ -115,7 +116,7 @@ ipcMain.handle("showMessageBox", async (event, options) => {
     return dialog.showMessageBox(win, options);
 })
 
-ipcMain.handle("try-close", async (event) =>{
+ipcMain.handle("try-close", async (event) => {
     return dialog.showMessageBox({
         type: "warning",
         message: i18n._("Would you like to save changes before exiting?"),
@@ -127,7 +128,7 @@ ipcMain.handle("try-close", async (event) =>{
         ],
         defaultId: 0
     })
-    
+
 })
 
 ipcMain.on("compile", (event, compileInstruction) => {
@@ -155,23 +156,23 @@ app.on("open-file", function (event, path) {
 
     // e.g. Drag and drop onto app to open it.
     // "open-file" seems to come before "will-finish-launching"
-    if( !hasFinishedLaunch ) {
+    if (!hasFinishedLaunch) {
         pendingPathToOpen = path;
     }
-    
+
     // Drag and drop onto app while it's already open
     else {
 
         // See if this root file is already open in an existing window
         let existingWin = ProjectWindow.withMainkInkPath(path);
-        if( existingWin ) {
+        if (existingWin) {
             existingWin.browserWindow.focus();
             existingWin.browserWindow.webContents.send('open-main-ink');
         } else {
-            ProjectWindow.open(path);       
+            ProjectWindow.open(path);
         }
     }
-    
+
     event.preventDefault();
 });
 
@@ -184,7 +185,7 @@ app.on('before-quit', function () {
 ipcMain.on("project-cancelled-close", (event) => {
     isQuitting = false;
     var win = ProjectWindow.withBrowserWindow(event.sender.getOwnerBrowserWindow());
-    if( win ) win.cancelClose();
+    if (win) win.cancelClose();
 });
 
 ipcMain.handle("get-template-dir", () => {
@@ -206,6 +207,52 @@ ipcMain.handle('eenk:open-device-management', async (event) => {
     deviceWindow.open();
 });
 
+// Resolve the path to the portable eenk flasher module.
+// In dev mode the flasher lives in the eenk submodule at the repo root.
+// In production it is included in the asar under main-process/ink/<platform>/ vicinity;
+// we look for it relative to __dirname (which is app/main-process/).
+ipcMain.handle('eenk:get-flasher-path', async () => {
+    const distPath = path.join(__dirname, '..', 'renderer', 'dist', 'flasher', 'index.html');
+    if (fs.existsSync(distPath)) {
+        return url.pathToFileURL(distPath).href;
+    }
+    const publicPath = path.join(__dirname, '..', 'renderer', 'public', 'flasher', 'index.html');
+    if (fs.existsSync(publicPath)) {
+        return url.pathToFileURL(publicPath).href;
+    }
+    const submodulePath = path.join(__dirname, '..', '..', 'eenk', 'tools', 'flasher', 'index.html');
+    if (fs.existsSync(submodulePath)) {
+        return url.pathToFileURL(submodulePath).href;
+    }
+    console.warn('[eenk] Flasher module not found. Run npm run setup to copy it.');
+    return null;
+});
+
+ipcMain.handle('eenk:get-device-manager-path', async () => {
+    const distPath = path.join(__dirname, '..', 'renderer', 'dist', 'device-manager', 'index.html');
+    if (fs.existsSync(distPath)) {
+        return url.pathToFileURL(distPath).href;
+    }
+    const publicPath = path.join(__dirname, '..', 'renderer', 'public', 'device-manager', 'index.html');
+    if (fs.existsSync(publicPath)) {
+        return url.pathToFileURL(publicPath).href;
+    }
+    const submodulePath = path.join(__dirname, '..', '..', 'eenk', 'tools', 'device-manager', 'index.html');
+    if (fs.existsSync(submodulePath)) {
+        return url.pathToFileURL(submodulePath).href;
+    }
+    console.warn('[eenk] Device Manager module not found. Run npm run setup to copy it.');
+    return null;
+});
+
+// Open a URL in the system default browser (used by the CrossPoint fallback chain)
+ipcMain.handle('eenk:open-external', async (event, url) => {
+    const { shell } = require('electron');
+    if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+        await shell.openExternal(url);
+    }
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -219,6 +266,10 @@ app.on('ready', function () {
             callback(false);
         }
     });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+        if (permission === 'serial') return true;
+        return true;
+    });
     session.defaultSession.setDevicePermissionHandler((details) => {
         if (details.deviceType === 'serial') return true;
         return false;
@@ -226,7 +277,7 @@ app.on('ready', function () {
 
     session.defaultSession.on('select-serial-port', (event, portList, webContents, callback) => {
         event.preventDefault();
-        
+
         let callbackFired = false;
         const safeCallback = (portId) => {
             if (!callbackFired) {
@@ -266,13 +317,13 @@ app.on('ready', function () {
         }
     });
 
-    
+
     app.on('window-all-closed', function () {
         if (process.platform != 'darwin' || isQuitting) {
             app.quit();
         }
     });
-    
+
     AppMenus.setCallbacks({
         new: () => {
             ProjectWindow.createEmpty();
@@ -299,12 +350,12 @@ app.on('ready', function () {
             if (win) win.exportJson();
         },
         exportForWeb: () => {
-            if( inkJSNeedsUpdating() ) return;
+            if (inkJSNeedsUpdating()) return;
             var win = ProjectWindow.focused();
             if (win) win.exportForWeb();
         },
         exportJSOnly: () => {
-            if( inkJSNeedsUpdating() ) return;
+            if (inkJSNeedsUpdating()) return;
             var win = ProjectWindow.focused();
             if (win) win.exportJSOnly();
         },
@@ -344,26 +395,26 @@ app.on('ready', function () {
                 const eenkVersionFilePath = "ink/eenk_version.txt";
                 const inklecateRootPathRelease = path.join(__dirname, "../../app.asar.unpacked/main-process");
                 const inklecateRootPathDev = __dirname;
-                
+
                 var fullVersionFilePath = path.join(inklecateRootPathRelease, versionFilePath);
                 try { fs.accessSync(versionFilePath) } catch (e) {
                     fullVersionFilePath = path.join(inklecateRootPathDev, versionFilePath);
                 }
-                
+
                 var fullEenkVersionFilePath = path.join(inklecateRootPathRelease, eenkVersionFilePath);
                 try { fs.accessSync(eenkVersionFilePath) } catch (e) {
                     fullEenkVersionFilePath = path.join(inklecateRootPathDev, eenkVersionFilePath);
                 }
 
                 var inkVersion = "Unknown";
-                try { inkVersion = fs.readFileSync(fullVersionFilePath, "utf8").trim(); } catch(e){}
-                
+                try { inkVersion = fs.readFileSync(fullVersionFilePath, "utf8").trim(); } catch (e) { }
+
                 var eenkVersion = "Unknown";
-                try { eenkVersion = fs.readFileSync(fullEenkVersionFilePath, "utf8").trim(); } catch(e){}
-                
+                try { eenkVersion = fs.readFileSync(fullEenkVersionFilePath, "utf8").trim(); } catch (e) { }
+
                 let inkjsVersion = "Unknown";
-                try { inkjsVersion = require('inkjs/package.json').version; } catch(e){}
-                
+                try { inkjsVersion = require('inkjs/package.json').version; } catch (e) { }
+
                 win.browserWindow.webContents.send('show-about', {
                     eenkyVersion: app.getVersion(),
                     inkVersion: inkVersion,
@@ -385,24 +436,24 @@ app.on('ready', function () {
             if (win != null) {
                 // Convert change from font size to zoom percentage
                 let zoom = ProjectWindow.getViewSettings().zoom;
-                zoom = (parseInt(zoom) + Math.floor(2*100/12)).toString();
+                zoom = (parseInt(zoom) + Math.floor(2 * 100 / 12)).toString();
                 ProjectWindow.addOrChangeViewSetting('zoom', zoom);
             }
         },
         zoomOut: () => {
-          var win = ProjectWindow.focused();
-          if (win != null) {
-              // Convert change from font size to zoom percentage
-              let zoom = ProjectWindow.getViewSettings().zoom
-              zoom = (parseInt(zoom) - Math.floor(2*100/12)).toString();
-              ProjectWindow.addOrChangeViewSetting('zoom', zoom);
+            var win = ProjectWindow.focused();
+            if (win != null) {
+                // Convert change from font size to zoom percentage
+                let zoom = ProjectWindow.getViewSettings().zoom
+                zoom = (parseInt(zoom) - Math.floor(2 * 100 / 12)).toString();
+                ProjectWindow.addOrChangeViewSetting('zoom', zoom);
             }
         },
         zoomReset: () => {
-          var win = ProjectWindow.focused();
-          if (win != null) {
-              ProjectWindow.addOrChangeViewSetting('zoom', '100');
-          }
+            var win = ProjectWindow.focused();
+            if (win != null) {
+                ProjectWindow.addOrChangeViewSetting('zoom', '100');
+            }
         },
         zoom: (zoom_percent) => {
             var win = ProjectWindow.focused();
@@ -455,7 +506,7 @@ app.on('ready', function () {
             let autoCompleteDisabled = !ProjectWindow.getViewSettings().autoCompleteDisabled;
             ProjectWindow.addOrChangeViewSetting('autoCompleteDisabled', autoCompleteDisabled)
 
-            for(let i=0; i<ProjectWindow.all().length; i++) {
+            for (let i = 0; i < ProjectWindow.all().length; i++) {
                 let eachWindow = ProjectWindow.all()[i];
                 eachWindow.browserWindow.webContents.send("set-autocomplete-disabled", autoCompleteDisabled);
             }
@@ -472,8 +523,8 @@ app.on('ready', function () {
             }
         },
         insertSnippet: (focussedWindow, snippet) => {
-            if( focussedWindow )
-            focussedWindow.webContents.send('insertSnippet', snippet);
+            if (focussedWindow)
+                focussedWindow.webContents.send('insertSnippet', snippet);
         },
         changeTheme: (newTheme) => {
             AboutWindow.changeTheme(newTheme);
@@ -482,7 +533,7 @@ app.on('ready', function () {
             deviceWindow.changeTheme(newTheme);
         },
     });
-    
+
     console.log("Testing!")
     AppMenus.setRecentFiles(ProjectWindow.getRecentFiles());
     AppMenus.setTheme(ProjectWindow.getViewSettings().theme);
@@ -515,7 +566,7 @@ app.on('ready', function () {
             AppMenus.setAutoCompleteDisabled(viewSettings.autoCompleteDisabled);
             AppMenus.setLineWrap(viewSettings.lineWrap !== false);
             AppMenus.refresh();
-            
+
             // Broadcast zoom to all windows
             for (let window of ProjectWindow.all()) {
                 window.browserWindow.webContents.send('zoom', viewSettings.zoom);
@@ -535,11 +586,11 @@ app.on('ready', function () {
     }
 
     // Opened Inky with specific file (e.g. drag and drop or windows command line)
-    if( pendingPathToOpen ) {
+    if (pendingPathToOpen) {
         ProjectWindow.open(pendingPathToOpen);
         pendingPathToOpen = null;
     }
-    
+
     // Otherwise, show new empty window
     else {
         ProjectWindow.createEmpty();

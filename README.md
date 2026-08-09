@@ -134,6 +134,10 @@ pio run -e esp32c3
 ```
 This produces `eenk/.pio/build/esp32c3/firmware-factory.bin` which the Flash tab picks up.
 
+## Credits & Acknowledgments
+
+eenky is built upon inkle's Inky IDE and numerous open-source tools and libraries. See [credits.md](credits.md) for the complete list of credits.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).  

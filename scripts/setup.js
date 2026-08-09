@@ -195,6 +195,37 @@ try {
     console.warn(`  ⚠  Could not copy WritingWithEenk.md: ${e.message}`);
 }
 
+// ── 7. Copy flasher & device-manager web tools to renderer public/ ─────────
+console.log('\n7. Copy flasher and device-manager tools to renderer/public/');
+try {
+    const flasherSrc = path.join(eenk, 'tools', 'flasher');
+    const flasherDst = path.join(ROOT, 'app', 'renderer', 'public', 'flasher');
+    const dmSrc      = path.join(eenk, 'tools', 'device-manager');
+    const dmDst      = path.join(ROOT, 'app', 'renderer', 'public', 'device-manager');
+
+    if (fs.existsSync(flasherSrc)) {
+        if (!checkOnly) {
+            fs.mkdirSync(flasherDst, { recursive: true });
+            fs.cpSync(flasherSrc, flasherDst, { recursive: true });
+        }
+        console.log(`  ✔  flasher copied to renderer/public/flasher`);
+    } else {
+        console.warn(`  ⚠  flasher tool source not found: ${flasherSrc}`);
+    }
+
+    if (fs.existsSync(dmSrc)) {
+        if (!checkOnly) {
+            fs.mkdirSync(dmDst, { recursive: true });
+            fs.cpSync(dmSrc, dmDst, { recursive: true });
+        }
+        console.log(`  ✔  device-manager copied to renderer/public/device-manager`);
+    } else {
+        console.warn(`  ⚠  device-manager tool source not found: ${dmSrc}`);
+    }
+} catch(e) {
+    console.warn(`  ⚠  Could not copy web tools: ${e.message}`);
+}
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 console.log('');
 if (allOk) {
