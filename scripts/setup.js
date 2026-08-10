@@ -17,17 +17,17 @@
  * This script is also invoked automatically by `npm run setup`.
  */
 
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
-const ROOT    = path.resolve(__dirname, '..');
-const eenk    = path.resolve(ROOT, 'eenk');
-const INKCPP  = path.resolve(ROOT, 'inkcpp');
+const ROOT = path.resolve(__dirname, '..');
+const eenk = path.resolve(ROOT, 'eenk');
+const INKCPP = path.resolve(ROOT, 'inkcpp');
 
 const platformMap = {
-    win32:  { pioExe: 'program.exe', simName: 'eenk-sim.exe', inkDir: 'win',   inkcppExe: 'inkcpp_cl.exe'  },
-    darwin: { pioExe: 'program',     simName: 'eenk-sim',     inkDir: 'mac',   inkcppExe: 'inkcpp_cl'      },
-    linux:  { pioExe: 'program',     simName: 'eenk-sim',     inkDir: 'linux', inkcppExe: 'inkcpp_cl'      },
+    win32: { pioExe: 'program.exe', simName: 'eenk-sim.exe', inkDir: 'win', inkcppExe: 'inkcpp_cl.exe' },
+    darwin: { pioExe: 'program', simName: 'eenk-sim', inkDir: 'mac', inkcppExe: 'inkcpp_cl' },
+    linux: { pioExe: 'program', simName: 'eenk-sim', inkDir: 'linux', inkcppExe: 'inkcpp_cl' },
 };
 
 const plat = platformMap[process.platform];
@@ -36,8 +36,8 @@ if (!plat) {
     process.exit(1);
 }
 
-const DEST_DIR   = path.join(ROOT, 'app', 'main-process', 'ink', plat.inkDir);
-const checkOnly  = process.argv.includes('--check');
+const DEST_DIR = path.join(ROOT, 'app', 'main-process', 'ink', plat.inkDir);
+const checkOnly = process.argv.includes('--check');
 
 let allOk = true;
 
@@ -117,9 +117,9 @@ if (!fs.existsSync(inkcppCheck)) {
             const { execSync } = require('child_process');
             execSync('git fetch --all && git checkout eenk-patches && git pull --rebase --autostash', { cwd: INKCPP, stdio: 'inherit' });
             console.log('  [build] Compiling inkcpp...');
-            
+
             let cmakeGen = '';
-            
+
             execSync(`cmake ${cmakeGen}-B build && cmake --build build --config Release`, { cwd: INKCPP, stdio: 'inherit' });
         } catch (e) {
             console.warn(`  ⚠  Could not pull/build inkcpp: ${e.message}`);
@@ -166,7 +166,7 @@ try {
     const versionFile = path.join(ROOT, 'app', 'main-process', 'ink', 'eenk_version.txt');
     if (!checkOnly) fs.writeFileSync(versionFile, hash, 'utf8');
     console.log(`  ✔  eenk_version.txt -> ${hash}`);
-} catch(e) {
+} catch (e) {
     console.warn(`  ⚠  Could not get git hash for eenk: ${e.message}`);
 }
 
@@ -177,7 +177,7 @@ try {
     const dstInk = path.join(ROOT, 'app', 'export-for-web-template', 'ink.js');
     if (!checkOnly) fs.copyFileSync(srcInk, dstInk);
     console.log(`  ✔  ink.js copied to export-for-web-template`);
-} catch(e) {
+} catch (e) {
     console.warn(`  ⚠  Could not copy ink.js: ${e.message}`);
 }
 
@@ -191,7 +191,7 @@ try {
         fs.copyFileSync(srcEenk, dstEenk);
     }
     console.log(`  ✔  WritingWithEenk.md copied to Documentation`);
-} catch(e) {
+} catch (e) {
     console.warn(`  ⚠  Could not copy WritingWithEenk.md: ${e.message}`);
 }
 
@@ -200,8 +200,10 @@ console.log('\n7. Copy flasher and device-manager tools to renderer/public/');
 try {
     const flasherSrc = path.join(eenk, 'tools', 'flasher');
     const flasherDst = path.join(ROOT, 'app', 'renderer', 'public', 'flasher');
-    const dmSrc      = path.join(eenk, 'tools', 'device-manager');
-    const dmDst      = path.join(ROOT, 'app', 'renderer', 'public', 'device-manager');
+    const dmSrc = path.join(eenk, 'tools', 'device-manager');
+    const dmDst = path.join(ROOT, 'app', 'renderer', 'public', 'device-manager');
+    const assetsSrc = path.join(eenk, 'docs', 'assets');
+    const assetsDst = path.join(ROOT, 'app', 'renderer', 'public', 'assets');
 
     if (fs.existsSync(flasherSrc)) {
         if (!checkOnly) {
@@ -222,7 +224,17 @@ try {
     } else {
         console.warn(`  ⚠  device-manager tool source not found: ${dmSrc}`);
     }
-} catch(e) {
+
+    if (fs.existsSync(assetsSrc)) {
+        if (!checkOnly) {
+            fs.mkdirSync(assetsDst, { recursive: true });
+            fs.cpSync(assetsSrc, assetsDst, { recursive: true });
+        }
+        console.log(`  ✔  assets copied to renderer/public/assets`);
+    } else {
+        console.warn(`  ⚠  assets tool source not found: ${assetsSrc}`);
+    }
+} catch (e) {
     console.warn(`  ⚠  Could not copy web tools: ${e.message}`);
 }
 
