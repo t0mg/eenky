@@ -1,6 +1,23 @@
-name: Build the executables
+name: Build eenky executables
 
-on: workflow_dispatch
+# ── Triggers ──────────────────────────────────────────────────────
+on:
+  # Manual trigger — used for both nightlies and tagged releases.
+  # (Automated releases are deferred until the binary hand-off from eenk CI
+  # is fully wired up. For now, all releases are initiated manually.)
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Mark as pre-release?'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+  # Automatic trigger on version tags (e.g. v0.1.0)
+  push:
+    tags:
+      - 'v*'
 
 defaults:
   run:
@@ -14,152 +31,126 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
+          submodules: recursive
           lfs: true
 
-      - name: Set app configuration
-        env:
-          APP_NAME: inky
-          DESCRIPTION: "An editor for ink: inkle's narrative scripting language"
-
-          # This must be of the format "N.N.N", where the N's are all numbers
-          VERSION: 0.16.0
-
-          # By default, the author will be your name on GitHub. You can manually change this.
-          AUTHOR: "inkle ltd."
-
-        run: |
-          echo "APP_NAME=${APP_NAME}" >> $GITHUB_ENV
-          echo "DESCRIPTION=${DESCRIPTION}" >> $GITHUB_ENV
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "AUTHOR=${AUTHOR}" >> $GITHUB_ENV
-
       - name: Install Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Test for presence of Windows codesigning secrets
-        id: vars
-        shell: bash
+      # Read the version from package.json — this is the single source of truth.
+      # On a tag push the version in package.json must already match the tag;
+      # on a manual dispatch it is used as-is (nightly / dev build).
+      - name: Extract version from package.json
+        id: version
+        working-directory: ./app
         run: |
-          unset HAS_WINDOWS_CREDS
-          if [[ -n $CERTIFICATE_WINDOWS_PFX ]]; then HAS_WINDOWS_CREDS='true' ; fi
-          echo set-output name=HAS_WINDOWS_CREDS::${HAS_WINDOWS_CREDS}
-        env:
-          CERTIFICATE_WINDOWS_PFX: ${{ secrets.CERTIFICATE_WINDOWS_PFX }}
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved eenky version: ${VERSION}"
 
-      - name: Create icon from PNG
-        run: ./resources/makeIcns.command
+      # Determine release tag and pre-release flag.
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            PRERELEASE="false"
+          else
+            TAG="eenky-nightly-$(date -u +%Y%m%d)-${{ github.run_number }}"
+            PRERELEASE="${{ github.event.inputs.prerelease || 'true' }}"
+          fi
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Electron app environment
+      - name: Set up app environment
         working-directory: ./app
         run: npm install
 
-      # insures that the index.html has been built
-      - name: Build electron app (Mac x64)
+      # ── macOS ─────────────────────────────────────────────────────────────
+      - name: Build eenky (macOS)
         if: matrix.os == 'macos-latest'
+        working-directory: ./app
         run: |
-          npx --yes @electron/packager app Inky --platform=darwin --arch=x64 --icon=./resources/Icon.icns --extend-info=./resources/info.plist --app-bundle-id=com.inkle.inky --prune --asar.unpackDir="main-process/ink" --ignore="inklecate_win.exe"
+          npx --yes @electron/packager . eenky \
+            --platform=darwin --arch=x64 \
+            --app-version="${{ steps.version.outputs.version }}" \
+            --icon=../resources/Icon.icns \
+            --extend-info=../resources/info.plist \
+            --app-bundle-id=com.t0mg.eenky \
+            --prune \
+            --asar.unpackDir="main-process/ink" \
+            --ignore="inklecate_win.exe"
           mkdir -p ReleaseUpload
-          ditto -c -k --keepParent Inky-darwin-x64/Inky.app ReleaseUpload/Inky_mac.zip
+          ditto -c -k --keepParent eenky-darwin-x64/eenky.app ReleaseUpload/eenky-mac-x64.zip
 
-      - name: Build electron app (Win)
+      # ── Windows ───────────────────────────────────────────────────────────
+      - name: Build eenky (Windows)
         if: matrix.os == 'windows-latest'
+        working-directory: ./app
         run: |
-          npx --yes @electron/packager app Inky --platform=win32  --arch=x64 --icon=./resources/Icon1024.png.ico --prune --asar.unpackDir="main-process/ink" --ignore="inklecate_mac" --win32metadata.ProductName="Inky" --win32metadata.CompanyName="inkle Ltd" --win32metadata.FileDescription="Inky" --win32metadata.OriginalFilename="Inky" --win32metadata.InternalName="Inky"
+          npx --yes @electron/packager . eenky \
+            --platform=win32 --arch=x64 \
+            --app-version="${{ steps.version.outputs.version }}" \
+            --icon=../resources/Icon1024.png.ico \
+            --prune \
+            --asar.unpackDir="main-process/ink" \
+            --ignore="inklecate_mac" \
+            --win32metadata.ProductName="eenky" \
+            --win32metadata.CompanyName="Tom Granger" \
+            --win32metadata.FileDescription="eenky" \
+            --win32metadata.OriginalFilename="eenky.exe" \
+            --win32metadata.InternalName="eenky"
           mkdir -p ReleaseUpload
-          7z a -tzip Inky-win32-x64.zip Inky-win32-x64 
-          mv Inky-win32-x64.zip ReleaseUpload/Inky-win32-x64.zip
+          7z a -tzip eenky-win32-x64.zip eenky-win32-x64
+          mv eenky-win32-x64.zip ReleaseUpload/eenky-win32-x64.zip
 
-      
-      - name: Build electron app (Ubuntu)
+      # ── Linux ─────────────────────────────────────────────────────────────
+      - name: Build eenky (Linux)
         if: matrix.os == 'ubuntu-latest'
+        working-directory: ./app
         run: |
-          npx --yes @electron/packager app Inky --platform=linux --arch=x64 --icon=./resources/Icon.icns --extend-info=resources/info.plist --prune --asar.unpackDir="main-process/ink" --ignore="inklecate_mac"
+          npx --yes @electron/packager . eenky \
+            --platform=linux --arch=x64 \
+            --app-version="${{ steps.version.outputs.version }}" \
+            --icon=../resources/Icon.icns \
+            --prune \
+            --asar.unpackDir="main-process/ink" \
+            --ignore="inklecate_mac"
           mkdir -p ReleaseUpload
-          zip -r ReleaseUpload/Inky_linux.zip Inky-linux-x64
+          zip -r ReleaseUpload/eenky-linux-x64.zip eenky-linux-x64
 
-
-      - name: Add MacOS certs
+      # ── macOS code signing (optional — skipped if secrets are absent) ──────
+      - name: Add macOS certificate
         if: matrix.os == 'macos-latest'
-        shell: bash
         run: |
-          if ! [[ -n $CERTIFICATE_OSX_APPLICATION && -n $CERTIFICATE_PASSWORD ]]; then exit 0 ; fi
+          if [[ -z "${CERTIFICATE_OSX_APPLICATION}" || -z "${CERTIFICATE_PASSWORD}" ]]; then
+            echo "No macOS signing certificate configured — skipping."
+            exit 0
+          fi
           KEY_CHAIN=build.keychain
           CERTIFICATE_P12=certificate.p12
-          echo $CERTIFICATE_OSX_APPLICATION | base64 --decode > $CERTIFICATE_P12
-          security create-keychain -p actions $KEY_CHAIN
-          security default-keychain -s $KEY_CHAIN
-          security unlock-keychain -p actions $KEY_CHAIN
-          security import $CERTIFICATE_P12 -k $KEY_CHAIN -P $CERTIFICATE_PASSWORD -T /usr/bin/codesign;
-          security set-key-partition-list -S apple-tool:,apple: -s -k actions $KEY_CHAIN
-          rm -fr *.p12
+          echo "${CERTIFICATE_OSX_APPLICATION}" | base64 --decode > "${CERTIFICATE_P12}"
+          security create-keychain -p actions "${KEY_CHAIN}"
+          security default-keychain -s "${KEY_CHAIN}"
+          security unlock-keychain -p actions "${KEY_CHAIN}"
+          security import "${CERTIFICATE_P12}" -k "${KEY_CHAIN}" -P "${CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions "${KEY_CHAIN}"
+          rm -f *.p12
         env:
           CERTIFICATE_OSX_APPLICATION: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
 
-      - name: Add Windows certificate
-        if: matrix.os == 'windows-latest' && steps.vars.outputs.HAS_WINDOWS_CREDS
-        id: write_file
-        uses: timheuer/base64-to-file@v1
+      # ── Upload built packages as a GitHub Release ──────────────────────────
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          fileName: "win-certificate.pfx"
-          encodedString: ${{ secrets.CERTIFICATE_WINDOWS_PFX }}
-
-      # If there is no passed-in tag, we auto-generate one based on run number
-      # This makes sure a different process (e.g. a Windows build vs Mac build) hasn't created it
-      - name: Check if auto-generated tag exists
-        uses: actions/github-script@v4
-        id: autogeneratedTagExists
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            try {
-              const result = await github.git.getRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `tags/${context.runNumber}.0.0`
-              })
-              console.log("Found!")
-              console.log(result)
-              return true
-            } catch(e) {
-              console.log("Failed", e)
-              return false
-            }
-
-      # TODO: The previous GH script should just create the tag if needed
-      - name: Create tag if needed
-        uses: negz/create-tag@v1
-        if: ${{ !steps.autogeneratedTagExists.outputs.result && !startsWith(github.ref, 'refs/tags/v') }}
-        with:
-          version: ${{ format('{0}.0.0', github.run_number) }}
-          message: Auto-generated by GitHub Actions
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # The next two steps are identical, except for explicitly passing in the tag name in the latter
-      # I wish I knew how to do this in a more elegant way.
-      # See also: I'd love to abstract out the startsWith() check and generated tag name into variable
-      
-      - name: Release on GitHub (Built via Tag)
-        uses: softprops/action-gh-release@v1
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tag_name:   ${{ steps.tag.outputs.tag }}
+          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          files: app/ReleaseUpload/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            ReleaseUpload/**/*.zip
-            
-      
-      - name: Release on GitHub (Automated Tag)
-        uses: softprops/action-gh-release@v1
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ format('{0}.0.0', github.run_number) }}
-          files: |
-            ReleaseUpload/**/*.zip
-            
