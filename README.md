@@ -1,28 +1,32 @@
 # eenky — eenk Story Editor
 
-A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the **Xteink X4** e-ink device via the **eenk** firmware.
+> [!CAUTION]
+> This project is a work in progress and very fresh off the oven, it's still quite warm and pretty rough around the edges. There are broken bits and missing parts. And bugs. **Please wait for the first stable release** if you are looking for a smooth ride.
 
-## ✨ Features & Differences from original Inky
+A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the Xteink ESP32 e-ink devices running the [eenk firmware](https://github.com/t0mg/eenk).
 
-eenky completely overhauls the original Inky architecture to support modern development, better usability, and deep hardware integration:
+> [!TIP]
+> If you are interested in installing and using eenky rather than looking at its development, check out the [eenk website](https://t0mg.github.io/eenk/)!
 
-- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery), giving eenky a much snappier, reactive, and responsive interface.
+## Download and install eenky
+
+Eenky can be installed either by:
+- Downloading the latest release from [releases page](https://github.com/t0mg/eenky/releases).
+- Building it from source as described in the [development section](#getting-started).
+
+## Features & Differences from original Inky
+
+eenky started as a hack to help me develop [eenk](https://github.com/t0mg/eenk), and ended up getting more of a makeover than initially planned.
+
+- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery) although there's stil a few dollar signs lingering here and there.
 - **Improved Authoring Tools**: 
-  - An enhanced **Knot Browser** that distinctly categorizes Knots, Stitches, and Functions with unique iconography.
-  - A fast **Goto Anything (`Ctrl+P` / `Cmd+P`)** popup for instantly jumping across project files and symbols.
-  - Better view controls, including a Line Wrap toggle and refined Light/Dark themes.
-- **Embedded SDL Simulator**: Contains a pixel-accurate e-ink preview of the Xteink X4 hardware, compiled directly from the eenk firmware.
-- **One-Click Flashing**: Seamlessly flash compiled stories directly to your ESP32-based hardware via USB using the built-in Web Serial tool.
-- **Hardware Compilation Pipeline**: Retains `inklecate` for compiling `.ink` to `.json`, but automatically passes the output to the custom `inkcpp_cl` compiler to produce the `.bin` format required by the hardware.
-
-## What's included
-
-| Tab | What it does |
-|-----|-------------|
-| **Editor** | Full-featured Ink script editor, overhauled with Vue 3 and CodeMirror |
-| **Compile** | Compiles `.ink` → `.json` → `.bin` using inklecate + inkcpp_cl |
-| **Simulate** | Runs the story in the native SDL simulator (pixel-accurate e-ink preview built from eenk) |
-| **Flash** | Flashes the compiled firmware to the Xteink X4 via USB using ESP Web Tools |
+  - An enhanced **Knot Browser** that distinctly categorizes Knots, Stitches, and Functions with ad hoc iconography.
+  - **Goto Anything (`Ctrl+P` / `Cmd+P`)** is here and faster than ever for instantly jumping across project files and symbols.
+  - View controls include a Line Wrap toggle and deeply integrated Light/Dark themes.
+  - A unified documentation window that is searchable and offers help on both ink and eeenk's specific quirks like metata and image management.
+- **Embedded SDL Simulator**: Contains a pixel-accurate e-ink preview of the Xteink X4 hardware, compiled directly from the eenk firmware. Directly accessible from the project window in one click.
+- **Device Manager**: Flash, update, and manage your installed stories and firmware via USB using the built-in Web Serial tools.
+- **eenk Compilation Pipeline**: The one click compilation pipeline retains `inklecate` for compiling `.ink` to `.json`, but automatically passes the output to the custom `inkcpp_cl` compiler to produce the `.bin` format required by the hardware. It can also stil export for Web :)
 
 ## Prerequisites
 
