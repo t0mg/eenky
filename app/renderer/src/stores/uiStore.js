@@ -3,10 +3,9 @@ import { defineStore } from 'pinia'
 export const useUiStore = defineStore('ui', {
   state: () => ({
     activeView: 'home', // 'home', 'editor'
-    showSimulator: true,
+    showSimulator: false,
     showFileBrowser: true,
     showKnotBrowser: true,
-    showSimulator: false,
     showToolbar: true,
     theme: 'light',
     zoom: '100',
@@ -17,7 +16,8 @@ export const useUiStore = defineStore('ui', {
     modalState: {
       isOpen: false,
       type: '',
-      data: null
+      data: null,
+      resolve: null,
     }
   }),
   actions: {
@@ -74,10 +74,46 @@ export const useUiStore = defineStore('ui', {
       this.simulatorWidth = width;
     },
     openModal(type, data = null) {
-      this.modalState = { isOpen: true, type, data };
+      this.modalState = { isOpen: true, type, data, resolve: null };
     },
-    closeModal() {
-      this.modalState = { isOpen: false, type: '', data: null };
+    alert(options) {
+      const opts = typeof options === 'string' ? { message: options } : (options || {});
+      return new Promise((resolve) => {
+        this.modalState = {
+          isOpen: true,
+          type: 'alert',
+          data: {
+            title: opts.title || 'Notification',
+            message: opts.message || '',
+            okText: opts.okText || 'OK',
+            isError: opts.isError || false,
+          },
+          resolve,
+        };
+      });
+    },
+    confirm(options) {
+      const opts = typeof options === 'string' ? { message: options } : (options || {});
+      return new Promise((resolve) => {
+        this.modalState = {
+          isOpen: true,
+          type: 'confirm',
+          data: {
+            title: opts.title || 'Confirm',
+            message: opts.message || '',
+            okText: opts.okText || 'OK',
+            cancelText: opts.cancelText || 'Cancel',
+            dangerous: opts.dangerous || false,
+          },
+          resolve,
+        };
+      });
+    },
+    closeModal(result = null) {
+      if (this.modalState.resolve) {
+        this.modalState.resolve(result);
+      }
+      this.modalState = { isOpen: false, type: '', data: null, resolve: null };
     }
   }
 });

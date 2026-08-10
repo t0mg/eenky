@@ -1,4 +1,5 @@
 import { useProjectStore } from '../stores/projectStore';
+import { useUiStore } from '../stores/uiStore';
 import { InkFileSymbols } from './inkFileSymbols';
 import { LiveCompiler } from './liveCompiler';
 
@@ -26,24 +27,25 @@ export const ProjectController = {
 
     window.api.receive('project-tryClose', async () => {
       const store = useProjectStore();
+      const uiStore = useUiStore();
       const hasUnsavedChanges = store.files.some(f => f.hasUnsavedChanges);
 
       if (hasUnsavedChanges) {
-        const responseObject = await window.api.invoke("try-close");
-        const response = responseObject.response;
+        uiStore.openModal('close-confirm');
+        const choice = await new Promise((resolve) => {
+          uiStore.modalState.resolve = resolve;
+        });
 
-        if (response == 0) { // Save
+        if (choice === 'save') {
           for (const file of store.files) {
             if (file.hasUnsavedChanges) {
               await this.saveFile(file.id);
             }
           }
           window.api.send("project-final-close");
-        }
-        else if (response == 1) { // Don't save
+        } else if (choice === 'dontsave') {
           window.api.send("project-final-close");
-        }
-        else { // Cancel
+        } else {
           window.api.send("project-cancelled-close");
         }
       } else {
@@ -287,7 +289,7 @@ export const ProjectController = {
 
     // Check if new name already exists
     if (store.files.some(f => f.relPath === newName)) {
-      alert("A file with this name already exists.");
+      await useUiStore().alert({ title: 'File Exists', message: 'A file with this name already exists.', isError: true });
       return;
     }
 
@@ -300,7 +302,7 @@ export const ProjectController = {
         await window.api.fs.rename(oldAbsolutePath, newAbsolutePath);
       }
     } catch (err) {
-      alert("Failed to rename file on disk: " + err);
+      await useUiStore().alert({ title: 'Rename Failed', message: 'Failed to rename file on disk: ' + err, isError: true });
       return;
     }
 
@@ -338,26 +340,27 @@ export const ProjectController = {
 
   async exportProject(exportType) {
     const store = useProjectStore();
+    const uiStore = useUiStore();
     if (!store.mainInkFile) {
-      alert("Project not quite fully loaded! Please try exporting again in a couple of seconds...");
+      await uiStore.alert({ title: 'Project Loading', message: 'Project not quite fully loaded! Please try exporting again in a couple of seconds...' });
       return;
     }
 
     if (exportType === "eenk") {
       const inkPath = store.mainInkFile.absolutePath;
       if (!inkPath) {
-        alert("Please save your project first.");
+        await uiStore.alert({ title: 'Unsaved Project', message: 'Please save your project first.' });
         return;
       }
       try {
         store.compilerBusy = true;
         const result = await window.api.invoke('eenk:compile', inkPath);
         if (result.warnings && result.warnings.length > 0) {
-          alert("Compilation Warnings:\n\n" + result.warnings.join("\n\n"));
+          await uiStore.alert({ title: 'Compilation Warnings', message: result.warnings.join("\n\n") });
         }
         console.log('Compiled successfully to: ' + result.binFile);
       } catch (e) {
-        alert('Compilation failed: ' + e);
+        await uiStore.alert({ title: 'Compilation Failed', message: 'Compilation failed: ' + e, isError: true });
       } finally {
         store.compilerBusy = false;
       }
@@ -376,7 +379,7 @@ export const ProjectController = {
         });
       });
     } catch (err) {
-      alert(`Could not export: ${err}`);
+      await uiStore.alert({ title: 'Export Error', message: `Could not export: ${err}`, isError: true });
       return;
     }
 
@@ -426,7 +429,7 @@ export const ProjectController = {
         try {
           const stats = await window.api.fs.stat(targetSavePath).catch(() => null);
           if (stats && stats.isDirectory) {
-            alert("Could not save because directory exists with the given name");
+            await uiStore.alert({ title: 'Save Error', message: 'Could not save because directory exists with the given name', isError: true });
             return;
           }
           if (stats) {
@@ -439,7 +442,7 @@ export const ProjectController = {
             await window.api.fs.copyFile(compiledJsonTempPath, targetSavePath);
           }
         } catch (err) {
-          alert(`Sorry, could not save to ${targetSavePath}`);
+          await uiStore.alert({ title: 'Save Error', message: `Sorry, could not save to ${targetSavePath}`, isError: true });
         }
       } else {
         // Web export
@@ -492,7 +495,7 @@ export const ProjectController = {
     try {
       const stats = await window.api.fs.stat(targetDirectory).catch(() => null);
       if (stats && !stats.isDirectory) {
-        alert("Could not save because a file exists with the given name");
+        await useUiStore().alert({ title: 'Export Error', message: 'Could not save because a file exists with the given name', isError: true });
         return;
       }
 
@@ -515,7 +518,7 @@ export const ProjectController = {
       await this.convertJSONToJS(jsonFilePath, targetJsPath);
     } catch (err) {
       console.error("Export for Web failed:", err);
-      alert("Failed to export for web: " + err);
+      await useUiStore().alert({ title: 'Export Failed', message: 'Failed to export for web: ' + err, isError: true });
     }
   },
 

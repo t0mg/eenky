@@ -64,10 +64,16 @@ const saveAllFiles = async () => {
 
 const checkAndSave = async (actionName) => {
   if (projectStore.hasUnsavedChanges) {
-    if (confirm(`You have unsaved changes. Would you like to save them before ${actionName}?`)) {
+    const confirmed = await uiStore.confirm({
+      title: 'Unsaved Changes',
+      message: `You have unsaved changes. Would you like to save them before ${actionName}?`,
+      okText: 'Save & Continue',
+      cancelText: 'Cancel'
+    });
+    if (confirmed) {
       const saved = await saveAllFiles();
       if (!saved) {
-        alert("Failed to save all files. Action aborted.");
+        await uiStore.alert({ title: 'Save Failed', message: 'Failed to save all files. Action aborted.', isError: true });
         return false;
       }
     } else {
@@ -86,26 +92,26 @@ const runSimulation = async () => {
   if (!await checkAndSave('running the simulator')) return;
   
   if (!projectStore.mainInkFile) {
-    alert("No ink project loaded.");
+    await uiStore.alert({ title: 'No Project', message: 'No ink project loaded.' });
     return;
   }
   const inkPath = projectStore.mainInkFile.absolutePath;
   if (!inkPath) {
-    alert("Please save your project first.");
+    await uiStore.alert({ title: 'Unsaved Project', message: 'Please save your project first.' });
     return;
   }
   try {
     projectStore.compilerBusy = true;
     const result = await window.api.invoke('eenk:compile', inkPath);
     if (result.warnings && result.warnings.length > 0) {
-      alert("Compilation Warnings:\n\n" + result.warnings.join("\n\n"));
+      await uiStore.alert({ title: 'Compilation Warnings', message: result.warnings.join('\n\n') });
     }
     const simResult = await window.api.invoke('eenk:sim-launch', result.binFile);
     if (!simResult.ok) {
-      alert('Simulator error: ' + simResult.error);
+      await uiStore.alert({ title: 'Simulator Error', message: simResult.error, isError: true });
     }
   } catch (e) {
-    alert('Simulation failed: ' + e);
+    await uiStore.alert({ title: 'Simulation Failed', message: String(e), isError: true });
   } finally {
     projectStore.compilerBusy = false;
   }

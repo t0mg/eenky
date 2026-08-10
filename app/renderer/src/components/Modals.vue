@@ -1,9 +1,52 @@
 <template>
-  <div v-if="uiStore.modalState.isOpen" class="modal-overlay" @click.self="closeModal" @keydown.esc="closeModal" tabindex="0" ref="overlay">
-    <div class="modal-content" role="dialog" aria-modal="true">
+  <div 
+    v-if="uiStore.modalState.isOpen" 
+    class="modal-overlay" 
+    @click.self="closeModal(uiStore.modalState.type === 'close-confirm' ? 'cancel' : false)" 
+    @keydown="handleKeyDown" 
+    tabindex="-1" 
+    ref="overlay"
+  >
+    <div class="modal-content" ref="modalContent" role="dialog" aria-modal="true">
       
+      <!-- Alert Modal -->
+      <div v-if="uiStore.modalState.type === 'alert'" class="modal-body">
+        <h2>{{ modalData.title || 'Notification' }}</h2>
+        <div class="modal-message">
+          <p v-for="(line, idx) in messageLines" :key="idx">{{ line }}</p>
+        </div>
+        <div class="modal-actions">
+          <button @click="closeModal(true)" class="primary-btn">{{ modalData.okText || 'OK' }}</button>
+        </div>
+      </div>
+
+      <!-- Confirm Modal -->
+      <div v-else-if="uiStore.modalState.type === 'confirm'" class="modal-body">
+        <h2>{{ modalData.title || 'Confirm' }}</h2>
+        <div class="modal-message">
+          <p v-for="(line, idx) in messageLines" :key="idx">{{ line }}</p>
+        </div>
+        <div class="modal-actions">
+          <button @click="closeModal(false)" class="secondary-btn">{{ modalData.cancelText || 'Cancel' }}</button>
+          <button @click="closeModal(true)" class="primary-btn" :class="{ 'danger-btn': modalData.dangerous }">{{ modalData.okText || 'OK' }}</button>
+        </div>
+      </div>
+
+      <!-- Close Confirm Modal -->
+      <div v-else-if="uiStore.modalState.type === 'close-confirm'" class="modal-body">
+        <h2>{{ modalData.title || 'Unsaved Changes' }}</h2>
+        <div class="modal-message">
+          <p>You have unsaved changes in your project. Would you like to save them before closing?</p>
+        </div>
+        <div class="modal-actions close-confirm-actions">
+          <button @click="closeModal('cancel')" class="secondary-btn">Cancel</button>
+          <button @click="closeModal('dontsave')" class="secondary-btn">Don't Save</button>
+          <button @click="closeModal('save')" class="primary-btn">Save</button>
+        </div>
+      </div>
+
       <!-- Issue Popup / Settings / About etc. -->
-      <div v-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
+      <div v-else-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
         <div class="about-header">
           <!-- <img src="/about/icon256.png" class="about-icon" alt="eenky icon" draggable="false" /> -->
           <h2>eenky</h2>
@@ -16,7 +59,7 @@
           <p v-if="aboutData.eenkVersion">eenk Compiler v{{ aboutData.eenkVersion }}</p>
           <p v-if="aboutData.eenkVersion">eenk Simulator v{{ aboutData.eenkVersion }}</p>
         </div>
-        <button @click="closeModal" class="primary-btn">Close</button>
+        <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
       <div v-else-if="uiStore.modalState.type === 'shortcuts'" class="modal-body">
@@ -35,12 +78,13 @@
           <tr><td>Rewind Story</td><td>{{ ctrlCmd }} + R</td></tr>
           <tr><td>Step Back Story</td><td>{{ ctrlCmd }} + [</td></tr>
           <tr><td>Zoom In / Out / Reset</td><td>{{ ctrlCmd }} + + / - / 0</td></tr>
+          <tr><td>Word count and more</td><td>{{ ctrlCmd }} + Shift + C</td></tr>
           <tr><td>Open Device Manager</td><td>{{ ctrlCmd }} + D</td></tr>
           <tr><td>Open Documentation</td><td>F1</td></tr>
-          <tr><td>Keyboard Shortcuts</td><td>{{ ctrlCmd }} + ?</td></tr>
+          <tr><td>Keyboard Shortcuts</td><td>{{ ctrlCmd }} + /</td></tr>
           </tbody>
         </table>
-        <button @click="closeModal" class="primary-btn">Close</button>
+        <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
       <div v-else-if="uiStore.modalState.type === 'stats'" class="modal-body">
@@ -61,13 +105,13 @@
         <div v-else>
           <p>Calculating stats...</p>
         </div>
-        <button @click="closeModal" class="primary-btn">Close</button>
+        <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
       <div v-else class="modal-body">
         <h2>{{ uiStore.modalState.type }}</h2>
         <p>Not implemented yet.</p>
-        <button @click="closeModal" class="primary-btn">Close</button>
+        <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
     </div>
@@ -75,14 +119,22 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useUiStore } from '../stores/uiStore';
 import { LiveCompiler } from '../core/liveCompiler';
 
 const uiStore = useUiStore();
 const overlay = ref(null);
+const modalContent = ref(null);
 const statsData = ref(null);
 const aboutData = ref(null);
+let previousActiveElement = null;
+
+const modalData = computed(() => uiStore.modalState.data || {});
+const messageLines = computed(() => {
+  const msg = modalData.value.message || '';
+  return msg.split('\n');
+});
 
 if (window.api && window.api.receive) {
   window.api.receive('show-about', (data) => {
@@ -94,26 +146,86 @@ if (window.api && window.api.receive) {
 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 const ctrlCmd = isMac ? '⌘' : 'Ctrl';
 
-const closeModal = () => {
-  uiStore.closeModal();
+const closeModal = (result = false) => {
+  uiStore.closeModal(result);
 };
 
-// Focus capture
-watch(() => uiStore.modalState.isOpen, async (isOpen) => {
-  if (isOpen) {
-    if (uiStore.modalState.type === 'stats') {
-      statsData.value = null;
-      LiveCompiler.getStats((stats) => {
-        statsData.value = stats;
-      });
+const handleKeyDown = (e) => {
+  if (!uiStore.modalState.isOpen) return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    const type = uiStore.modalState.type;
+    closeModal(type === 'close-confirm' ? 'cancel' : false);
+    return;
+  }
+
+  if (e.key === 'Tab') {
+    if (!modalContent.value) return;
+    const focusables = Array.from(
+      modalContent.value.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter(el => !el.disabled && el.offsetWidth > 0 && el.offsetHeight > 0);
+
+    if (focusables.length === 0) {
+      e.preventDefault();
+      return;
     }
-    
-    await nextTick();
-    if (overlay.value) {
-      overlay.value.focus();
+
+    const firstEl = focusables[0];
+    const lastEl = focusables[focusables.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl || document.activeElement === overlay.value) {
+        e.preventDefault();
+        lastEl.focus();
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
     }
   }
-});
+};
+
+// Calculate stats and manage focus capture when modal opens/closes
+watch(
+  () => uiStore.modalState.isOpen,
+  (isOpen) => {
+    if (isOpen) {
+      previousActiveElement = document.activeElement;
+      if (uiStore.modalState.type === 'stats') {
+        statsData.value = null;
+        LiveCompiler.getStats((stats) => {
+          statsData.value = stats;
+        });
+      }
+      nextTick(() => {
+        if (modalContent.value) {
+          const primaryBtn = modalContent.value.querySelector('.primary-btn');
+          const firstFocusable = modalContent.value.querySelector(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          if (primaryBtn) {
+            primaryBtn.focus();
+          } else if (firstFocusable) {
+            firstFocusable.focus();
+          } else if (overlay.value) {
+            overlay.value.focus();
+          }
+        }
+      });
+    } else {
+      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+        previousActiveElement.focus();
+        previousActiveElement = null;
+      }
+    }
+  }
+);
 </script>
 
 <style scoped>
@@ -130,6 +242,7 @@ watch(() => uiStore.modalState.isOpen, async (isOpen) => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  outline: none;
 }
 
 .modal-content {
@@ -161,8 +274,47 @@ watch(() => uiStore.modalState.isOpen, async (isOpen) => {
   text-transform: uppercase;
 }
 
+.modal-message {
+  padding: 8px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-color);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.modal-message p {
+  margin: 0 0 8px 0;
+}
+
+.modal-message p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.close-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .primary-btn {
   align-self: flex-end;
+}
+
+.danger-btn {
+  background-color: var(--error-color, #CC0000) !important;
+  color: #ffffff !important;
+}
+
+.danger-btn:hover {
+  background-color: #aa0000 !important;
 }
 
 .shortcuts-table {

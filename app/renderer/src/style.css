@@ -100,65 +100,7 @@ textarea {
   box-sizing: border-box;
 }
 
-/* Global button styles — Neubrutalist buttons */
-button {
-  font-family: var(--font-body);
-  font-size: 14px;
-}
-
-.primary-btn {
-  background-color: var(--color-accent);
-  color: #ffffff;
-  border: var(--border);
-  box-shadow: var(--shadow-hard-sm);
-  padding: 8px 16px;
-  border-radius: 0px;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, background-color 0.2s;
-}
-
-.primary-btn:hover {
-  transform: translate3d(-2px, -2px, 0);
-  box-shadow: var(--shadow-hard);
-}
-
-.primary-btn:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
-}
-
-.secondary-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  border: var(--border);
-  box-shadow: var(--shadow-hard-sm);
-  padding: 8px 16px;
-  border-radius: 0px;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, background-color 0.2s;
-}
-
-.secondary-btn:hover {
-  background-color: var(--hover-bg);
-  transform: translate3d(-2px, -2px, 0);
-  box-shadow: var(--shadow-hard);
-}
-
-.secondary-btn:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
-}
+/* Global button styles are inherited directly from common.css */
 
 .no-animations * {
   transition: none !important;

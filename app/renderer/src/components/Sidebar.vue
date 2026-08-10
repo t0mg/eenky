@@ -144,10 +144,16 @@ const contextMenuAction = async (action) => {
     startRename(file);
   } else if (action === 'delete') {
     if (file === projectStore.mainInkFile) {
-      alert("Cannot delete the main ink file.");
+      await uiStore.alert({ title: 'Cannot Delete', message: 'Cannot delete the main ink file.', isError: true });
       return;
     }
-    if (confirm(`Are you sure you want to delete ${file.relPath}? This cannot be undone.`)) {
+    const confirmed = await uiStore.confirm({
+      title: 'Delete File',
+      message: `Are you sure you want to delete ${file.relPath}? This cannot be undone.`,
+      okText: 'Delete',
+      dangerous: true
+    });
+    if (confirmed) {
       try {
         await window.api.fs.unlink(file.absolutePath);
         projectStore.removeFile(file.id);
@@ -162,7 +168,7 @@ const contextMenuAction = async (action) => {
           }
         }
       } catch (err) {
-        alert("Failed to delete file: " + err);
+        await uiStore.alert({ title: 'Delete Failed', message: 'Failed to delete file: ' + err, isError: true });
       }
     }
   }
@@ -206,7 +212,11 @@ const commitRename = async (file) => {
     // Validate filename against common invalid characters (< > : " / \ | ? *)
     const invalidChars = /[<>:"/\\|?*]/;
     if (invalidChars.test(newName)) {
-      alert('Invalid file name. Names cannot contain the following characters: < > : " / \\ | ? *');
+      await uiStore.alert({
+        title: 'Invalid Filename',
+        message: 'Invalid file name. Names cannot contain the following characters: < > : " / \\ | ? *',
+        isError: true
+      });
       return; // Do not clear renamingFile so user can fix it
     }
     renamingFile.value = null; // Exit rename mode
