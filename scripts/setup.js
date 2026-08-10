@@ -77,7 +77,7 @@ if (!fs.existsSync(submoduleCheck)) {
         try {
             console.log('  [build] Pulling latest from eenk HEAD...');
             const { execSync } = require('child_process');
-            execSync('git fetch origin && git checkout main && git pull --rebase --autostash origin main', { cwd: eenk, stdio: 'inherit' });
+            execSync('git fetch origin && git reset --hard && git checkout -f main && git reset --hard origin/main && git clean -fd', { cwd: eenk, stdio: 'inherit' });
             execSync('git submodule update --init lib/inkcpp', { cwd: eenk, stdio: 'inherit' });
             console.log('  [build] Compiling eenk simulator...');
             execSync('pio run -e native', { cwd: eenk, stdio: 'inherit' });
@@ -115,7 +115,7 @@ if (!fs.existsSync(inkcppCheck)) {
         try {
             console.log('  [build] Pulling latest from inkcpp HEAD...');
             const { execSync } = require('child_process');
-            execSync('git fetch --all && git checkout eenk-patches && git pull --rebase --autostash', { cwd: INKCPP, stdio: 'inherit' });
+            execSync('git fetch --all && git reset --hard && git checkout -f eenk-patches && git pull --rebase --autostash && git clean -fd', { cwd: INKCPP, stdio: 'inherit' });
             console.log('  [build] Compiling inkcpp...');
 
             let cmakeGen = '';
