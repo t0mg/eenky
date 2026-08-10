@@ -191,17 +191,17 @@ const exportJS = () => ProjectController.exportProject('js');
   align-items: center;
   justify-content: center;
   padding: 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s, color 0.2s;
   line-height: 28px;
+  border: 2px solid transparent;
 }
 
 .toolbar-btn:hover {
+  border: 2px solid var(--border-color);
   background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
 }
 
 .toolbar-btn.active {
-  background-color: var(--active-bg, rgba(0, 0, 0, 0.1));
+  border: 2px solid var(--border-color);
   color: var(--primary-color, #1976d2);
 }
 

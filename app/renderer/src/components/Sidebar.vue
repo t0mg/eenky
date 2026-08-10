@@ -309,7 +309,6 @@ onUnmounted(() => {
   background: var(--bg-color, #ffffff);
   border: 1px solid var(--border-color, #d0d0d0);
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  border-radius: 4px;
   z-index: 1000;
   min-width: 120px;
   padding: 4px 0;
@@ -327,7 +326,7 @@ onUnmounted(() => {
 }
 
 .context-menu-item.delete {
-  color: #d32f2f;
+  color: var(--error-color, #d32f2f);
 }
 
 .context-menu-item.delete:hover {

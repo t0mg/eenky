@@ -123,7 +123,9 @@ watch(() => uiStore.modalState.isOpen, async (isOpen) => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-image: var(--dither-bg);
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -131,14 +133,15 @@ watch(() => uiStore.modalState.isOpen, async (isOpen) => {
 }
 
 .modal-content {
-  background-color: var(--bg-color, #ffffff);
-  color: var(--text-color, #333);
+  background-color: var(--bg-color);
+  color: var(--text-color);
   padding: 24px;
-  border-radius: 8px;
-  min-width: 300px;
-  max-width: 500px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 0px;
+  min-width: 320px;
+  max-width: 550px;
+  border: var(--border);
+  box-shadow: var(--shadow-hard);
+  font-family: var(--font-body);
 }
 
 .modal-body {
@@ -148,8 +151,14 @@ watch(() => uiStore.modalState.isOpen, async (isOpen) => {
 }
 
 .modal-body h2 {
-  margin: 0;
   font-size: 1.25rem;
+  margin: -24px -24px 0;
+  padding: 24px;
+  background: var(--color-fg);
+  color: var(--color-bg);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .primary-btn {

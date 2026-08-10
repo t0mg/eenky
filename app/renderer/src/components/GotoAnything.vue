@@ -23,16 +23,16 @@
           @mousemove="onMouseMove(index, $event)"
         >
           <template v-if="result.type === 'file'">
-            <p class="main-text">📄 <span v-if="result.dirName" class="ancestor">{{ result.dirName }}/</span><span v-html="result.highlightedName"></span></p>
+            <p class="main-text"><span class="material-symbols-outlined result-icon">description</span><span v-if="result.dirName" class="ancestor">{{ result.dirName }}/</span><span v-html="result.highlightedName"></span></p>
           </template>
           
           <template v-else-if="result.type === 'gotoLine'">
-            <p class="main-text">➡︎ Go to line {{ result.line + 1 }}</p>
+            <p class="main-text"><span class="material-symbols-outlined result-icon">arrow_forward</span>Go to line {{ result.line + 1 }}</p>
             <p class="meta">{{ result.lineContent }}</p>
           </template>
           
           <template v-else-if="result.type === 'symbol'">
-            <p class="main-text">✎ <span v-if="result.ancestorStr" class="ancestor" v-html="result.ancestorStr"></span><span v-html="result.highlightedName"></span></p>
+            <p class="main-text"><span class="material-symbols-outlined result-icon">edit</span><span v-if="result.ancestorStr" class="ancestor" v-html="result.ancestorStr"></span><span v-html="result.highlightedName"></span></p>
             <p class="meta">{{ result.filePath }} - line {{ result.row + 1 }}</p>
           </template>
           
@@ -329,7 +329,9 @@ function chooseResult(result) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.2);
+  background-image: var(--dither-bg);
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: none;
   z-index: 60;
 }
 
@@ -339,20 +341,21 @@ function chooseResult(result) {
   left: 100px;
   right: 100px;
   background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  box-shadow: 0 5px 6px rgba(0,0,0,0.2);
+  border: var(--border);
+  border-radius: 0px;
+  box-shadow: var(--shadow-hard);
   z-index: 80;
-  padding: 10px;
-  font-family: monospace;
+  padding: 12px;
+  font-family: var(--font-body);
 }
 
 #goto-anything input {
   width: 100%;
-  padding: 5px;
-  font-size: 16pt;
-  border-radius: 3px;
-  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  font-size: 14pt;
+  font-family: var(--font-body);
+  border-radius: 0px;
+  border: var(--border);
   background: var(--bg-color);
   color: var(--text-color);
   outline: none;
@@ -360,18 +363,21 @@ function chooseResult(result) {
 
 #goto-anything ul.results {
   max-height: 400px;
-  overflow-y: scroll;
+  overflow-y: auto;
   list-style: none;
   padding-left: 0;
-  margin-left: 10px;
+  margin-left: 0;
   margin-bottom: 0;
+  margin-top: 8px;
+  font-weight: 600;
 }
 
 #goto-anything ul.results li {
   border-bottom: 1px solid var(--border-color);
-  font-size: 12pt;
+  font-size: 11pt;
   position: relative;
-  height: 48px;
+  height: 44px;
+  padding: 0 8px;
   color: var(--text-color);
   cursor: pointer;
   user-select: none;
@@ -390,7 +396,7 @@ function chooseResult(result) {
 
 #goto-anything ul.results li.content .main-text {
   color: var(--text-color);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 #goto-anything ul.results li p.meta {
@@ -400,11 +406,18 @@ function chooseResult(result) {
 
 #goto-anything ul.results li.selected {
   background: var(--hover-bg);
+  border-left: 4px solid var(--color-accent);
+}
+
+.result-icon {
+  font-size: 1.1em;
+  vertical-align: -2px;
+  margin-right: 6px;
 }
 
 :deep(.goto-highlight) {
   font-weight: bold;
-  color: var(--primary-color);
+  color: var(--color-accent);
 }
 
 #goto-anything .ancestor {
