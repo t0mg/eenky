@@ -181,18 +181,18 @@ try {
     console.warn(`  ⚠  Could not copy ink.js: ${e.message}`);
 }
 
-// ── 6. Copy WritingWithEenk.md to Documentation ─────────────────────────────
-console.log('\n6. Copy WritingWithEenk.md to Documentation');
+// ── 6. Copy WritingForEenk.md to Documentation ─────────────────────────────
+console.log('\n6. Copy WritingForEenk.md to Documentation');
 try {
-    const srcEenk = path.join(eenk, 'WritingWithEenk.md');
-    const dstEenk = path.join(ROOT, 'app', 'resources', 'Documentation', 'WritingWithEenk.md');
+    const srcEenk = path.join(eenk, 'WritingForEenk.md');
+    const dstEenk = path.join(ROOT, 'app', 'resources', 'Documentation', 'WritingForEenk.md');
     if (!checkOnly) {
         ensureDir(path.dirname(dstEenk));
         fs.copyFileSync(srcEenk, dstEenk);
     }
-    console.log(`  ✔  WritingWithEenk.md copied to Documentation`);
+    console.log(`  ✔  WritingForEenk.md copied to Documentation`);
 } catch (e) {
-    console.warn(`  ⚠  Could not copy WritingWithEenk.md: ${e.message}`);
+    console.warn(`  ⚠  Could not copy WritingForEenk.md: ${e.message}`);
 }
 
 // ── 7. Copy flasher & device-manager web tools to renderer public/ ─────────

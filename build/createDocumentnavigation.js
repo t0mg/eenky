@@ -24,7 +24,7 @@ function initializeNavigation() {
         }
         var originalFile = html.split("<!--navigationentries-->");
 
-        fs.readFile('../app/resources/Documentation/WritingWithEenk.md', 'utf8', function (eenkErr, eenkData) {
+        fs.readFile('../app/resources/Documentation/WritingForEenk.md', 'utf8', function (eenkErr, eenkData) {
             if (eenkErr) {
                 return console.log(eenkErr);
             }
@@ -35,7 +35,7 @@ function initializeNavigation() {
                 }
 
                 var data = eenkData + '\n\n' + inkData;
-                
+
                 // Write the combined markdown to a file for markdown-html to use
                 fs.writeFileSync('../app/resources/Documentation/CombinedDocumentation.md', data, 'utf8');
 
@@ -50,10 +50,10 @@ function initializeNavigation() {
                     if (inCodeBlock) {
                         continue;
                     }
-                    
+
                     // checks whether the line does NOT contain a headline (indicated by the character '#'; the indexOf method will return -1 if the string does not contain the argument).
                     // The second part checks if the first character of a line is a '#' (a markdown header).
-                    
+
                     if (line.indexOf('#') === -1 || line.trim().charAt(0) != '#') {
                         continue;
                     }
@@ -80,7 +80,7 @@ function initializeNavigation() {
                 output = output + originalFile[1];
 
                 mkdirp.sync("../app/renderer/public/documentation/");
-                
+
                 fs.writeFile('../app/renderer/public/documentation/window.html', output, function (thirdErr) {
                     if (thirdErr) {
                         return console.log(thirdErr);

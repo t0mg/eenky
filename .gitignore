@@ -21,6 +21,7 @@ app/renderer/public/documentation/
 app/renderer/public/device-manager
 app/renderer/public/flasher
 app/renderer/public/assets/
+app/resources/Documentation/WritingForEenk.md
 
 # Build outputs
 dist-eenky/
