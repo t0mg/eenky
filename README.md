@@ -18,7 +18,7 @@ Eenky can be installed either by:
 
 eenky started as a hack to help me develop [eenk](https://github.com/t0mg/eenk), and ended up getting more of a makeover than initially planned.
 
-- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery) although there's stil a few dollar signs lingering here and there.
+- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery) although there's stil a few dollar signs and a bunch of dead code lingering here and there.
 - **Improved Authoring Tools**: 
   - An enhanced **Knot Browser** that distinctly categorizes Knots, Stitches, and Functions with ad hoc iconography.
   - **Goto Anything (`Ctrl+P` / `Cmd+P`)** is here and faster than ever for instantly jumping across project files and symbols.
