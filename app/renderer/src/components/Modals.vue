@@ -81,7 +81,7 @@
           <tr><td>Word count and more</td><td>{{ ctrlCmd }} + Shift + C</td></tr>
           <tr><td>Open Device Manager</td><td>{{ ctrlCmd }} + D</td></tr>
           <tr><td>Open Documentation</td><td>F1</td></tr>
-          <tr><td>Keyboard Shortcuts</td><td>{{ ctrlCmd }} + /</td></tr>
+          <tr><td>Keyboard Shortcuts</td><td>{{ ctrlCmd }} + K</td></tr>
           </tbody>
         </table>
         <button @click="closeModal(false)" class="primary-btn">Close</button>

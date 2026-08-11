@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 export const useUiStore = defineStore('ui', {
   state: () => ({
     activeView: 'home', // 'home', 'editor'
+    animationEnabled: true,
     showSimulator: false,
     showFileBrowser: true,
     showKnotBrowser: true,
@@ -23,6 +24,10 @@ export const useUiStore = defineStore('ui', {
   actions: {
     setLineWrap(wrap) {
       this.lineWrap = wrap;
+    },
+    setAnimationEnabled(enabled) {
+      this.animationEnabled = enabled;
+      document.body.classList.toggle('no-animations', !enabled);
     },
     setActiveView(view) {
       this.activeView = view;

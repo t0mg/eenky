@@ -469,7 +469,7 @@ function refresh(appState = { isHome: false }) {
                 },
                 {
                     label: i18n._('Keyboard Shortcuts'),
-                    accelerator: 'CmdOrCtrl+?',
+                    accelerator: 'CmdOrCtrl+K',
                     enabled: callbacks.isFocusedWindow,
                     click: callbacks.keyboardShortcuts
                 }
