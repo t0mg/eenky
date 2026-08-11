@@ -3,7 +3,7 @@
 > [!CAUTION]
 > This project is a work in progress and very fresh off the oven, it's still quite warm and pretty rough around the edges. There are broken bits and missing parts. And bugs. **Please wait for the first stable release** if you are looking for a smooth ride.
 
-A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to the Xteink ESP32 e-ink devices running the [eenk firmware](https://github.com/t0mg/eenk).
+A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to Xteink e-ink devices running the [eenk firmware](https://github.com/t0mg/eenk).
 
 > [!TIP]
 > If you are interested in installing and using eenky rather than looking at its development, check out the [eenk website](https://t0mg.github.io/eenk/)!
@@ -11,138 +11,143 @@ A forked and heavily extended version of [inkle's Inky](https://github.com/inkle
 ## Download and install eenky
 
 Eenky can be installed either by:
-- Downloading the latest release from [releases page](https://github.com/t0mg/eenky/releases).
-- Building it from source as described in the [development section](#getting-started).
+- Downloading the latest release from the [Releases page](https://github.com/t0mg/eenky/releases).
+- Building it from source as described in the [Getting Started](#getting-started) section.
 
-## Features & Differences from original Inky
+## Features & Differences from Original Inky
 
-eenky started as a hack to help me develop [eenk](https://github.com/t0mg/eenk), and ended up getting more of a makeover than initially planned.
+eenky started as a hack to help develop [eenk](https://github.com/t0mg/eenk), and evolved into a comprehensive authoring environment for e-ink devices:
 
-- **Modernized UI Engine**: The entire frontend has been rewritten in **Vue 3** (replacing legacy Vanilla JS/jQuery) although there's stil a few dollar signs and a bunch of dead code lingering here and there.
-- **Improved Authoring Tools**: 
-  - An enhanced **Knot Browser** that distinctly categorizes Knots, Stitches, and Functions with ad hoc iconography.
-  - **Goto Anything (`Ctrl+P` / `Cmd+P`)** is here and faster than ever for instantly jumping across project files and symbols.
-  - View controls include a Line Wrap toggle and deeply integrated Light/Dark themes.
-  - A unified documentation window that is searchable and offers help on both ink and eeenk's specific quirks like metata and image management.
-- **Embedded SDL Simulator**: Contains a pixel-accurate e-ink preview of the Xteink X4 hardware, compiled directly from the eenk firmware. Directly accessible from the project window in one click.
-- **Device Manager**: Flash, update, and manage your installed stories and firmware via USB using the built-in Web Serial tools.
-- **eenk Compilation Pipeline**: The one click compilation pipeline retains `inklecate` for compiling `.ink` to `.json`, but automatically passes the output to the custom `inkcpp_cl` compiler to produce the `.bin` format required by the hardware. It can also stil export for Web :)
+- **Modernized UI Engine**: Built on **Vue 3** and **CodeMirror 6** with custom Ink language support.
+- **Rich Authoring Tools**:
+  - **Live Preview**: Real-time story playback with interactive choice testing.
+  - **Knot Browser**: Categorizes Knots, Stitches, and Functions with dedicated iconography.
+  - **Goto Anything (`Ctrl+P` / `Cmd+P`)**: Instant navigation across project files and symbols.
+  - **Search & Includes**: Universal project search and include file management.
+  - **View Controls & Themes**: Line wrap toggle and built-in Light/Dark themes.
+  - **Embedded Documentation**: Searchable documentation window covering Ink syntax and eenk-specific authoring (metadata, fonts, image tags).
+- **One-Click Compilation Pipeline**: Converts `.ink` to `.json` via `inklecate`, then to `.bin` via `inkcpp_cl` for hardware execution. Automatically converts `.ttf` fonts to `.epdfont` format, dithers and packs image assets into a `.media` sidecar file, and supports standard Web export.
+- **Embedded Desktop Simulator**: Pixel-accurate e-ink preview of the 800×480 display compiled directly from the `eenk` firmware (SDL2 backend).
+- **USB Device Manager**: Transfer stories, fonts, and save games directly to the device via Web Serial without removing the SD card.
+- **Firmware Flasher**: Wizard-style firmware installer for updating hardware over USB.
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [PlatformIO](https://platformio.org/) — for building the SDL simulator backend
-- [MSYS2 / MinGW-w64](https://www.msys2.org/) with SDL2 — Windows only, for the simulator build
+To build and run eenky from source, ensure you have installed:
+
+| Tool | Required For | Notes |
+|------|-------------|-------|
+| [Git](https://git-scm.com/) | All | Must clone recursively (`--recurse-submodules`) |
+| [Node.js 18+](https://nodejs.org/) | IDE desktop app | LTS recommended |
+| [Python 3.8+](https://www.python.org/) & [PlatformIO Core](https://docs.platformio.org/) | Desktop simulator | `pip install platformio` |
+| [MinGW-w64 / g++](https://www.msys2.org/) (Windows) or GCC/Clang (macOS/Linux) | Simulator & compiler build | MSYS2 with SDL2 recommended on Windows |
+| [CMake](https://cmake.org/) | `inkcpp_cl` binary compiler | Required by `npm run setup` |
 
 ## Getting Started
 
-> [!NOTE]  
-> The instructions below are generally **platform-agnostic**, however building native backends (step 2 & 3) require different toolchains depending on your OS. The CMake `-G "MinGW Makefiles"` flag in step 3 is Windows-specific; on macOS or Linux, omit that flag.
-
-```sh
+```powershell
 # 1. Clone with submodules
 git clone --recurse-submodules https://github.com/t0mg/eenky.git
-cd eenky
+cd eenky/app
 
-# 2. Build the SDL simulator backend
-#    (Windows: requires MSYS2/MinGW in PATH)
-cd eenk
-pio run -e native
-cd ..
-
-# 3. Build the inkcpp_cl compiler backend
-#    (Mac/Linux: Omit the -G "MinGW Makefiles" flag)
-cd inkcpp
-cmake -B build -G "MinGW Makefiles" -DCMAKE_EXE_LINKER_FLAGS="-static"
-cmake --build build --config Release
-cd ..
-
-# 4. Install Node dependencies
-cd app
+# 2. Install dependencies & run setup
+#    npm run setup automatically pulls, compiles, and copies 
+#    the eenk-sim and inkcpp_cl binaries into place
 npm install
-cd renderer
-npm install
-cd ..
-
-# 5. Copy binaries into place & setup
 npm run setup
 
-# 6. Launch eenky
+# 3. Launch eenky in development mode
 npm start
 ```
+
+> [!TIP]
+> **Submodule Development**: `npm run setup` pulls from `eenk` HEAD and compiles the binaries. If you have local uncommitted changes in the `eenk/` submodule that you want to test in the simulator, build the native target manually in `eenk/` and copy the binary directly to `app/main-process/ink/<platform>/eenk-sim.exe` (or `eenk-sim` on Linux/macOS):
+> ```powershell
+> cd ../eenk
+> pio run -e native
+> Copy-Item -Path ".pio\build\native\program.exe" -Destination "..\app\main-process\ink\win\eenk-sim.exe" -Force
+> ```
 
 ### Development Mode
 
-```sh
+Starting the app in dev mode uses `concurrently` to run the Vite dev server for the renderer while launching Electron attached to `http://localhost:5173/`:
+
+```powershell
 cd app
 npm start
 ```
-*Note: `npm start` in the `app` folder uses `concurrently` to automatically start the Vite dev server and then open the Electron main process connected to it.*
 
 ### Running Unit Tests
 
-eenky unit tests use `mocha` to verify core package structures and main process utilities (replacing the deprecated Spectron E2E tests). Run them from the `app` folder:
-```sh
-cd app
-npm run test
-```
+eenky has test suites for both backend and frontend components:
+
+- **Backend tests (Mocha)** — test main process utilities and story compilation:
+  ```powershell
+  cd app
+  npm run test
+  ```
+- **Frontend tests (Vitest)** — test Vue 3 components and state stores:
+  ```powershell
+  cd app/renderer
+  npm run test
+  ```
 
 ## Packaging for Production
 
-eenky uses `electron-builder` to create distributable installers and binaries. To build a production package:
+eenky uses `electron-builder` to create distributable installers and binaries.
 
-```sh
+```powershell
 # 1. Build the Vue renderer
 cd app/renderer
 npm run build
 cd ..
 
-# 2. Package the app
-#    This creates the installer for your current operating system
+# 2. Package the app for your platform
 npm run dist
 ```
-The output installers will be placed in the `dist-eenky` folder located at the root level of the project.
+
+Output installers are generated in the `dist-eenky/` directory at the project root.
 
 ## Submodule Architecture
 
 eenk and eenky work in tandem:
-- The parent project is `eenk` (the firmware).
-- It embeds `eenky` as a submodule to provide an authoring IDE.
-- `eenky` in turn embeds `eenk` and `inkcpp` as submodules to compile the `eenk-sim.exe` and `inkcpp_cl.exe` backends for the simulation and compile tabs.
+- The primary firmware repository is [eenk](https://github.com/t0mg/eenk).
+- `eenky` embeds `eenk` and `inkcpp` as submodules to compile the `eenk-sim` and `inkcpp_cl` binaries.
 
 | Path | Repository | Purpose |
 |------|-----------|---------|
-| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | eenk firmware source — used to build the SDL simulator backend (`eenk-sim`) |
-| `inkcpp/` | [t0mg/inkcpp](https://github.com/t0mg/inkcpp) | Custom C++ Ink runtime — used to build the `inkcpp_cl` compiler backend |
+| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | Firmware source — compiled to produce the SDL simulator backend (`eenk-sim`) |
+| `inkcpp/` | [t0mg/inkcpp](https://github.com/t0mg/inkcpp) | Custom C++ Ink runtime — compiled to produce the `inkcpp_cl` binary compiler |
 
 ## Binary Resolution
 
-The Electron main process looks for these binaries in `app/main-process/ink/<platform>/`:
+The Electron main process resolves platform-specific binaries from `app/main-process/ink/<platform>/`:
 
-| Binary | Source |
-|--------|--------|
-| `inklecate_*` | Bundled (from original Inky fork, converts `.ink` to `.json`) |
-| `inkcpp_cl` | Built from `inkcpp/` submodule (converts `.json` to `.bin`) |
-| `eenk-sim` | Built from `eenk/` submodule via PlatformIO (`pio run -e native`) |
+| Binary | Source | Purpose |
+|--------|--------|---------|
+| `inklecate_*` | Bundled (from Inky fork) | Compiles `.ink` source to `.json` |
+| `inkcpp_cl` | Built from `inkcpp/` submodule | Compiles `.json` to compact binary `.bin` for hardware |
+| `eenk-sim` | Built from `eenk/` submodule via PlatformIO (`pio run -e native`) | Pixel-accurate SDL e-ink simulator |
 
-Running `npm run setup` automatically builds (if needed) and copies these binaries into place.
+Running `npm run setup` automatically builds (if needed) and copies these binaries, as well as documentation assets and web tools, into their expected locations.
 
 ## Flashing Firmware
 
-The Flash tab uses [ESP Web Tools](https://esphome.github.io/esp-web-tools/) to flash the device directly from the browser/Electron app over Web Serial. It requires a merged factory binary produced by the `merge_firmware.py` post-build script in the `eenk` repo. 
+The Flash tab uses [ESP Web Tools](https://esphome.github.io/esp-web-tools/) to flash firmware directly over Web Serial. It uses factory merged binaries (`firmware-factory.bin`).
 
-To build the hardware firmware:
-```sh
+To build hardware firmware from the `eenk` submodule:
+```powershell
 cd eenk
-pio run -e esp32c3
+pio run -e esp32c3        # For X3 / X4 hardware
+pio run -e esp32s3        # For X4 Pro hardware
 ```
-This produces `eenk/.pio/build/esp32c3/firmware-factory.bin` which the Flash tab picks up.
 
 ## Credits & Acknowledgments
 
-eenky is built upon inkle's Inky IDE and numerous open-source tools and libraries. See [credits.md](credits.md) for the complete list of credits.
+eenky is built upon inkle's Inky IDE and numerous open-source tools and libraries. See [credits.md](credits.md) for details.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).  
 Based on [inkle/inky](https://github.com/inkle/inky) © inkle Ltd (MIT).
+
