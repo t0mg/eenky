@@ -75,14 +75,10 @@ if (!fs.existsSync(submoduleCheck)) {
 } else {
     if (!checkOnly) {
         try {
-            console.log('  [build] Pulling latest from eenk HEAD...');
-            const { execSync } = require('child_process');
-            execSync('git fetch origin && git reset --hard && git checkout -f main && git reset --hard origin/main && git clean -fd', { cwd: eenk, stdio: 'inherit' });
-            execSync('git submodule update --init lib/inkcpp', { cwd: eenk, stdio: 'inherit' });
             console.log('  [build] Compiling eenk simulator...');
             execSync('pio run -e native', { cwd: eenk, stdio: 'inherit' });
         } catch (e) {
-            console.warn(`  ⚠  Could not pull/build eenk: ${e.message}`);
+            console.warn(`  ⚠  Could not pull/build eenk simulator: ${e.message}`);
         }
     }
 
@@ -113,10 +109,8 @@ if (!fs.existsSync(inkcppCheck)) {
 } else {
     if (!checkOnly) {
         try {
-            console.log('  [build] Pulling latest from inkcpp HEAD...');
-            const { execSync } = require('child_process');
-            execSync('git fetch --all && git reset --hard && git checkout -f eenk-patches && git pull --rebase --autostash && git clean -fd', { cwd: INKCPP, stdio: 'inherit' });
             console.log('  [build] Compiling inkcpp...');
+            const { execSync } = require('child_process');
 
             let cmakeGen = '';
 
@@ -134,7 +128,7 @@ if (!fs.existsSync(inkcppCheck)) {
         path.join(buildDir, plat.inkcppExe),
         path.join(INKCPP, plat.inkcppExe),
     ];
-    const inkcppSrc = candidates.find(p => fs.existsSync(p));
+    const inkcppSrc = candidates.find(p => fs.existsSync(p) && fs.statSync(p).isFile());
     const inkcppDst = path.join(DEST_DIR, plat.inkcppExe);
 
     if (!inkcppSrc) {
