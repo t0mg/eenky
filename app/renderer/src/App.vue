@@ -1,5 +1,6 @@
 <template>
   <div id="app-container">
+    <div class="mac-titlebar" v-if="isMac && !uiStore.isFullscreen && (!projectStore.mainInkFile || !uiStore.showToolbar)"></div>
     <Toolbar v-if="projectStore.mainInkFile && uiStore.showToolbar" />
     <div id="main-content" v-if="projectStore.mainInkFile" @mousemove="onMouseMove" @mouseup="onMouseUp" @mouseleave="onMouseUp">
       <Sidebar :style="{ width: uiStore.sidebarWidth + 'px' }" v-if="uiStore.showFileBrowser || uiStore.showKnotBrowser" />
@@ -45,6 +46,8 @@ import { LiveCompiler } from './core/liveCompiler.js';
 
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
+
+const isMac = window.api && window.api.platform === 'darwin';
 
 // Panel resizing state
 const isResizingSidebar = ref(false);
@@ -132,6 +135,9 @@ onMounted(() => {
     window.api.receive('toggle-toolbar', (show) => {
       uiStore.setShowToolbar(show);
     });
+    window.api.receive('set-fullscreen', (isFull) => {
+      uiStore.setIsFullscreen(isFull);
+    });
     window.api.receive('toggle-file-browser', (show) => {
       uiStore.setShowFileBrowser(show);
     });
@@ -182,6 +188,14 @@ watch([() => projectStore.mainInkFile, () => projectStore.hasUnsavedChanges], ()
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+}
+
+.mac-titlebar {
+  height: 32px;
+  background-color: var(--toolbar-bg, #f5f5f5);
+  -webkit-app-region: drag;
+  width: 100%;
+  flex-shrink: 0;
 }
 
 #main-content {

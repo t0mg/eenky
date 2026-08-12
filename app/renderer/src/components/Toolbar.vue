@@ -1,5 +1,5 @@
 <template>
-  <div id="toolbar">
+  <div id="toolbar" :class="{ 'is-mac': isMac && !uiStore.isFullscreen }">
     <div class="left-actions">
       <button @click="toggleFileBrowser" title="Toggle File Browser" class="toolbar-btn" :class="{ active: uiStore.showFileBrowser }">
         <span class="material-symbols-outlined">folder</span>
@@ -50,6 +50,8 @@ import { ProjectController } from '../core/projectController.js';
 
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
+
+const isMac = window.api && window.api.platform === 'darwin';
 
 const saveAllFiles = async () => {
   let success = true;
@@ -180,6 +182,11 @@ const exportJS = () => ProjectController.exportProject('js');
   border-bottom: 1px solid var(--border-color, #e0e0e0);
   padding: 0 16px;
   user-select: none;
+  -webkit-app-region: drag;
+}
+
+#toolbar.is-mac {
+  padding-left: 80px;
 }
 
 .left-actions, .center-actions, .right-actions {
@@ -199,6 +206,7 @@ const exportJS = () => ProjectController.exportProject('js');
   padding: 4px;
   line-height: 28px;
   border: 2px solid transparent;
+  -webkit-app-region: no-drag;
 }
 
 .toolbar-btn:hover {

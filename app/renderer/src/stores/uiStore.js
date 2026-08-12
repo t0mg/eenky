@@ -8,6 +8,7 @@ export const useUiStore = defineStore('ui', {
     showFileBrowser: true,
     showKnotBrowser: true,
     showToolbar: true,
+    isFullscreen: false,
     theme: 'light',
     zoom: '100',
     autoCompleteDisabled: false,
@@ -55,6 +56,9 @@ export const useUiStore = defineStore('ui', {
     },
     setShowToolbar(show) {
       this.showToolbar = show;
+    },
+    setIsFullscreen(full) {
+      this.isFullscreen = full;
     },
     setShowFileBrowser(show) {
       this.showFileBrowser = show;

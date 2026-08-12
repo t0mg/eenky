@@ -24,7 +24,7 @@ var electronWindowOptions = {
 
 
 if( process.platform == "darwin" ) {
-    electronWindowOptions.titleBarStyle = 'hidden';
+    electronWindowOptions.titleBarStyle = 'hiddenInset';
     electronWindowOptions.titleBarOverlay = true;
 }
 
@@ -54,6 +54,14 @@ function ProjectWindow(filePath) {
 
     electronWindowOptions.title = i18n._("Inky");
     this.browserWindow = new BrowserWindow(electronWindowOptions);
+    
+    this.browserWindow.on('enter-full-screen', () => {
+        this.browserWindow.webContents.send('set-fullscreen', true);
+    });
+
+    this.browserWindow.on('leave-full-screen', () => {
+        this.browserWindow.webContents.send('set-fullscreen', false);
+    });
     
     // Check if we are running in development by looking for the default electron app
     const isDev = process.defaultApp || /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || /[\\/]electron[\\/]/.test(process.execPath);
@@ -338,6 +346,7 @@ ProjectWindow.open = async function(filePath) {
         console.log("[DEBUG] filePath selected:", filePath);
         addRecentFile(filePath);
         let win = ProjectWindow.focused() || (windows.length > 0 ? windows[0] : null);
+
         if (win) {
             console.log("[DEBUG] using existing window");
             win.mainInkAbsPath = filePath;

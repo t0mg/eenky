@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+    platform: process.platform,
     // Basic IPC
     send: (channel, data) => {
         let validChannels = ['show-context-menu', 'project-stats', 'app-state-changed', 'project-final-close', 'project-cancelled-close', 'main-file-saved'];
@@ -17,7 +18,7 @@ contextBridge.exposeInMainWorld('api', {
             'insertSnippet', 'eenk:trigger-compile', 'eenk:launch-simulator',
             'toggle-toolbar', 'toggle-file-browser', 'toggle-knot-browser', 'toggle-preview', 'toggle-line-wrap',
             'zoom', 'goto-anything', 'add-watch-expression', 'set-tags-visible',
-            'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about'
+            'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about', 'set-fullscreen'
         ];
         if (validChannels.includes(channel)) {
             // Deliberately strip event as it includes `sender` 

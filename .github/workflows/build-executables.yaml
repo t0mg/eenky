@@ -71,81 +71,51 @@ jobs:
 
       - name: Set up app environment
         working-directory: ./app
-        run: npm install
+        run: |
+          npm install
+          cd renderer
+          npm install
+          npm run build
 
-      # ── macOS ─────────────────────────────────────────────────────────────
-      - name: Build eenky (macOS)
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Install SDL2 (macOS)
         if: matrix.os == 'macos-latest'
-        working-directory: ./app
-        run: |
-          npx --yes @electron/packager . eenky \
-            --platform=darwin --arch=x64 \
-            --app-version="${{ steps.version.outputs.version }}" \
-            --icon=../resources/Icon.icns \
-            --extend-info=../resources/info.plist \
-            --app-bundle-id=com.t0mg.eenky \
-            --prune \
-            --asar.unpackDir="main-process/ink" \
-            --ignore="inklecate_win.exe"
-          mkdir -p ReleaseUpload
-          ditto -c -k --keepParent eenky-darwin-x64/eenky.app ReleaseUpload/eenky-mac-x64.zip
+        run: brew install sdl2 sdl2_image sdl2_ttf sdl2_gfx
 
-      # ── Windows ───────────────────────────────────────────────────────────
-      - name: Build eenky (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: ./app
-        run: |
-          npx --yes @electron/packager . eenky \
-            --platform=win32 --arch=x64 \
-            --app-version="${{ steps.version.outputs.version }}" \
-            --icon=../resources/Icon1024.png.ico \
-            --prune \
-            --asar.unpackDir="main-process/ink" \
-            --ignore="inklecate_mac" \
-            --win32metadata.ProductName="eenky" \
-            --win32metadata.CompanyName="Tom Granger" \
-            --win32metadata.FileDescription="eenky" \
-            --win32metadata.OriginalFilename="eenky.exe" \
-            --win32metadata.InternalName="eenky"
-          mkdir -p ReleaseUpload
-          7z a -tzip eenky-win32-x64.zip eenky-win32-x64
-          mv eenky-win32-x64.zip ReleaseUpload/eenky-win32-x64.zip
-
-      # ── Linux ─────────────────────────────────────────────────────────────
-      - name: Build eenky (Linux)
+      - name: Install SDL2 (Linux)
         if: matrix.os == 'ubuntu-latest'
-        working-directory: ./app
-        run: |
-          npx --yes @electron/packager . eenky \
-            --platform=linux --arch=x64 \
-            --app-version="${{ steps.version.outputs.version }}" \
-            --icon=../resources/Icon.icns \
-            --prune \
-            --asar.unpackDir="main-process/ink" \
-            --ignore="inklecate_mac"
-          mkdir -p ReleaseUpload
-          zip -r ReleaseUpload/eenky-linux-x64.zip eenky-linux-x64
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev
 
-      # ── macOS code signing (optional — skipped if secrets are absent) ──────
-      - name: Add macOS certificate
-        if: matrix.os == 'macos-latest'
-        run: |
-          if [[ -z "${CERTIFICATE_OSX_APPLICATION}" || -z "${CERTIFICATE_PASSWORD}" ]]; then
-            echo "No macOS signing certificate configured — skipping."
-            exit 0
-          fi
-          KEY_CHAIN=build.keychain
-          CERTIFICATE_P12=certificate.p12
-          echo "${CERTIFICATE_OSX_APPLICATION}" | base64 --decode > "${CERTIFICATE_P12}"
-          security create-keychain -p actions "${KEY_CHAIN}"
-          security default-keychain -s "${KEY_CHAIN}"
-          security unlock-keychain -p actions "${KEY_CHAIN}"
-          security import "${CERTIFICATE_P12}" -k "${KEY_CHAIN}" -P "${CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k actions "${KEY_CHAIN}"
-          rm -f *.p12
+      - name: Install MSYS2 & SDL2 (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-SDL2_image
+            mingw-w64-x86_64-SDL2_ttf
+            mingw-w64-x86_64-SDL2_gfx
+            mingw-w64-x86_64-cmake
+
+      - name: Add MSYS2 MinGW to PATH (Windows)
+        if: matrix.os == 'windows-latest'
+        run: echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+
+      - name: Build eenk-sim and inkcpp_cl
+        working-directory: ./app
+        run: npm run setup
+
+      - name: Build eenky
+        working-directory: ./app
+        run: npm run dist
         env:
-          CERTIFICATE_OSX_APPLICATION: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
-          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+          CSC_LINK: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
+          CSC_KEY_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
 
       # ── Upload built packages as a GitHub Release ──────────────────────────
       - name: Create / update GitHub Release
@@ -154,7 +124,9 @@ jobs:
           tag_name:   ${{ steps.tag.outputs.tag }}
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
           generate_release_notes: true
-          files: app/ReleaseUpload/**/*.zip
+          files: |
+            dist-eenky/**/*.zip
+            dist-eenky/**/*.dmg
+            dist-eenky/**/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          

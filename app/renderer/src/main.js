@@ -8,3 +8,7 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.mount('#app')
+
+if (window.api && window.api.platform === 'darwin') {
+  document.body.classList.add('is-mac')
+}

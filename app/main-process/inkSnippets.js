@@ -2,14 +2,23 @@ const fs = require('fs');
 const path = require('path');
 const i18n = require("./i18n/i18n.js");
 
-// Find longer snippets folder
-const snippetsDirRelease = path.join(__dirname, "../../app.asar.unpacked/main-process", "ink/longer-ink-snippets");
-const snippetsDirDev = path.join(__dirname, "ink/longer-ink-snippets");
+const electron = require('electron');
 
-var snippetsDir = snippetsDirRelease;
-try { fs.accessSync(snippetsDir) }
-catch(e) {
-    snippetsDir = snippetsDirDev;
+let snippetsDir;
+if (electron.app && electron.app.isPackaged) {
+    // Try electron-packager unpackDir location
+    const snippetsDirPackager = path.join(__dirname, "../../app.asar.unpacked/main-process", "ink/longer-ink-snippets");
+    // Try electron-builder extraResources location
+    const snippetsDirBuilder = path.join(process.resourcesPath, 'ink', 'longer-ink-snippets');
+
+    try {
+        fs.accessSync(snippetsDirPackager);
+        snippetsDir = snippetsDirPackager;
+    } catch(e) {
+        snippetsDir = snippetsDirBuilder;
+    }
+} else {
+    snippetsDir = path.join(__dirname, "ink/longer-ink-snippets");
 }
 
 function loadLongerSnippet(inkFilename) {

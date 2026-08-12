@@ -10,7 +10,6 @@ if (isDev) {
 const i18n = require("./i18n/i18n.js")
 const { ProjectWindow } = require("./projectWindow.js");
 const { DocumentationWindow } = require("./documentationWindow.js");
-const { AboutWindow } = require("./aboutWindow.js");
 const deviceWindow = require("./deviceWindow.js");
 const { AppMenus } = require('./appmenus.js');
 const { onForceQuit } = require('./forceQuitDetect');
@@ -93,7 +92,6 @@ ipcMain.handle("showSaveDialog", async (event, options) => {
 ipcMain.handle('change-theme', async (event, nextTheme) => {
     // We update the view settings
     ProjectWindow.addOrChangeViewSetting('theme', nextTheme);
-    AboutWindow.changeTheme(nextTheme);
     DocumentationWindow.changeTheme(nextTheme);
 
     // Let the main menu know
@@ -391,20 +389,22 @@ app.on('ready', function () {
         showAbout: () => {
             var win = ProjectWindow.focused();
             if (win) {
-                const versionFilePath = "ink/version.txt";
-                const eenkVersionFilePath = "ink/eenk_version.txt";
-                const inklecateRootPathRelease = path.join(__dirname, "../../app.asar.unpacked/main-process");
-                const inklecateRootPathDev = __dirname;
-
-                var fullVersionFilePath = path.join(inklecateRootPathRelease, versionFilePath);
-                try { fs.accessSync(versionFilePath) } catch (e) {
-                    fullVersionFilePath = path.join(inklecateRootPathDev, versionFilePath);
+                let inkDir;
+                if (app.isPackaged) {
+                    const inkDirPackager = path.join(__dirname, "../../app.asar.unpacked/main-process/ink");
+                    const inkDirBuilder = path.join(process.resourcesPath, 'ink');
+                    try {
+                        fs.accessSync(inkDirPackager);
+                        inkDir = inkDirPackager;
+                    } catch(e) {
+                        inkDir = inkDirBuilder;
+                    }
+                } else {
+                    inkDir = path.join(__dirname, "ink");
                 }
 
-                var fullEenkVersionFilePath = path.join(inklecateRootPathRelease, eenkVersionFilePath);
-                try { fs.accessSync(eenkVersionFilePath) } catch (e) {
-                    fullEenkVersionFilePath = path.join(inklecateRootPathDev, eenkVersionFilePath);
-                }
+                var fullVersionFilePath = path.join(inkDir, "version.txt");
+                var fullEenkVersionFilePath = path.join(inkDir, "eenk_version.txt");
 
                 var inkVersion = "Unknown";
                 try { inkVersion = fs.readFileSync(fullVersionFilePath, "utf8").trim(); } catch (e) { }
@@ -527,7 +527,6 @@ app.on('ready', function () {
                 focussedWindow.webContents.send('insertSnippet', snippet);
         },
         changeTheme: (newTheme) => {
-            AboutWindow.changeTheme(newTheme);
             DocumentationWindow.changeTheme(newTheme);
             ProjectWindow.addOrChangeViewSetting('theme', newTheme);
             deviceWindow.changeTheme(newTheme);
@@ -598,7 +597,6 @@ app.on('ready', function () {
 
     // Setup last stored theme
     let theme = ProjectWindow.getViewSettings().theme;
-    AboutWindow.changeTheme(theme);
     DocumentationWindow.changeTheme(theme);
 
     hasFinishedLaunch = true;

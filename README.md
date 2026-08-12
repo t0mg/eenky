@@ -37,11 +37,26 @@ To build and run eenky from source, ensure you have installed:
 
 | Tool | Required For | Notes |
 |------|-------------|-------|
-| [Git](https://git-scm.com/) | All | Must clone recursively (`--recurse-submodules`) |
-| [Node.js 18+](https://nodejs.org/) | IDE desktop app | LTS recommended |
+| [Git](https://git-scm.com/) and [Git LFS](https://git-lfs.com/) | All | Must clone recursively (`--recurse-submodules`). Git LFS is required for binaries like `inklecate`. |
+| [Node.js 18+](https://nodejs.org/) | IDE desktop app | LTS recommended (Note: cutting-edge Node versions like v26 may have bugs with `electron` installation scripts) |
 | [Python 3.8+](https://www.python.org/) & [PlatformIO Core](https://docs.platformio.org/) | Desktop simulator | `pip install platformio` |
 | [MinGW-w64 / g++](https://www.msys2.org/) (Windows) or GCC/Clang (macOS/Linux) | Simulator & compiler build | MSYS2 with SDL2 recommended on Windows |
 | [CMake](https://cmake.org/) | `inkcpp_cl` binary compiler | Required by `npm run setup` |
+
+### macOS Quick Setup (Fresh Install)
+
+If you are setting up eenky on a fresh Mac, install the following via [Homebrew](https://brew.sh/):
+
+```bash
+# 1. Install required build dependencies and git-lfs
+brew install cmake sdl2-compat git-lfs
+
+# 2. Initialize Git LFS
+git lfs install
+```
+
+> [!WARNING]
+> If you cloned the repository *before* installing `git-lfs`, you must run `git lfs pull` inside the `eenky` directory to fetch the actual binaries (otherwise `inklecate` will fail to run with a system format error).
 
 ## Getting Started
 
@@ -56,7 +71,11 @@ cd eenky/app
 npm install
 npm run setup
 
+cd renderer
+npm install
+
 # 3. Launch eenky in development mode
+cd ..
 npm start
 ```
 
