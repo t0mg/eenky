@@ -39,7 +39,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       # Read the version from package.json — this is the single source of truth.
       # On a tag push the version in package.json must already match the tag;
