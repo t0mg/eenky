@@ -69,14 +69,6 @@ jobs:
           echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
           echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up app environment
-        working-directory: ./app
-        run: |
-          npm install
-          cd renderer
-          npm install
-          npm run build
-
       - name: Install PlatformIO
         run: |
           python -m pip install --upgrade pip
@@ -106,9 +98,21 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
 
-      - name: Build eenk-sim and inkcpp_cl
+      - name: Install dependencies (App)
         working-directory: ./app
-        run: npm run setup
+        run: npm install --ignore-scripts
+
+      - name: Build eenk-sim, inkcpp_cl and setup assets
+        working-directory: ./app
+        run: node ../scripts/setup.js
+
+      - name: Build docs and renderer
+        working-directory: ./app
+        run: |
+          npm run postinstall
+          cd renderer
+          npm install
+          npm run build
 
       - name: Build eenky
         working-directory: ./app
