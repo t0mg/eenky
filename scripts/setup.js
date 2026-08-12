@@ -76,6 +76,7 @@ if (!fs.existsSync(submoduleCheck)) {
     if (!checkOnly) {
         try {
             console.log('  [build] Compiling eenk simulator...');
+            const { execSync } = require('child_process');
             execSync('pio run -e native', { cwd: eenk, stdio: 'inherit' });
         } catch (e) {
             console.warn(`  ⚠  Could not pull/build eenk simulator: ${e.message}`);
