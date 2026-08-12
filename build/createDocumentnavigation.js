@@ -112,6 +112,9 @@ function numberOfOccurrences(searchIn, searchFor, allowOverlapping) {
     return n;
 }
 
+// Ensure the destination directory exists before copying the CSS file
+fs.mkdirSync('../app/renderer/public/documentation/', { recursive: true });
+
 // Copy the static CSS file to the build output directory
 fs.copyFileSync('../app/resources/Documentation/documentationWindow.css', '../app/renderer/public/documentation/documentationWindow.css');
 
