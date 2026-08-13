@@ -96,7 +96,9 @@ jobs:
 
       - name: Add MSYS2 MinGW to PATH (Windows)
         if: matrix.os == 'windows-latest'
-        run: echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+        run: |
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+          echo '@C:\msys64\usr\bin\sh.exe C:\msys64\mingw64\bin\sdl2-config %*' > C:/msys64/mingw64/bin/sdl2-config.bat
 
       - name: Install dependencies (App)
         working-directory: ./app

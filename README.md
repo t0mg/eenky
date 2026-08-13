@@ -14,6 +14,15 @@ Eenky can be installed either by:
 - Downloading the latest release from the [Releases page](https://github.com/t0mg/eenky/releases).
 - Building it from source as described in the [Getting Started](#getting-started) section.
 
+### Note for macOS Users ("Damaged App" Error)
+Because eenky is currently distributed as an unsigned application, macOS Gatekeeper will automatically quarantine the downloaded `.dmg` or `.zip` and falsely report that *"eenky is damaged and can't be opened. You should move it to the Trash."*
+
+To bypass this security feature:
+1. Move the `eenky.app` to your Applications folder.
+2. Open your Terminal.
+3. Run `xattr -cr /Applications/eenky.app`
+This removes the quarantine flag and allows macOS to open the app normally.
+
 ## Features & Differences from Original Inky
 
 eenky started as a hack to help develop [eenk](https://github.com/t0mg/eenk), and evolved into a comprehensive authoring environment for e-ink devices:
