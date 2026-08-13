@@ -3,16 +3,19 @@ name: Build eenky executables
 # ── Triggers ──────────────────────────────────────────────────────
 on:
   # Manual trigger — used for both nightlies and tagged releases.
-  # (Automated releases are deferred until the binary hand-off from eenk CI
-  # is fully wired up. For now, all releases are initiated manually.)
   workflow_dispatch:
     inputs:
-      prerelease:
-        description: 'Mark as pre-release?'
+      version:
+        description: 'Release version / tag (e.g. 0.2.0, v0.2.0, or leave empty for nightly)'
         required: false
-        default: 'true'
+        default: ''
+        type: string
+      prerelease:
+        description: 'Mark as pre-release? (auto-defaults to true for nightlies, false for version releases)'
+        required: false
+        default: 'auto'
         type: choice
-        options: ['true', 'false']
+        options: ['auto', 'true', 'false']
 
   # Automatic trigger on version tags (e.g. v0.1.0)
   push:
@@ -44,30 +47,57 @@ jobs:
         with:
           node-version: 22
 
-      # Read the version from package.json — this is the single source of truth.
-      # On a tag push the version in package.json must already match the tag;
-      # on a manual dispatch it is used as-is (nightly / dev build).
-      - name: Extract version from package.json
-        id: version
+      # Determine release tag, semver version, and pre-release flag.
+      - name: Determine release info
+        id: release_info
+        run: |
+          INPUT_VER="${{ github.event.inputs.version }}"
+          INPUT_PRERELEASE="${{ github.event.inputs.prerelease || 'auto' }}"
+
+          if [[ -n "${INPUT_VER}" ]]; then
+            # User specified a version / tag in manual dispatch
+            SEMVER="${INPUT_VER#v}"
+            TAG="v${SEMVER}"
+            if [[ "${INPUT_PRERELEASE}" == "auto" ]]; then
+              PRERELEASE="false"
+            else
+              PRERELEASE="${INPUT_PRERELEASE}"
+            fi
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Triggered by Git tag push (e.g. refs/tags/v0.2.0)
+            TAG="${GITHUB_REF#refs/tags/}"
+            SEMVER="${TAG#v}"
+            if [[ "${INPUT_PRERELEASE}" == "auto" ]]; then
+              PRERELEASE="false"
+            else
+              PRERELEASE="${INPUT_PRERELEASE}"
+            fi
+          else
+            # Nightly build (empty version input or non-tag push)
+            DATE_STR=$(date -u +%Y%m%d)
+            TAG="eenky-nightly-${DATE_STR}-${{ github.run_number }}"
+            BASE_VER=$(node -p "require('./app/package.json').version")
+            SEMVER="${BASE_VER}-nightly.${DATE_STR}.${{ github.run_number }}"
+            if [[ "${INPUT_PRERELEASE}" == "auto" ]]; then
+              PRERELEASE="true"
+            else
+              PRERELEASE="${INPUT_PRERELEASE}"
+            fi
+          fi
+
+          echo "tag=${TAG}"               >> "$GITHUB_OUTPUT"
+          echo "version=${SEMVER}"         >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "Release Tag: ${TAG}"
+          echo "App Version (SemVer): ${SEMVER}"
+          echo "Pre-release: ${PRERELEASE}"
+
+      # Update package.json version so built executables, metadata, and About menu reflect this version
+      - name: Update package.json version
         working-directory: ./app
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Resolved eenky version: ${VERSION}"
-
-      # Determine release tag and pre-release flag.
-      - name: Determine release tag
-        id: tag
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            PRERELEASE="false"
-          else
-            TAG="eenky-nightly-$(date -u +%Y%m%d)-${{ github.run_number }}"
-            PRERELEASE="${{ github.event.inputs.prerelease || 'true' }}"
-          fi
-          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
-          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          npm version "${{ steps.release_info.outputs.version }}" --no-git-tag-version --allow-same-version
+          echo "app/package.json version updated to: $(node -p "require('./package.json').version")"
 
       - name: Install PlatformIO
         run: |
@@ -135,8 +165,9 @@ jobs:
       - name: Create / update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:   ${{ steps.tag.outputs.tag }}
-          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
+          tag_name:   ${{ steps.release_info.outputs.tag }}
+          name:       ${{ steps.release_info.outputs.tag }}
+          prerelease: ${{ steps.release_info.outputs.prerelease == 'true' }}
           generate_release_notes: true
           fail_on_unmatched_files: false
           files: |

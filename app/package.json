@@ -38,33 +38,59 @@
       }
     ],
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "extraResources": [
         {
           "from": "main-process/ink",
           "to": "ink",
-          "filter": ["**/*", "!**/*_mac", "!**/*_linux", "!mac", "!linux"]
+          "filter": [
+            "**/*",
+            "!**/*_mac",
+            "!**/*_linux",
+            "!mac",
+            "!linux"
+          ]
         }
       ]
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.developer-tools",
       "extraResources": [
         {
           "from": "main-process/ink",
           "to": "ink",
-          "filter": ["**/*", "!**/*_win.exe", "!**/*_linux", "!win", "!linux"]
+          "filter": [
+            "**/*",
+            "!**/*_win.exe",
+            "!**/*_linux",
+            "!win",
+            "!linux"
+          ]
         }
       ]
     },
     "linux": {
-      "target": ["zip"],
+      "target": [
+        "zip"
+      ],
       "extraResources": [
         {
           "from": "main-process/ink",
           "to": "ink",
-          "filter": ["**/*", "!**/*_mac", "!**/*_win.exe", "!mac", "!win"]
+          "filter": [
+            "**/*",
+            "!**/*_mac",
+            "!**/*_win.exe",
+            "!mac",
+            "!win"
+          ]
         }
       ]
     }
