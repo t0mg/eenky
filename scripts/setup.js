@@ -82,8 +82,6 @@ if (!fs.existsSync(submoduleCheck)) {
                     let pyContent = fs.readFileSync(linkFlags, 'utf-8');
                     // Force the compiler paths so PlatformIO doesn't use Strawberry Perl GCC
                     pyContent = pyContent.replace('env.Append(LINKFLAGS=["-static"])', 'env["CC"] = "C:/msys64/mingw64/bin/gcc.exe"\n    env["CXX"] = "C:/msys64/mingw64/bin/g++.exe"\n    env.Append(LINKFLAGS=["-static"])');
-                    // Ensure the include path is passed directly to the compiler flags instead of CPPPATH
-                    pyContent = pyContent.replace('env.Append(CPPPATH=["C:/msys64/mingw64/include/SDL2"])', 'env.Append(CXXFLAGS=["-IC:/msys64/mingw64/include/SDL2", "-Dmain=SDL_main"])');
                     fs.writeFileSync(linkFlags, pyContent);
                 }
             }
