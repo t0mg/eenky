@@ -16,7 +16,7 @@
     "generate-locale": "node ../build/generateLocale.js",
     "build-package": "node build-package.js",
     "pack": "electron-builder --dir",
-    "dist": "npm run build --prefix renderer && electron-builder"
+    "dist": "npm run build --prefix renderer && electron-builder --publish never"
   },
   "build": {
     "appId": "com.t0mg.eenky",
