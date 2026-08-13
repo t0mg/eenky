@@ -242,6 +242,19 @@ try {
     console.warn(`  ⚠  Could not copy web tools: ${e.message}`);
 }
 
+// ── 8. Copy fontconvert.py to ink/ ───────────────────────────────────────────
+console.log('\n8. Copy fontconvert.py to app/main-process/ink/');
+try {
+    const srcFontConvert = path.join(eenk, 'scripts', 'fontconvert.py');
+    const dstFontConvert = path.join(ROOT, 'app', 'main-process', 'ink', 'fontconvert.py');
+    if (!checkOnly) {
+        fs.copyFileSync(srcFontConvert, dstFontConvert);
+    }
+    console.log(`  ✔  fontconvert.py copied to ink/`);
+} catch (e) {
+    console.warn(`  ⚠  Could not copy fontconvert.py: ${e.message}`);
+}
+
 // ── Done ─────────────────────────────────────────────────────────────────────
 console.log('');
 if (allOk) {

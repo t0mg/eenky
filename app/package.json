@@ -1,7 +1,7 @@
 {
   "name": "eenky",
   "productName": "eenky",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The story editor for ereaders running the eenk firmware",
   "main": "main-process/main.js",
   "repository": {
@@ -24,14 +24,11 @@
     "directories": {
       "output": "../dist-eenky"
     },
+    "files": [
+      "**/*",
+      "!main-process/ink/**/*"
+    ],
     "extraResources": [
-      {
-        "from": "main-process/ink",
-        "to": "ink",
-        "filter": [
-          "**/*"
-        ]
-      },
       {
         "from": "../bin",
         "to": "bin",
@@ -41,14 +38,35 @@
       }
     ],
     "win": {
-      "target": ["nsis", "zip"]
+      "target": ["nsis", "zip"],
+      "extraResources": [
+        {
+          "from": "main-process/ink",
+          "to": "ink",
+          "filter": ["**/*", "!**/*_mac", "!**/*_linux", "!mac", "!linux"]
+        }
+      ]
     },
     "mac": {
       "target": ["dmg", "zip"],
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "extraResources": [
+        {
+          "from": "main-process/ink",
+          "to": "ink",
+          "filter": ["**/*", "!**/*_win.exe", "!**/*_linux", "!win", "!linux"]
+        }
+      ]
     },
     "linux": {
-      "target": ["zip"]
+      "target": ["zip"],
+      "extraResources": [
+        {
+          "from": "main-process/ink",
+          "to": "ink",
+          "filter": ["**/*", "!**/*_mac", "!**/*_win.exe", "!mac", "!win"]
+        }
+      ]
     }
   },
   "keywords": [

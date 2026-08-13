@@ -42,6 +42,11 @@ function getInklecateBinary() {
     return path.join(inkDir, 'inklecate_linux');
 }
 
+function getFontconvertScript() {
+    const inkDir = getInkDir();
+    return path.join(inkDir, 'fontconvert.py');
+}
+
 // ── Process runner ───────────────────────────────────────────────────────────
 
 function runProcess(exePath, args, cwd, onProgress) {
@@ -154,8 +159,6 @@ async function compileEenk(inkFilePath, onProgress) {
             onProgress(`✔ No images found to pack.`);
         }
     } catch (e) {
-        const { dialog } = require('electron');
-        dialog.showErrorBox("Media Compilation Failed", e.message);
         throw e;
     }
     
@@ -210,109 +213,135 @@ async function compileEenk(inkFilePath, onProgress) {
 
     // ── Font Conversion ──
     if (originalFont && originalFont.toLowerCase() !== 'sans' && originalFont.toLowerCase() !== 'serif') {
-        const ttfPath = path.join(inkDir, `${originalFont}.ttf`);
         const fontNameBase = originalFont.replace(/-(regular|regula|bold|italic|bolditalic|medium)$/i, '');
+        const ttfPath = path.join(inkDir, `${originalFont}.ttf`);
         
-        let regularConverted = false;
-
-        if (fs.existsSync(ttfPath)) {
-            onProgress(`[Font] Found side-loaded TTF: ${originalFont}.ttf`);
-            try {
-                // Check if Python and freetype are available
-                await runProcess('python', ['-c', 'import freetype'], inkDir, () => {});
-
-                // Paths
-                const rootDir = path.resolve(__dirname, '../../../../'); // e.g. root/tools/eenky/app/main-process -> root
-                const fontConvertScript = path.join(rootDir, 'scripts', 'fontconvert.py');
-                const outDir = path.join(inkDir, 'font_tmp_out');
-
-                if (fs.existsSync(fontConvertScript)) {
-                    onProgress(`[Font] Converting ${originalFont}.ttf to ${headerFont}.epdfont at size ${DEFAULT_FONT_SIZE}pt...`);
-
-                    // fontconvert.py <stem> -r <ttf> --size-opt <size> --2bit -o <outDir>
-                    await runProcess('python', [
-                        fontConvertScript,
-                        originalFont,
-                        '-r', ttfPath,
-                        '--size-opt', DEFAULT_FONT_SIZE.toString(),
-                        '--2bit',
-                        '-o', outDir
-                    ], inkDir, onProgress);
-
-                    const generatedEpdfont = path.join(outDir, originalFont, 'regular.epdfont');
-                    if (fs.existsSync(generatedEpdfont)) {
-                        const finalEpdfont = path.join(inkDir, `${headerFont}.epdfont`);
-                        fs.copyFileSync(generatedEpdfont, finalEpdfont);
-                        onProgress(`✔ Font converted successfully: ${headerFont}.epdfont`);
-                        regularConverted = true;
-                    } else {
-                        onProgress(`[WARN] Font conversion completed but ${generatedEpdfont} was not found.`);
-                        warnings.push(`Regular font ${originalFont}.ttf could not be converted.`);
-                    }
-
-                    // Cleanup
-                    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch (e) { }
-                } else {
-                    onProgress(`[WARN] fontconvert.py script not found at ${fontConvertScript}`);
-                }
-            } catch (err) {
-                onProgress(`[WARN] Could not convert TTF font. Please ensure Python 3 and 'freetype-py' are installed globally. (Error: ${err.message})`);
-                warnings.push(`Failed to convert ${originalFont}.ttf: python or freetype missing.`);
-            }
-        } else {
-            warnings.push(`Regular font ${originalFont}.ttf was not found.`);
-        }
-
         // Check for Bold / Italic usage
         const usesBold = /\*\*(.*?)\*\*|__(.*?)__/.test(inkContent);
         // Note: single * is used for choices in ink, so this regex is a heuristic.
         const usesItalic = /(?<!\S)\*(?!\s)(.*?)(?<!\s)\*(?!\S)|_(.*?)_/.test(inkContent);
 
-        if (usesBold || usesItalic) {
-            onProgress(`[Font] Story uses bold/italic variants. Checking for variants of ${fontNameBase}...`);
-            
-            const tryConvertVariant = async (variantSuffix, epdfontSuffix) => {
-                const variantFileName = `${fontNameBase}-${variantSuffix}`;
-                const variantTtf = path.join(inkDir, `${variantFileName}.ttf`);
-                if (fs.existsSync(variantTtf)) {
-                    onProgress(`[Font] Found variant ${variantFileName}.ttf`);
-                    const rootDir = path.resolve(__dirname, '../../../../');
-                    const fontConvertScript = path.join(rootDir, 'scripts', 'fontconvert.py');
-                    const outDir = path.join(inkDir, 'font_tmp_out');
+        const hasRegular = fs.existsSync(ttfPath);
+        const hasBold = usesBold && (fs.existsSync(path.join(inkDir, `${fontNameBase}-Bold.ttf`)) || fs.existsSync(path.join(inkDir, `${fontNameBase}-bold.ttf`)));
+        const hasItalic = usesItalic && (fs.existsSync(path.join(inkDir, `${fontNameBase}-Italic.ttf`)) || fs.existsSync(path.join(inkDir, `${fontNameBase}-italic.ttf`)));
+
+        if (hasRegular || hasBold || hasItalic) {
+            let pythonCmd = null;
+            let pythonOk = false;
+            try {
+                try {
+                    await runProcess('python3', ['--version'], inkDir, () => {});
+                    pythonCmd = 'python3';
+                } catch (e1) {
                     try {
-                        await runProcess('python', [
-                            fontConvertScript, variantFileName, '-r', variantTtf,
-                            '--size-opt', DEFAULT_FONT_SIZE.toString(), '--2bit', '-o', outDir
-                        ], inkDir, onProgress);
-                        
-                        const generatedVariant = path.join(outDir, variantFileName, 'regular.epdfont');
-                        if (fs.existsSync(generatedVariant)) {
-                            const finalVariantEpdfont = path.join(inkDir, `${headerFont}-${epdfontSuffix}.epdfont`);
-                            fs.copyFileSync(generatedVariant, finalVariantEpdfont);
-                            onProgress(`✔ Variant converted successfully: ${headerFont}-${epdfontSuffix}.epdfont`);
-                            return true;
-                        }
-                    } catch (e) {
-                        onProgress(`[WARN] Failed to convert ${variantFileName}.ttf`);
-                    } finally {
-                        try { fs.rmSync(outDir, { recursive: true, force: true }); } catch (e) { }
+                        await runProcess('python', ['--version'], inkDir, () => {});
+                        pythonCmd = 'python';
+                    } catch (e2) {
+                        throw new Error("Python 3 is not installed.");
                     }
                 }
-                return false;
-            };
 
-            if (usesBold) {
-                const hasBold = await tryConvertVariant('Bold', 'bold') || await tryConvertVariant('bold', 'bold');
-                if (!hasBold) {
-                    warnings.push(`Story uses bold text, but ${fontNameBase}-Bold.ttf was not provided (eenk will use faux bold).`);
+                try {
+                    await runProcess(pythonCmd, ['-c', 'import freetype'], inkDir, () => {});
+                    pythonOk = true;
+                } catch (e) {
+                    onProgress(`[Font] 'freetype-py' not found. Attempting to install it automatically...`);
+                    await runProcess(pythonCmd, ['-m', 'pip', 'install', 'freetype-py'], inkDir, onProgress);
+                    // verify it installed correctly
+                    await runProcess(pythonCmd, ['-c', 'import freetype'], inkDir, () => {});
+                    pythonOk = true;
+                }
+            } catch (err) {
+                onProgress(`[WARN] Python dependencies missing. (Error: ${err.message})`);
+                warnings.push(`Failed to convert fonts. Python 3 or 'freetype-py' is missing.\n\nPlease open your terminal and run:\n${pythonCmd ? pythonCmd + ' -m pip install freetype-py' : 'pip3 install freetype-py'}`);
+            }
+
+            if (pythonOk) {
+                const fontConvertScript = getFontconvertScript();
+                const outDir = path.join(inkDir, 'font_tmp_out');
+
+                if (!fs.existsSync(fontConvertScript)) {
+                    onProgress(`[WARN] fontconvert.py script not found at ${fontConvertScript}`);
+                    warnings.push(`Compiler error: fontconvert.py script is missing.`);
+                } else {
+                    // Regular Font
+                    if (hasRegular) {
+                        onProgress(`[Font] Found side-loaded TTF: ${originalFont}.ttf`);
+                        try {
+                            onProgress(`[Font] Converting ${originalFont}.ttf to ${headerFont}.epdfont at size ${DEFAULT_FONT_SIZE}pt...`);
+                            await runProcess(pythonCmd, [
+                                fontConvertScript, originalFont, '-r', ttfPath,
+                                '--size-opt', DEFAULT_FONT_SIZE.toString(), '--2bit', '-o', outDir
+                            ], inkDir, onProgress);
+
+                            const generatedEpdfont = path.join(outDir, originalFont, 'regular.epdfont');
+                            if (fs.existsSync(generatedEpdfont)) {
+                                const finalEpdfont = path.join(inkDir, `${headerFont}.epdfont`);
+                                fs.copyFileSync(generatedEpdfont, finalEpdfont);
+                                onProgress(`✔ Font converted successfully: ${headerFont}.epdfont`);
+                            } else {
+                                onProgress(`[WARN] Font conversion completed but ${generatedEpdfont} was not found.`);
+                                warnings.push(`Regular font ${originalFont}.ttf could not be converted.`);
+                            }
+                        } catch (err) {
+                            onProgress(`[WARN] Could not convert TTF font. (Error: ${err.message})`);
+                            warnings.push(`Failed to convert ${originalFont}.ttf.`);
+                        } finally {
+                            try { fs.rmSync(outDir, { recursive: true, force: true }); } catch (e) { }
+                        }
+                    } else {
+                        warnings.push(`Regular font ${originalFont}.ttf was not found.`);
+                    }
+
+                    // Variants
+                    if (usesBold || usesItalic) {
+                        onProgress(`[Font] Story uses bold/italic variants. Checking for variants of ${fontNameBase}...`);
+                        
+                        const tryConvertVariant = async (variantSuffix, epdfontSuffix) => {
+                            const variantFileName = `${fontNameBase}-${variantSuffix}`;
+                            const variantTtf = path.join(inkDir, `${variantFileName}.ttf`);
+                            if (fs.existsSync(variantTtf)) {
+                                onProgress(`[Font] Found variant ${variantFileName}.ttf`);
+                                try {
+                                    await runProcess(pythonCmd, [
+                                        fontConvertScript, variantFileName, '-r', variantTtf,
+                                        '--size-opt', DEFAULT_FONT_SIZE.toString(), '--2bit', '-o', outDir
+                                    ], inkDir, onProgress);
+                                    
+                                    const generatedVariant = path.join(outDir, variantFileName, 'regular.epdfont');
+                                    if (fs.existsSync(generatedVariant)) {
+                                        const finalVariantEpdfont = path.join(inkDir, `${headerFont}-${epdfontSuffix}.epdfont`);
+                                        fs.copyFileSync(generatedVariant, finalVariantEpdfont);
+                                        onProgress(`✔ Variant converted successfully: ${headerFont}-${epdfontSuffix}.epdfont`);
+                                        return true;
+                                    }
+                                } catch (e) {
+                                    onProgress(`[WARN] Failed to convert ${variantFileName}.ttf`);
+                                } finally {
+                                    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch (e) { }
+                                }
+                            }
+                            return false;
+                        };
+
+                        if (usesBold) {
+                            const foundBold = await tryConvertVariant('Bold', 'bold') || await tryConvertVariant('bold', 'bold');
+                            if (!foundBold) {
+                                warnings.push(`Story uses bold text, but ${fontNameBase}-Bold.ttf was not provided (eenk will use faux bold).`);
+                            }
+                        }
+                        if (usesItalic) {
+                            const foundItalic = await tryConvertVariant('Italic', 'italic') || await tryConvertVariant('italic', 'italic');
+                            if (!foundItalic) {
+                                warnings.push(`Story uses italic text, but ${fontNameBase}-Italic.ttf was not provided (eenk will use faux italic).`);
+                            }
+                        }
+                    }
                 }
             }
-            if (usesItalic) {
-                const hasItalic = await tryConvertVariant('Italic', 'italic') || await tryConvertVariant('italic', 'italic');
-                if (!hasItalic) {
-                    warnings.push(`Story uses italic text, but ${fontNameBase}-Italic.ttf was not provided (eenk will use faux italic).`);
-                }
-            }
+        } else {
+            // No TTF files exist at all
+            warnings.push(`Regular font ${originalFont}.ttf was not found.`);
         }
     }
 
