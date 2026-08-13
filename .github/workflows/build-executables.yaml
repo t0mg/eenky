@@ -134,9 +134,10 @@ jobs:
           tag_name:   ${{ steps.tag.outputs.tag }}
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
-            dist-eenky/**/*.zip
-            dist-eenky/**/*.dmg
-            dist-eenky/**/*.exe
+            dist-eenky/*.zip
+            dist-eenky/*.dmg
+            dist-eenky/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
