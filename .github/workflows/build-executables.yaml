@@ -116,10 +116,14 @@ jobs:
 
       - name: Build eenky
         working-directory: ./app
-        run: npm run dist
-        env:
-          CSC_LINK: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
-          CSC_KEY_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -n "${{ secrets.CERTIFICATE_OSX_APPLICATION }}" ]; then
+            export CSC_LINK="${{ secrets.CERTIFICATE_OSX_APPLICATION }}"
+          fi
+          if [ -n "${{ secrets.CERTIFICATE_PASSWORD }}" ]; then
+            export CSC_KEY_PASSWORD="${{ secrets.CERTIFICATE_PASSWORD }}"
+          fi
+          npm run dist
 
       # ── Upload built packages as a GitHub Release ──────────────────────────
       - name: Create / update GitHub Release
