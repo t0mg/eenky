@@ -77,12 +77,12 @@ if (!fs.existsSync(submoduleCheck)) {
         try {
             console.log('  [build] Compiling eenk simulator...');
             if (process.platform === 'win32') {
-                const pioIni = path.join(eenk, 'platformio.ini');
-                if (fs.existsSync(pioIni)) {
-                    let iniContent = fs.readFileSync(pioIni, 'utf-8');
-                    iniContent = iniContent.replace('!sdl2-config --cflags', '-IC:/msys64/mingw64/include/SDL2 -Dmain=SDL_main');
-                    iniContent = iniContent.replace('!sdl2-config --libs', '-LC:/msys64/mingw64/lib -lmingw32 -lSDL2main -lSDL2');
-                    fs.writeFileSync(pioIni, iniContent);
+                const linkFlags = path.join(eenk, 'link_flags.py');
+                if (fs.existsSync(linkFlags)) {
+                    let pyContent = fs.readFileSync(linkFlags, 'utf-8');
+                    // Ensure the include path is passed directly to the compiler flags instead of CPPPATH
+                    pyContent = pyContent.replace('env.Append(CPPPATH=["C:/msys64/mingw64/include/SDL2"])', 'env.Append(CXXFLAGS=["-IC:/msys64/mingw64/include/SDL2", "-Dmain=SDL_main"])');
+                    fs.writeFileSync(linkFlags, pyContent);
                 }
             }
             const { execSync } = require('child_process');
