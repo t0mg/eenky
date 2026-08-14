@@ -123,6 +123,9 @@ if (!fs.existsSync(inkcppCheck)) {
             const { execSync } = require('child_process');
 
             let cmakeGen = '';
+            if (process.platform === 'win32') {
+                cmakeGen += '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" -DCMAKE_EXE_LINKER_FLAGS="-static" ';
+            }
 
             execSync(`cmake ${cmakeGen}-B build && cmake --build build --config Release`, { cwd: INKCPP, stdio: 'inherit' });
         } catch (e) {
