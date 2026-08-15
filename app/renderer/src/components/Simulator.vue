@@ -356,8 +356,8 @@ const formatText = (text) => {
 }
 
 .watch-pill {
-  background-color: var(--border-color, #e0e0e0);
-  color: var(--text-color, #777);
+  background-color: var(--watch-bg, #e0e0e0);
+  color: var(--watch-color, #555);
   padding: 4px 16px;
   border-radius: 16px;
   font-size: calc(13px * var(--zoom-factor, 1));
