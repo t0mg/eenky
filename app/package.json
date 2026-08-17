@@ -11,6 +11,7 @@
   "scripts": {
     "postinstall": "node ../build/createDocumentnavigation.js && markdown-html resources/Documentation/CombinedDocumentation.md -s resources/Documentation/documentation.css -o renderer/public/documentation/embedded.html",
     "setup": "node ../scripts/setup.js",
+    "update-submodules": "cd .. && git submodule update --remote && cd app && npm run setup && npm run postinstall",
     "start": "concurrently \"npm run dev --prefix renderer\" \"wait-on http-get://localhost:5173/ && electron .\"",
     "test": "mocha",
     "generate-locale": "node ../build/generateLocale.js",
