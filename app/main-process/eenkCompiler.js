@@ -12,6 +12,7 @@ const { ipcMain } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { packImages } = require('./imagePacker');
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -71,16 +72,33 @@ function runProcess(exePath, args, cwd, onProgress) {
 
 // ── Main export ──────────────────────────────────────────────────────────────
 
-async function compileEenk(inkFilePath, onProgress) {
+async function compileEenk(inkFilePath, onProgress = () => {}, options = {}) {
     const inkFile = path.resolve(inkFilePath);
     const inkDir = path.dirname(inkFile);
     const baseName = path.basename(inkFile, '.ink');
-    const jsonFile = path.join(inkDir, `${baseName}.json`);
-    const binFile = path.join(inkDir, `${baseName}.bin`);
 
     if (!fs.existsSync(inkFile)) {
         throw new Error(`File not found: ${inkFile}`);
     }
+
+    let buildDir = inkDir;
+    if (options.outputDir) {
+        buildDir = options.outputDir;
+        if (!fs.existsSync(buildDir)) {
+            fs.mkdirSync(buildDir, { recursive: true });
+        }
+    } else if (options.isTemp) {
+        const tempBase = path.join(os.tmpdir(), 'eenky-build');
+        if (!fs.existsSync(tempBase)) {
+            fs.mkdirSync(tempBase, { recursive: true });
+        }
+        buildDir = fs.mkdtempSync(path.join(tempBase, `${baseName}-`));
+    }
+
+    const jsonFile = path.join(buildDir, `${baseName}.json`);
+    const binFile = path.join(buildDir, `${baseName}.bin`);
+    const mediaFile = path.join(buildDir, `${baseName}.media`);
+    const fontFiles = [];
 
     const inklecate = getInklecateBinary();
     const inkcpp = getInkcppBinary();
@@ -94,7 +112,7 @@ async function compileEenk(inkFilePath, onProgress) {
 
     // Step 2: inkcpp_cl → BIN
     onProgress(`Step 2/2  inkcpp_cl: ${path.basename(jsonFile)} → ${path.basename(binFile)}`);
-    await runProcess(inkcpp, [jsonFile], inkDir, onProgress);
+    await runProcess(inkcpp, [jsonFile], buildDir, onProgress);
     onProgress(`✔ BIN written: ${binFile}`);
 
     // ── Generate eenk Metadata Header ──
@@ -147,14 +165,16 @@ async function compileEenk(inkFilePath, onProgress) {
     header.writeUInt32LE(Math.floor(Date.now() / 1000), 104);
     // Flags (0 by default, can be extended for things like sidecar media files)
     let flags = 0;
+    let hasMedia = false;
     
     // Step 2b: Process Images
     try {
         onProgress(`Step 2.5: Packing images to .media sidecar...`);
-        const hasMedia = await packImages(inkDir, jsonFile, coverFile, thumbnailFile);
-        if (hasMedia) {
+        const sidecarWritten = await packImages(inkDir, jsonFile, coverFile, thumbnailFile, mediaFile);
+        if (sidecarWritten) {
+            hasMedia = true;
             flags |= 1; // bit 0 = has_media_sidecar
-            onProgress(`✔ Media sidecar packed successfully.`);
+            onProgress(`✔ Media sidecar packed successfully: ${path.basename(mediaFile)}`);
         } else {
             onProgress(`✔ No images found to pack.`);
         }
@@ -174,7 +194,6 @@ async function compileEenk(inkFilePath, onProgress) {
     if (fontLen > 0) {
         header.write(headerFont, 113, fontLen, 'utf8');
     }
-
 
     const binContent = fs.readFileSync(binFile);
     fs.writeFileSync(binFile, Buffer.concat([header, binContent]));
@@ -198,15 +217,21 @@ async function compileEenk(inkFilePath, onProgress) {
         const offset = (eenkMagic === 0x6B6E6565) ? 128 : 0;
 
         const magic = buffer.readUInt32LE(offset);
-        if (magic === 0x424b4e49) { // 'INKB'
+        const magicStr = buffer.toString('ascii', offset, offset + 4);
+        // INKB magic: 0x494E4B42 ('INKB' in LE) or 0x424B4E49 ('BKNI')
+        if (magic === 0x424b4e49 || magic === 0x494e4b42 || magicStr === 'INKB' || magicStr === 'BKNI') {
             const containersBytes = buffer.readUInt32LE(offset + 36);
-            numContainers = containersBytes / 16;
-            heapRequirement = numContainers * 8;
+            numContainers = Math.floor(containersBytes / 16);
+            heapRequirement = numContainers * 8; // 8 bytes per container (4 bytes visits + 4 bytes turns)
         }
     } catch (err) {
         onProgress(`[WARN] Failed to analyze memory budget: ${err.message}`);
     }
 
+    const sizeKb = (totalFileSize / 1024).toFixed(1);
+    const heapKb = (heapRequirement / 1024).toFixed(1);
+    onProgress(`✔ Binary size: ${sizeKb} KB (${totalFileSize.toLocaleString()} bytes)`);
+    onProgress(`✔ Story containers: ${numContainers} (State data heap budget: ~${heapKb} KB)`);
     onProgress(`── Compilation complete ──`);
 
     let warnings = [];
@@ -258,7 +283,7 @@ async function compileEenk(inkFilePath, onProgress) {
 
             if (pythonOk) {
                 const fontConvertScript = getFontconvertScript();
-                const outDir = path.join(inkDir, 'font_tmp_out');
+                const outDir = path.join(buildDir, 'font_tmp_out');
 
                 if (!fs.existsSync(fontConvertScript)) {
                     onProgress(`[WARN] fontconvert.py script not found at ${fontConvertScript}`);
@@ -276,8 +301,9 @@ async function compileEenk(inkFilePath, onProgress) {
 
                             const generatedEpdfont = path.join(outDir, originalFont, 'regular.epdfont');
                             if (fs.existsSync(generatedEpdfont)) {
-                                const finalEpdfont = path.join(inkDir, `${headerFont}.epdfont`);
+                                const finalEpdfont = path.join(buildDir, `${headerFont}.epdfont`);
                                 fs.copyFileSync(generatedEpdfont, finalEpdfont);
+                                fontFiles.push(finalEpdfont);
                                 onProgress(`✔ Font converted successfully: ${headerFont}.epdfont`);
                             } else {
                                 onProgress(`[WARN] Font conversion completed but ${generatedEpdfont} was not found.`);
@@ -310,8 +336,9 @@ async function compileEenk(inkFilePath, onProgress) {
                                     
                                     const generatedVariant = path.join(outDir, variantFileName, 'regular.epdfont');
                                     if (fs.existsSync(generatedVariant)) {
-                                        const finalVariantEpdfont = path.join(inkDir, `${headerFont}-${epdfontSuffix}.epdfont`);
+                                        const finalVariantEpdfont = path.join(buildDir, `${headerFont}-${epdfontSuffix}.epdfont`);
                                         fs.copyFileSync(generatedVariant, finalVariantEpdfont);
+                                        fontFiles.push(finalVariantEpdfont);
                                         onProgress(`✔ Variant converted successfully: ${headerFont}-${epdfontSuffix}.epdfont`);
                                         return true;
                                     }
@@ -345,18 +372,27 @@ async function compileEenk(inkFilePath, onProgress) {
         }
     }
 
-    return { jsonFile, binFile, numContainers, heapRequirement, totalFileSize, warnings };
+    return {
+        jsonFile,
+        binFile,
+        mediaFile: hasMedia ? mediaFile : null,
+        fontFiles,
+        numContainers,
+        heapRequirement,
+        totalFileSize,
+        warnings
+    };
 }
 
 // ── IPC registration ─────────────────────────────────────────────────────────
 
-ipcMain.handle('eenk:compile', async (event, inkFilePath) => {
+ipcMain.handle('eenk:compile', async (event, inkFilePath, options = {}) => {
     return new Promise((resolve, reject) => {
         compileEenk(inkFilePath, msg => {
             if (!event.sender.isDestroyed()) {
                 event.sender.send('eenk:compile-progress', msg);
             }
-        })
+        }, options)
             .then(result => resolve(result))
             .catch(err => reject(err.message || String(err)));
     });

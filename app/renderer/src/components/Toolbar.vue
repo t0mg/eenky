@@ -104,7 +104,7 @@ const runSimulation = async () => {
   }
   try {
     projectStore.compilerBusy = true;
-    const result = await window.api.invoke('eenk:compile', inkPath);
+    const result = await window.api.invoke('eenk:compile', inkPath, { isTemp: true });
     if (result.warnings && result.warnings.length > 0) {
       await uiStore.alert({ title: 'Compilation Warnings', message: result.warnings.join('\n\n') });
     }

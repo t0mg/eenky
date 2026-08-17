@@ -74,7 +74,7 @@ async function processImage(imagePath, maxW = 440, maxH = 760, cover = false) {
  * Packs images referenced in a compiled ink JSON file and optional cover image.
  * Returns true if media sidecar was generated, false otherwise.
  */
-async function packImages(storyDir, jsonFile, coverFile = '', thumbnailFile = '') {
+async function packImages(storyDir, jsonFile, coverFile = '', thumbnailFile = '', outputMediaFile = null) {
     const jsonContent = fs.readFileSync(jsonFile, 'utf8');
 
     // Find all IMAGE tags. In ink JSON, tags are output inside the JSON string as "^IMAGE: path/to/image.png"
@@ -196,11 +196,11 @@ async function packImages(storyDir, jsonFile, coverFile = '', thumbnailFile = ''
     const finalBuffer = Buffer.concat([sidecarBuffer, ...blobs]);
 
     const baseName = path.basename(jsonFile, '.json').replace(/\.ink$/i, '');
-    const sidecarPath = path.join(storyDir, `${baseName}.media`);
+    const sidecarPath = outputMediaFile || path.join(storyDir, `${baseName}.media`);
     fs.writeFileSync(sidecarPath, finalBuffer);
     console.log(`Media sidecar created: ${sidecarPath} (${finalBuffer.length} bytes)`);
 
-    return true;
+    return sidecarPath;
 }
 
 module.exports = { packImages };

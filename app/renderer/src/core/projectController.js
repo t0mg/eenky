@@ -352,13 +352,61 @@ export const ProjectController = {
         await uiStore.alert({ title: 'Unsaved Project', message: 'Please save your project first.' });
         return;
       }
+
+      let defaultExportPath = inkPath;
+      if (defaultExportPath) {
+        const pathObj = await window.api.path.parse(defaultExportPath);
+        pathObj.ext = ".bin";
+        pathObj.base = pathObj.name + ".bin";
+        defaultExportPath = await window.api.path.format(pathObj);
+      }
+
+      const saveOptions = {
+        defaultPath: defaultExportPath,
+        filters: [{ name: "eenk Story Binary", extensions: ["bin"] }]
+      };
+      const dialogResult = await window.api.invoke('showSaveDialog', saveOptions);
+      const targetSavePath = dialogResult ? dialogResult.filePath : null;
+      if (!targetSavePath) {
+        return; // User cancelled
+      }
+
       try {
         store.compilerBusy = true;
-        const result = await window.api.invoke('eenk:compile', inkPath);
+        const result = await window.api.invoke('eenk:compile', inkPath, { isTemp: true });
+
+        // Copy generated .bin file
+        await window.api.fs.copyFile(result.binFile, targetSavePath);
+
+        const targetDir = await window.api.path.dirname(targetSavePath);
+        const targetParsed = await window.api.path.parse(targetSavePath);
+        const targetStem = targetParsed.name;
+
+        // Copy .media sidecar if present
+        if (result.mediaFile) {
+          const targetMedia = await window.api.path.join(targetDir, `${targetStem}.media`);
+          await window.api.fs.copyFile(result.mediaFile, targetMedia);
+        }
+
+        // Copy any generated .epdfont sidecar files
+        if (result.fontFiles && Array.isArray(result.fontFiles)) {
+          for (const fontFile of result.fontFiles) {
+            const fontBase = await window.api.path.basename(fontFile);
+            const targetFont = await window.api.path.join(targetDir, fontBase);
+            await window.api.fs.copyFile(fontFile, targetFont);
+          }
+        }
+
         if (result.warnings && result.warnings.length > 0) {
           await uiStore.alert({ title: 'Compilation Warnings', message: result.warnings.join("\n\n") });
         }
-        console.log('Compiled successfully to: ' + result.binFile);
+
+        const sizeKb = (result.totalFileSize / 1024).toFixed(1);
+        const heapKb = (result.heapRequirement / 1024).toFixed(1);
+        const summaryMsg = `Exported successfully to:\n${targetSavePath}\n\n• Binary Size: ${sizeKb} KB (${result.totalFileSize.toLocaleString()} bytes)\n• Containers: ${result.numContainers}\n• Runtime State Heap: ~${heapKb} KB`;
+
+        await uiStore.alert({ title: 'Compilation Successful', message: summaryMsg });
+        console.log('Compiled and exported successfully to: ' + targetSavePath);
       } catch (e) {
         await uiStore.alert({ title: 'Compilation Failed', message: 'Compilation failed: ' + e, isError: true });
       } finally {

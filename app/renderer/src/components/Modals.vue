@@ -87,18 +87,35 @@
         <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
-      <div v-else-if="uiStore.modalState.type === 'stats'" class="modal-body">
-        <h2>Word Count and More</h2>
-        <div v-if="statsData">
-          <p><strong>Words:</strong> {{ statsData.words }}</p>
-          <br>
-          <p><strong>Knots:</strong> {{ statsData.knots }}</p>
-          <p><strong>Stitches:</strong> {{ statsData.stitches }}</p>
-          <p><strong>Functions:</strong> {{ statsData.functions }}</p>
-          <br>
-          <p><strong>Choices:</strong> {{ statsData.choices }}</p>
-          <p><strong>Gathers:</strong> {{ statsData.gathers }}</p>
-          <p><strong>Diverts:</strong> {{ statsData.diverts }}</p>
+      <div v-else-if="uiStore.modalState.type === 'stats'" class="modal-body stats-modal-body">
+        <h2>Word Count and Story Stats</h2>
+        <div v-if="statsData" class="stats-container">
+          <div class="stats-columns">
+            <div class="stats-col">
+              <p><strong>Words:</strong> {{ statsData.words }}</p>
+              <br>
+              <p><strong>Knots:</strong> {{ statsData.knots }}</p>
+              <p><strong>Stitches:</strong> {{ statsData.stitches }}</p>
+              <p><strong>Functions:</strong> {{ statsData.functions }}</p>
+              <br>
+              <p><strong>Choices:</strong> {{ statsData.choices }}</p>
+              <p><strong>Gathers:</strong> {{ statsData.gathers }}</p>
+              <p><strong>Diverts:</strong> {{ statsData.diverts }}</p>
+            </div>
+
+            <div class="stats-col">
+              <template v-if="eenkStats">
+                <p><strong>eenk Binary Size:</strong> {{ (eenkStats.totalFileSize / 1024).toFixed(1) }} KB ({{ eenkStats.totalFileSize.toLocaleString() }} bytes)</p>
+                <br>
+                <p><strong>Containers:</strong> {{ eenkStats.numContainers }}</p>
+                <br>
+                <p><strong>State Data Heap Budget:</strong> ~{{ (eenkStats.heapRequirement / 1024).toFixed(1) }} KB</p>
+              </template>
+              <template v-else-if="eenkStatsLoading">
+                <p><em>Calculating eenk budget...</em></p>
+              </template>
+            </div>
+          </div>
           <br>
           <p class="stats-disclaimer">Notes: Words should be accurate. Knots include functions. Gathers and diverts may include some implicitly added ones by the compiler, for example in weave. Diverts include END and DONE.</p>
         </div>
@@ -121,12 +138,16 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { useUiStore } from '../stores/uiStore';
+import { useProjectStore } from '../stores/projectStore';
 import { LiveCompiler } from '../core/liveCompiler';
 
 const uiStore = useUiStore();
+const projectStore = useProjectStore();
 const overlay = ref(null);
 const modalContent = ref(null);
 const statsData = ref(null);
+const eenkStats = ref(null);
+const eenkStatsLoading = ref(false);
 const aboutData = ref(null);
 let previousActiveElement = null;
 
@@ -199,9 +220,24 @@ watch(
       previousActiveElement = document.activeElement;
       if (uiStore.modalState.type === 'stats') {
         statsData.value = null;
+        eenkStats.value = null;
+        eenkStatsLoading.value = false;
         LiveCompiler.getStats((stats) => {
           statsData.value = stats;
         });
+        if (projectStore.mainInkFile && projectStore.mainInkFile.absolutePath && window.api && window.api.invoke) {
+          eenkStatsLoading.value = true;
+          window.api.invoke('eenk:compile', projectStore.mainInkFile.absolutePath, { isTemp: true })
+            .then(res => {
+              eenkStats.value = res;
+            })
+            .catch(err => {
+              console.warn('Could not calculate eenk stats:', err);
+            })
+            .finally(() => {
+              eenkStatsLoading.value = false;
+            });
+        }
       }
       nextTick(() => {
         if (modalContent.value) {
@@ -349,5 +385,25 @@ watch(
 }
 .about-versions p {
   margin: 4px 0;
+}
+
+.stats-columns {
+  display: flex;
+  gap: 32px;
+}
+
+.stats-col {
+  flex: 1;
+}
+
+.stats-col p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.stats-disclaimer {
+  font-size: 0.85em;
+  color: var(--text-muted, #888);
+  line-height: 1.4;
 }
 </style>

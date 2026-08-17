@@ -155,7 +155,17 @@ const contextMenuAction = async (action) => {
     });
     if (confirmed) {
       try {
-        await window.api.fs.unlink(file.absolutePath);
+        if (file.absolutePath) {
+          const exists = await window.api.fs.exists(file.absolutePath).catch(() => false);
+          if (exists) {
+            await window.api.fs.unlink(file.absolutePath).catch((err) => {
+              if (err && (err.code === 'ENOENT' || String(err).includes('ENOENT'))) {
+                return;
+              }
+              throw err;
+            });
+          }
+        }
         projectStore.removeFile(file.id);
         // Also remove include statement if present
         const mainFile = projectStore.mainInkFile;

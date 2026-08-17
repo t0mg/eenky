@@ -188,6 +188,8 @@ exports.snippets = [
                     +"  @title Untitled Story\n"
                     +"  @author Unknown\n"
                     +"  @font sans\n"
+                    +"  @cover cover.png\n"
+                    +"  @thumbnail thumb.png\n"
                     +"*/\n\n"
             }
         ]

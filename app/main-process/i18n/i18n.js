@@ -7,13 +7,17 @@ class i18n {
         this.currentLocale = null;
         this.msgs = {}
 
-        electron.app.on('ready', () => {
-            this.switch(electron.app.getLocale());
-        });
+        if (electron && electron.app) {
+            electron.app.on('ready', () => {
+                this.switch(electron.app.getLocale());
+            });
+        }
 
-        electron.ipcMain.on('i18n._', (event, msgid) => {
-            event.returnValue = this._(msgid);
-        });
+        if (electron && electron.ipcMain) {
+            electron.ipcMain.on('i18n._', (event, msgid) => {
+                event.returnValue = this._(msgid);
+            });
+        }
     }
 
     _(msgid) {
