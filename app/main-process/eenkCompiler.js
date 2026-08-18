@@ -237,8 +237,9 @@ async function compileEenk(inkFilePath, onProgress = () => {}, options = {}) {
     let warnings = [];
 
     // ── Font Conversion ──
-    if (originalFont && originalFont.toLowerCase() !== 'sans' && originalFont.toLowerCase() !== 'serif') {
-        const fontNameBase = originalFont.replace(/-(regular|regula|bold|italic|bolditalic|medium)$/i, '');
+    const isBuiltinFont = (f) => f && /^(sans|serif)(-(small|medium|large))?$/i.test(f.trim());
+    if (originalFont && !isBuiltinFont(originalFont)) {
+        const fontNameBase = originalFont.replace(/-(regular|regula|bold|italic|bolditalic|medium|small|large)$/i, '');
         const ttfPath = path.join(inkDir, `${originalFont}.ttf`);
         
         // Check for Bold / Italic usage
