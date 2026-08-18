@@ -8,22 +8,32 @@ const Inklecate = require("./inklecate.js").Inklecate;
 const Menu = electron.Menu;
 const i18n = require("./i18n/i18n.js");
 
+const defaultIconPath = (() => {
+    const icoCandidate = path.join(__dirname, '../../resources/icon.ico');
+    const pngCandidate = path.join(__dirname, '../../resources/icon.png');
+    const rendererIcon = path.join(__dirname, '../renderer/public/assets/favicon.png');
+    if (process.platform === 'win32' && fs.existsSync(icoCandidate)) return icoCandidate;
+    if (fs.existsSync(pngCandidate)) return pngCandidate;
+    if (fs.existsSync(rendererIcon)) return rendererIcon;
+    return undefined;
+})();
+
 var electronWindowOptions = {
-  width: 1300,
-  height: 730,
-  minWidth: 350,
-  minHeight: 250,
-  webPreferences: {
-    preload: path.join(__dirname, 'preload.js'),
-    nodeIntegration: false,
-    contextIsolation: true,
-    webSecurity: false
-  },
-  
+    width: 1300,
+    height: 730,
+    minWidth: 350,
+    minHeight: 250,
+    icon: defaultIconPath,
+    webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: false
+    },
 };
 
 
-if( process.platform == "darwin" ) {
+if (process.platform == "darwin") {
     electronWindowOptions.titleBarStyle = 'hiddenInset';
     electronWindowOptions.titleBarOverlay = true;
 }
@@ -37,9 +47,9 @@ const viewSettingsPath = path.join(electron.app.getPath("userData"), "view-setti
 
 // Overriden by main.js
 var events = {
-    onRecentFilesChanged:    (files) => {},
-    onProjectSettingsChanged: (settings) => {},
-    onViewSettingsChanged:   (settings) => {}
+    onRecentFilesChanged: (files) => { },
+    onProjectSettingsChanged: (settings) => { },
+    onViewSettingsChanged: (settings) => { }
 };
 
 
@@ -52,9 +62,9 @@ function ProjectWindow(filePath) {
         e => e.checked
     ).label.toLowerCase();
 
-    electronWindowOptions.title = i18n._("Inky");
+    electronWindowOptions.title = i18n._("eenk");
     this.browserWindow = new BrowserWindow(electronWindowOptions);
-    
+
     this.browserWindow.on('enter-full-screen', () => {
         this.browserWindow.webContents.send('set-fullscreen', true);
     });
@@ -62,7 +72,7 @@ function ProjectWindow(filePath) {
     this.browserWindow.on('leave-full-screen', () => {
         this.browserWindow.webContents.send('set-fullscreen', false);
     });
-    
+
     // Check if we are running in development by looking for the default electron app
     const isDev = process.defaultApp || /[\\/]electron-prebuilt[\\/]/.test(process.execPath) || /[\\/]electron[\\/]/.test(process.execPath);
     if (isDev) {
@@ -70,7 +80,7 @@ function ProjectWindow(filePath) {
     } else {
         this.browserWindow.loadURL("file://" + __dirname + "/../renderer/dist/index.html");
     }
-    
+
     this.browserWindow.setSheetOffset(49);
 
     // Open DevTools only in development
@@ -82,7 +92,7 @@ function ProjectWindow(filePath) {
     this.mainInkAbsPath = filePath;
 
     // Existing project at specific path
-    if( filePath ) {
+    if (filePath) {
         this.browserWindow.webContents.on('dom-ready', () => {
             this.browserWindow.setRepresentedFilename(filePath);
             this.browserWindow.webContents.send('set-project-main-ink-filepath', filePath);
@@ -91,11 +101,11 @@ function ProjectWindow(filePath) {
             this.refreshProjectSettings(filePath);
         });
     }
-    
+
     // New project, new settings
     else {
         this.settings = {};
-        if( events.onProjectSettingsChanged )
+        if (events.onProjectSettingsChanged)
             events.onProjectSettingsChanged({});
     }
 
@@ -104,7 +114,7 @@ function ProjectWindow(filePath) {
     let self = this;
     this.browserWindow.on('close', function (event) {
         console.log("[DEBUG] browserWindow close event fired. isSafeToClose:", self.isSafeToClose);
-        if( self.isSafeToClose ) {
+        if (self.isSafeToClose) {
             // Already saved, or nothing to save
         } else {
             event.preventDefault();
@@ -115,7 +125,7 @@ function ProjectWindow(filePath) {
 
     this.browserWindow.on("closed", () => {
         var idx = windows.indexOf(this);
-        if( idx != -1 )
+        if (idx != -1)
             windows.splice(idx, 1);
     });
 
@@ -136,107 +146,107 @@ function ProjectWindow(filePath) {
     // Project settings may affect menus etc, so we refresh that
     // when changing focus between different windows
     this.browserWindow.on("focus", () => {
-        if( events.onProjectSettingsChanged )
+        if (events.onProjectSettingsChanged)
             events.onProjectSettingsChanged(this.settings);
     });
 }
 
-ProjectWindow.prototype.newInclude = function() {
+ProjectWindow.prototype.newInclude = function () {
     this.browserWindow.webContents.send('project-new-include');
 }
 
-ProjectWindow.prototype.save = function() {
+ProjectWindow.prototype.save = function () {
     console.log("[DEBUG] ProjectWindow.prototype.save called. Sending project-save to renderer...");
     this.browserWindow.webContents.send('project-save');
 }
 
-ProjectWindow.prototype.exportJson = function() {
+ProjectWindow.prototype.exportJson = function () {
     this.browserWindow.webContents.send('project-export');
 }
 
-ProjectWindow.prototype.exportForWeb = function() {
+ProjectWindow.prototype.exportForWeb = function () {
     this.browserWindow.webContents.send('project-export-for-web');
 }
 
-ProjectWindow.prototype.exportJSOnly = function() {
+ProjectWindow.prototype.exportJSOnly = function () {
     this.browserWindow.webContents.send('project-export-js-only');
 }
 
-ProjectWindow.prototype.tryClose = function() {
+ProjectWindow.prototype.tryClose = function () {
     this.browserWindow.webContents.send('project-tryClose');
 }
 
-ProjectWindow.prototype.stats = function() {
+ProjectWindow.prototype.stats = function () {
     this.browserWindow.webContents.send('project-stats');
 }
 
-ProjectWindow.prototype.keyboardShortcuts = function() {
+ProjectWindow.prototype.keyboardShortcuts = function () {
     this.browserWindow.webContents.send('keyboard-shortcuts');
 }
 
-ProjectWindow.prototype.finalClose = function() {
+ProjectWindow.prototype.finalClose = function () {
     this.isSafeToClose = true;
     this.safeToClose = true; // just in case
     Inklecate.killSessions(this.browserWindow);
     this.browserWindow.close();
 }
 
-ProjectWindow.prototype.openDevTools = function() {
+ProjectWindow.prototype.openDevTools = function () {
     this.browserWindow.webContents.openDevTools();
 }
 
-ProjectWindow.prototype.zoom = function(amount) {
+ProjectWindow.prototype.zoom = function (amount) {
     this.browserWindow.webContents.send('zoom', amount);
 }
 
 // Try to load up an optional <ink_root_file_name>.settings.json file
-ProjectWindow.prototype.refreshProjectSettings = function(rootInkFilePath) {
-    
+ProjectWindow.prototype.refreshProjectSettings = function (rootInkFilePath) {
+
     let self = this;
 
 
     const resolvedRootPath = path.resolve(rootInkFilePath);
     let basePath = rootInkFilePath;
-    if( path.extname(resolvedRootPath) == ".ink" ) {
-        basePath = rootInkFilePath.substring(0, resolvedRootPath.length-4)
+    if (path.extname(resolvedRootPath) == ".ink") {
+        basePath = rootInkFilePath.substring(0, resolvedRootPath.length - 4)
     }
     const settingsPath = basePath + ".settings.json";
 
 
     function completeSettings(settings, err) {
-        if( events.onProjectSettingsChanged ) {
+        if (events.onProjectSettingsChanged) {
             events.onProjectSettingsChanged(settings);
         }
 
         self.browserWindow.send("project-settings-changed", self.settings);
 
-        if( err ) {
+        if (err) {
             dialog.showErrorBox("Project Settings Error", err);
         }
     }
 
     fs.stat(settingsPath, (err, stats) => {
-        if( err || !stats.isFile() ) { 
+        if (err || !stats.isFile()) {
             events.onProjectSettingsChanged({});
             return;
         }
 
         fs.readFile(settingsPath, "utf8", (err, fileContent) => {
 
-            if( err ) {
-                completeSettings({}, "File read error - failed to load project settings file at: "+settingsPath);
+            if (err) {
+                completeSettings({}, "File read error - failed to load project settings file at: " + settingsPath);
                 return;
             }
-            if( !fileContent ) {
-                completeSettings({}, "Project settings file appeared to be empty: "+settingsPath);
+            if (!fileContent) {
+                completeSettings({}, "Project settings file appeared to be empty: " + settingsPath);
                 return;
             }
 
             let settings = {};
             try {
                 settings = JSON.parse(fileContent);
-            } catch(error) {
-                completeSettings({}, "Project settings file appeared to be invalid JSON: "+settingsPath+": "+error);
+            } catch (error) {
+                completeSettings({}, "Project settings file appeared to be invalid JSON: " + settingsPath + ": " + error);
                 return;
             }
 
@@ -251,18 +261,18 @@ ProjectWindow.prototype.refreshProjectSettings = function(rootInkFilePath) {
 
 ProjectWindow.all = () => windows;
 
-ProjectWindow.setEvents = function(newEvents) {
+ProjectWindow.setEvents = function (newEvents) {
     events = newEvents
 }
 
 
-ProjectWindow.createEmpty = function() {
+ProjectWindow.createEmpty = function () {
     return new ProjectWindow();
 }
 
-ProjectWindow.focused = function() {
+ProjectWindow.focused = function () {
     let win = BrowserWindow.getFocusedWindow();
-    if( win ) {
+    if (win) {
         let pwin = windows.find(pwin => pwin.browserWindow === win);
         if (pwin) return pwin;
     }
@@ -271,38 +281,38 @@ ProjectWindow.focused = function() {
 }
 
 
-ProjectWindow.withWebContents = function(webContents) {
+ProjectWindow.withWebContents = function (webContents) {
     if (!webContents) return null;
     return windows.find(pwin => pwin.browserWindow && pwin.browserWindow.webContents && pwin.browserWindow.webContents.id === webContents.id);
 }
 
 
-ProjectWindow.withMainkInkPath = function(absPath) {
-    if( !absPath ) return null;
+ProjectWindow.withMainkInkPath = function (absPath) {
+    if (!absPath) return null;
 
-    for(var i=0; i<windows.length; i++) {
-        if( windows[i].mainInkAbsPath == absPath )
+    for (var i = 0; i < windows.length; i++) {
+        if (windows[i].mainInkAbsPath == absPath)
             return windows[i];
     }
     return null;
 }
 
 
-ProjectWindow.getRecentFiles = function() {
-    if(!fs.existsSync(recentFilesPath)) {
+ProjectWindow.getRecentFiles = function () {
+    if (!fs.existsSync(recentFilesPath)) {
         return [];
     }
     const json = fs.readFileSync(recentFilesPath, "utf-8");
     try {
         return JSON.parse(json);
-    } catch(e) {
+    } catch (e) {
         console.error("Error in recent files JSON parsing:", e);
         return [];
     }
 }
 
-ProjectWindow.clearRecentFiles = function() {
-    if(fs.existsSync(recentFilesPath)) {
+ProjectWindow.clearRecentFiles = function () {
+    if (fs.existsSync(recentFilesPath)) {
         fs.unlinkSync(recentFilesPath);
     }
 }
@@ -317,18 +327,18 @@ function addRecentFile(filePath) {
         encoding: "utf-8"
     });
 
-    if( events.onRecentFilesChanged ) {
+    if (events.onRecentFilesChanged) {
         events.onRecentFilesChanged(newRecentFiles);
     }
 }
 
-ProjectWindow.open = async function(filePath) {
+ProjectWindow.open = async function (filePath) {
     console.log("[DEBUG] ProjectWindow.open called with filePath:", filePath);
     if (typeof filePath !== 'string') {
         filePath = null;
     }
-    
-    if( !filePath ) {
+
+    if (!filePath) {
         console.log("[DEBUG] No filePath provided, showing dialog...");
         var result = await dialog.showOpenDialog({
             title: i18n._("Open main ink file"),
@@ -338,11 +348,11 @@ ProjectWindow.open = async function(filePath) {
             ]
         });
         console.log("[DEBUG] dialog returned:", result.filePaths);
-        if( result && !result.canceled && result.filePaths.length > 0 )
+        if (result && !result.canceled && result.filePaths.length > 0)
             filePath = result.filePaths[0];
     }
 
-    if( filePath) {
+    if (filePath) {
         console.log("[DEBUG] filePath selected:", filePath);
         addRecentFile(filePath);
         let win = ProjectWindow.focused() || (windows.length > 0 ? windows[0] : null);
@@ -363,38 +373,38 @@ ProjectWindow.open = async function(filePath) {
     }
 }
 
-ProjectWindow.getViewSettings = function() {
-    let viewSettingDefaults = { theme:'light', zoom:'100', animationEnabled:true };
+ProjectWindow.getViewSettings = function () {
+    let viewSettingDefaults = { theme: 'light', zoom: '100', animationEnabled: true };
 
-    if(!fs.existsSync(viewSettingsPath)) {
+    if (!fs.existsSync(viewSettingsPath)) {
         return viewSettingDefaults;
     }
-    
+
     const json = fs.readFileSync(viewSettingsPath, "utf-8");
     try {
         let loadedSettings = JSON.parse(json);
 
         // if we've added a new setting or one is missing, make sure they all exist
-        for(requiredKey in viewSettingDefaults) {
-            if(loadedSettings[requiredKey] === undefined) {
+        for (requiredKey in viewSettingDefaults) {
+            if (loadedSettings[requiredKey] === undefined) {
                 loadedSettings[requiredKey] = viewSettingDefaults[requiredKey];
             }
         }
 
         return loadedSettings;
-    } catch(e) {
+    } catch (e) {
         console.error('Error in view settings JSON parsing:', e);
         return viewSettingDefaults;
     }
 }
 
-ProjectWindow.addOrChangeViewSetting = function(name, data){
+ProjectWindow.addOrChangeViewSetting = function (name, data) {
     const viewSettings = ProjectWindow.getViewSettings();
     viewSettings[name] = data;
     fs.writeFileSync(viewSettingsPath, JSON.stringify(viewSettings), {
         encoding: "utf-8"
     });
-    if(events.onViewSettingsChanged) {
+    if (events.onViewSettingsChanged) {
         events.onViewSettingsChanged(viewSettings);
     }
 }

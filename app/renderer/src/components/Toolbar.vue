@@ -215,7 +215,6 @@ const exportJS = () => ProjectController.exportProject('js');
 }
 
 .toolbar-btn.active {
-  border: 2px solid var(--border-color);
   color: var(--primary-color, #1976d2);
 }
 

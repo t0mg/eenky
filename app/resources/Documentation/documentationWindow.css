@@ -4,7 +4,7 @@
   --nav-bg: #ffffff;
   --nav-hover: #e0e0e0;
   --border-color: #cccccc;
-  --link-color: #0066cc;
+  --link-color: #ff4d00;
 }
 
 :root.dark {
@@ -13,7 +13,7 @@
   --nav-bg: #1e1e1e;
   --nav-hover: #37373d;
   --border-color: #3c3c3c;
-  --link-color: #4daafc;
+  --link-color: #ff4d00;
 }
 
 body {
@@ -54,7 +54,8 @@ body {
   line-height: 1.4;
 }
 
-#nav a:hover, #nav a:focus {
+#nav a:hover,
+#nav a:focus {
   background-color: var(--nav-hover);
   outline: none;
 }
@@ -71,7 +72,7 @@ body {
   padding: 4px 8px;
   cursor: pointer;
   font-size: 16px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 #toggleTOC:hover {
@@ -83,15 +84,18 @@ body {
   width: 10px;
   height: 10px;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--bg-color); 
+  background: var(--bg-color);
 }
+
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color); 
+  background: var(--border-color);
   border-radius: 5px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-color); 
+  background: var(--text-color);
 }
 
 #nav a:focus-visible {
@@ -100,10 +104,27 @@ body {
 }
 
 /* Indentation based on class */
-#nav a.nav-h1 { font-weight: bold; padding-top: 12px; font-size: 15px; }
-#nav a.nav-h2 { padding-left: 24px; font-weight: 500; }
-#nav a.nav-h3 { padding-left: 36px; color: opacity(var(--text-color), 0.8); }
-#nav a.nav-h4 { padding-left: 48px; font-size: 13px; opacity: 0.8; }
+#nav a.nav-h1 {
+  font-weight: bold;
+  padding-top: 12px;
+  font-size: 15px;
+}
+
+#nav a.nav-h2 {
+  padding-left: 24px;
+  font-weight: 500;
+}
+
+#nav a.nav-h3 {
+  padding-left: 36px;
+  color: opacity(var(--text-color), 0.8);
+}
+
+#nav a.nav-h4 {
+  padding-left: 48px;
+  font-size: 13px;
+  opacity: 0.8;
+}
 
 .contentContainer {
   flex: 1;

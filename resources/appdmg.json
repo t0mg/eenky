@@ -1,14 +1,13 @@
 {
-  "title": "Inky",
+  "title": "eenky",
   "icon": "Icon.icns",
   "background": "appdmg-background.png",
   "icon-size": 95,
   "contents": [
-    { "x": 107, "y": 92, "type": "file", "path": "../Inky-darwin-universal/Inky.app" },
+    { "x": 107, "y": 92, "type": "file", "path": "../eenky-darwin-universal/eenky.app" },
     { "x": 345, "y": 92, "type": "link", "path": "/Applications" }
   ],
   "code-sign": {
-    "signing-identity" : "Developer ID Application: inkle Ltd",
-    "identifier" : "com.inkle.inky"
+    "identifier" : "com.t0mg.eenky"
   }
 }

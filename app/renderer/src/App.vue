@@ -13,9 +13,9 @@
     </div>
     <div id="home-view" v-else>
       <div class="home-hero">
-        <!-- <img src="/about/icon256.png" alt="Inky Logo" class="logo" /> -->
+        <img src="/about/icon256.png" alt="eenky Logo" class="logo" />
         <h1>Welcome to eenky</h1>
-        <p><em>A work in progress child of inkle's Inky</em></p>
+        <p><em>a child of inkle's Inky</em></p>
         <div class="actions">
           <button @click="createNewProject" class="primary-btn">New Project</button>
           <button @click="openProject" class="secondary-btn">Open Project...</button>

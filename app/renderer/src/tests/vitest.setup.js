@@ -12,9 +12,14 @@ window.api = {
     unlink: vi.fn().mockResolvedValue(),
     stat: vi.fn().mockResolvedValue({ size: 1024, isFile: () => true }),
     mkdir: vi.fn().mockResolvedValue(),
+    readdir: vi.fn().mockResolvedValue([]),
     watch: vi.fn().mockResolvedValue(),
     unwatch: vi.fn().mockResolvedValue(),
     onWatcherEvent: vi.fn(),
+  },
+  liveCompiler: {
+    send: vi.fn(),
+    on: vi.fn(),
   },
   path: {
     dirname: vi.fn((p) => p.split('/').slice(0, -1).join('/')),

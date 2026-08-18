@@ -256,6 +256,15 @@ ipcMain.handle('eenk:open-external', async (event, url) => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', function () {
 
+    if (process.platform === 'darwin' && app.dock) {
+        const iconPath = fs.existsSync(path.join(__dirname, '../../resources/Icon.icns'))
+            ? path.join(__dirname, '../../resources/Icon.icns')
+            : path.join(__dirname, '../renderer/public/about/icon256.png');
+        if (fs.existsSync(iconPath)) {
+            try { app.dock.setIcon(iconPath); } catch (e) {}
+        }
+    }
+
     // ── Web Serial permission (required for esp-web-tools flasher) ────────────
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
         if (permission === 'serial') {

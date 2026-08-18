@@ -3,18 +3,18 @@
     --bg-color: #ffffff;
     --text-color: #333333;
     --border-color: #cccccc;
-    --link-color: #0066cc;
-    --h1-color: #6a9ed9;
+    --link-color: #ff4d00;
+    --h1-color: #ff4d00;
     --heading-color: #444444;
     --code-color: #666666;
 }
 
 html.dark {
-    --bg-color: #1e1e1e;
+    --bg-color: #1a1a1a;
     --text-color: #d4d4d4;
     --border-color: #3c3c3c;
-    --link-color: #4daafc;
-    --h1-color: #6a9ed9;
+    --link-color: #ff4d00;
+    --h1-color: #ff4d00;
     --heading-color: #bbbbbb;
     --code-color: #bbbbbb;
 }

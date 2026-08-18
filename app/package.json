@@ -1,7 +1,7 @@
 {
   "name": "eenky",
   "productName": "eenky",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "The story editor for ereaders running the eenk firmware",
   "main": "main-process/main.js",
   "repository": {
@@ -23,8 +23,10 @@
     "appId": "com.t0mg.eenky",
     "productName": "eenky",
     "directories": {
-      "output": "../dist-eenky"
+      "output": "../dist-eenky",
+      "buildResources": "../resources"
     },
+    "icon": "../resources/icon.png",
     "files": [
       "**/*",
       "!main-process/ink/**/*"
@@ -39,6 +41,7 @@
       }
     ],
     "win": {
+      "icon": "../resources/Icon1024.png.ico",
       "target": [
         "nsis",
         "zip"
@@ -58,6 +61,7 @@
       ]
     },
     "mac": {
+      "icon": "../resources/Icon.icns",
       "target": [
         "dmg",
         "zip"
@@ -78,6 +82,7 @@
       ]
     },
     "linux": {
+      "icon": "../resources/Icon1024.png",
       "target": [
         "zip"
       ],

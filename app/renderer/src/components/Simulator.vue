@@ -42,8 +42,7 @@
           </div>
         </div>
         <div v-else-if="block.type === 'choice'" class="story-choice">
-          <button @click="makeChoice(block.choice)" class="choice-btn">
-            {{ block.choice.choice.text }}
+          <button @click="makeChoice(block.choice)" class="choice-btn" v-html="formatText(block.choice.choice.text)">
           </button>
         </div>
         <div v-else-if="block.type === 'error'" class="story-error">
@@ -237,7 +236,7 @@ const stepBack = () => {
 };
 
 const formatText = (text) => {
-  let formatted = text;
+  let formatted = text || '';
   // Bold
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   formatted = formatted.replace(/__(.*?)__/g, '<strong>$1</strong>');

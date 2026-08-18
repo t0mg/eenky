@@ -1,0 +1,9 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Type=Application
+Categories=Development;IDE;
+Name=eenky
+Comment=eenky — The story editor for ereaders running the eenk firmware
+Exec=/opt/eenky/eenky
+Path=/opt/eenky/
+Icon=eenky

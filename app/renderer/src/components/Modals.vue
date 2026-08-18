@@ -48,8 +48,10 @@
       <!-- Issue Popup / Settings / About etc. -->
       <div v-else-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
         <div class="about-header">
-          <!-- <img src="/about/icon256.png" class="about-icon" alt="eenky icon" draggable="false" /> -->
-          <h2>eenky</h2>
+          <h2>
+            <img src="/about/icon256.png" class="about-icon" alt="eenky icon" draggable="false" />
+            eenky
+          </h2>
           <p>a child of inkle's Inky</p>
         </div>
         <div class="about-versions" v-if="aboutData">
@@ -310,6 +312,13 @@ watch(
   text-transform: uppercase;
 }
 
+.modal-body.about-modal h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-direction: column;
+}
+
 .modal-message {
   padding: 8px 0;
   font-size: 0.95rem;
@@ -372,16 +381,15 @@ watch(
   text-align: center;
 }
 .about-icon {
-  width: 100px;
-  height: 100px;
-  margin-top: 10px;
+  width: 80px;
+  margin-bottom: 8px;
 }
 .about-versions {
   text-align: center;
   font-family: monospace;
-  font-size: 0.9em;
-  color: var(--text-muted, #777);
-  margin: 10px 0;
+  color: var(--text-muted);
+  user-select: all;
+  font-weight: bold;
 }
 .about-versions p {
   margin: 4px 0;
