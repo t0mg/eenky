@@ -17,7 +17,7 @@ const customHistoryKeymap = [
   {key: "Mod-u", run: undoSelection, preventDefault: true},
   {key: "Alt-u", run: redoSelection, preventDefault: true}
 ];
-import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { syntaxHighlighting, HighlightStyle, indentService } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { autocompletion } from "@codemirror/autocomplete";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
@@ -177,6 +177,11 @@ const onUpdate = EditorView.updateListener.of((update) => {
   }
 });
 
+const inkIndentService = indentService.of((context, pos) => {
+  const line = context.lineAt(pos, -1);
+  return context.lineIndent(line.from, -1);
+});
+
 const getEditorExtensions = () => [
   lineNumbers(),
   highlightActiveLineGutter(),
@@ -187,6 +192,7 @@ const getEditorExtensions = () => [
   syntaxHighlighting(inkHighlightStyle),
   inkEditorTheme,
   highlightActiveLine(),
+  inkIndentService,
   keymap.of([
     ...defaultKeymap,
     ...customHistoryKeymap,
