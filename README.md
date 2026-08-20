@@ -1,9 +1,6 @@
 # eenky — eenk Story Editor
 
-> [!CAUTION]
-> This project is a work in progress and very fresh off the oven, it's still quite warm and pretty rough around the edges. There are broken bits and missing parts. And bugs. **Please wait for the first stable release** if you are looking for a smooth ride.
-
-A forked and heavily extended version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to Xteink e-ink devices running the [eenk firmware](https://github.com/t0mg/eenk).
+A forked and heavily modified version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to Xteink e-ink devices running the [eenk firmware](https://github.com/t0mg/eenk).
 
 > [!TIP]
 > If you are interested in installing and using eenky rather than looking at its development, check out the [eenk website](https://t0mg.github.io/eenk/)!
