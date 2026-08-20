@@ -1,4 +1,4 @@
-# eenky — eenk Story Editor
+# eenky - the eenk Story Editor
 
 A forked and heavily modified version of [inkle's Inky](https://github.com/inkle/inky) IDE for authoring, compiling, simulating, and flashing interactive fiction to Xteink e-ink devices running the [eenk firmware](https://github.com/t0mg/eenk).
 
@@ -106,12 +106,12 @@ npm start
 
 eenky has test suites for both backend and frontend components:
 
-- **Backend tests (Mocha)** — test main process utilities and story compilation:
+- **Backend tests (Mocha)**, main process utilities and story compilation:
   ```powershell
   cd app
   npm run test
   ```
-- **Frontend tests (Vitest)** — test Vue 3 components and state stores:
+- **Frontend tests (Vitest)**, Vue 3 components and state stores:
   ```powershell
   cd app/renderer
   npm run test
@@ -141,8 +141,8 @@ eenk and eenky work in tandem:
 
 | Path | Repository | Purpose |
 |------|-----------|---------|
-| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | Firmware source — compiled to produce the SDL simulator backend (`eenk-sim`) |
-| `inkcpp/` | [t0mg/inkcpp](https://github.com/t0mg/inkcpp) | Custom C++ Ink runtime — compiled to produce the `inkcpp_cl` binary compiler |
+| `eenk/` | [t0mg/eenk](https://github.com/t0mg/eenk) | Firmware source, compiled to produce the SDL simulator backend (`eenk-sim`) |
+| `inkcpp/` | [t0mg/inkcpp](https://github.com/t0mg/inkcpp) | Custom C++ Ink runtime, compiled to produce the `inkcpp_cl` binary compiler |
 
 ## Binary Resolution
 
@@ -173,6 +173,6 @@ eenky is built upon inkle's Inky IDE and numerous open-source tools and librarie
 
 ## License
 
-MIT — see [LICENSE](LICENSE).  
+MIT; see [LICENSE](LICENSE).  
 Based on [inkle/inky](https://github.com/inkle/inky) © inkle Ltd (MIT).
 
