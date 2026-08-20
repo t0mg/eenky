@@ -1,7 +1,7 @@
 {
   "name": "eenky",
   "productName": "eenky",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "The story editor for ereaders running the eenk firmware",
   "main": "main-process/main.js",
   "repository": {
@@ -15,6 +15,7 @@
     "start": "concurrently \"npm run dev --prefix renderer\" \"wait-on http-get://localhost:5173/ && electron .\"",
     "test": "mocha",
     "generate-locale": "node ../build/generateLocale.js",
+    "generate-icons": "node ../scripts/generate-icons.js",
     "build-package": "node build-package.js",
     "pack": "electron-builder --dir",
     "dist": "npm run build --prefix renderer && electron-builder --publish never"
