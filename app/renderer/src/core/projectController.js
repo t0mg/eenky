@@ -111,11 +111,12 @@ export const ProjectController = {
     });
     store.setActiveFile(file);
 
-    LiveCompiler.setProject(store);
-
     await this.loadFileContent(store.mainInkFile);
     await this.loadIncludes(store.mainInkFile);
     await this.loadUnusedFiles(store.mainInkFile);
+
+    LiveCompiler.setProject(store);
+    LiveCompiler.reload();
   },
 
   async loadUnusedFiles(mainFile) {
@@ -158,11 +159,17 @@ export const ProjectController = {
 
     while (queue.length > 0) {
       const curr = queue.shift();
-      const dir = this._dirname(curr.absolutePath);
-      for (const inc of curr.includes) {
+      const dir = this._dirname(curr.absolutePath || '');
+      const includesList = curr.includes || [];
+      for (const inc of includesList) {
         const absPath = this._join(dir, inc);
         const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
-        const incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
+        const incFile = store.files.find(f => {
+          const fAbs = (f.absolutePath || '').replace(/[\\]/g, '/');
+          const fRel = (f.relPath || '').replace(/[\\]/g, '/');
+          const incNorm = inc.replace(/[\\]/g, '/');
+          return fAbs === normalizedAbsPath || fRel === incNorm;
+        });
         if (incFile && !includedIds.has(incFile.id)) {
           includedIds.add(incFile.id);
           queue.push(incFile);
@@ -177,11 +184,17 @@ export const ProjectController = {
 
   async loadIncludes(mainFile) {
     const store = useProjectStore();
-    const mainDir = this._dirname(mainFile.absolutePath);
-    for (const inc of mainFile.includes) {
+    const mainDir = this._dirname(mainFile.absolutePath || '');
+    const includesList = mainFile.includes || [];
+    for (const inc of includesList) {
       const absPath = this._join(mainDir, inc);
       const normalizedAbsPath = absPath.replace(/[\\]/g, '/');
-      let incFile = store.files.find(f => (f.absolutePath || '').replace(/[\\]/g, '/') === normalizedAbsPath);
+      let incFile = store.files.find(f => {
+        const fAbs = (f.absolutePath || '').replace(/[\\]/g, '/');
+        const fRel = (f.relPath || '').replace(/[\\]/g, '/');
+        const incNorm = inc.replace(/[\\]/g, '/');
+        return fAbs === normalizedAbsPath || fRel === incNorm;
+      });
       if (!incFile) {
         const rawFile = this.createFile(absPath, false);
         rawFile.relPath = inc;
@@ -189,6 +202,9 @@ export const ProjectController = {
         incFile = store.files.find(f => f.id === rawFile.id); // get Proxy
         await this.loadFileContent(incFile);
         await this.loadIncludes(incFile); // recursive
+      } else if (!incFile.content && !incFile.isLoading) {
+        await this.loadFileContent(incFile);
+        await this.loadIncludes(incFile);
       }
     }
   },

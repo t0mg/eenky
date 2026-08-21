@@ -1,5 +1,4 @@
 import i18n from './i18n.js';
-import { useUiStore } from '../stores/uiStore';
 
 const ipc = window.api.liveCompiler;
 
@@ -29,15 +28,6 @@ let project = null;
 let events = {};
 
 let compilerBusy = false;
-
-function isPreviewEnabled() {
-    try {
-        const uiStore = useUiStore();
-        return !!uiStore.showSimulator;
-    } catch (e) {
-        return true;
-    }
-}
 
 function setProject(p) {
     project = p;
@@ -100,16 +90,13 @@ function stop() {
 }
 
 function reloadInklecateSession() {
-    if (!isPreviewEnabled()) {
+    if( project == null || !project.mainInkFile || project.mainInkFile.isLoading ) {
         reloadPending = true;
-        if (currentPlaySessionId) {
-            stopInklecateSession(currentPlaySessionId);
-            currentPlaySessionId = null;
-        }
+        updateCompilerIsBusy(true);
         return;
     }
 
-    if( project == null || !project.mainInkFile ) {
+    if (project.files && project.files.some(f => f.isLoading)) {
         reloadPending = true;
         updateCompilerIsBusy(true);
         return;
@@ -198,7 +185,6 @@ function evaluateExpression(expressionText, callback) {
     expressionEvaluationObj = { callback: callback,  sessionId: currentPlaySessionId };
 }
 
-setTimeout(reloadInklecateSession, 1000);
 setInterval(() => {
     if( lastEditorChange !== null && Date.now() - lastEditorChange > 500 || reloadPending ) {
         reloadInklecateSession();

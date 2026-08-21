@@ -8,7 +8,8 @@ vi.mock('../core/liveCompiler', () => ({
   LiveCompiler: {
     setProject: vi.fn(),
     needsRecompile: vi.fn(),
-    setEdited: vi.fn()
+    setEdited: vi.fn(),
+    reload: vi.fn()
   }
 }));
 

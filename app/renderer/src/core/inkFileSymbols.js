@@ -69,6 +69,48 @@ InkFileSymbols.prototype.parse = function() {
         };
     }
 
+    const lines = textContent.split('\n');
+    const handledFlowLines = new Set();
+
+    const processFlowSymbol = (symbolName, isKnot, isFuncOnLine, row, col) => {
+        const level = isKnot ? 1 : 2;
+        const flowType = {
+            name: isKnot ? "Knot" : "Stitch",
+            code: isKnot ? "Knot" : "Stitch",
+            level: level
+        };
+
+        while (level <= symbolStack.currentElement().flowType.level) {
+            symbolStack.pop();
+        }
+
+        var symbol = {
+            name: symbolName,
+            isfunc: isFuncOnLine,
+            flowType: flowType,
+            row: row,
+            column: col,
+            inkFile: this.inkFile
+        };
+
+        var parent = symbolStack.currentElement();
+        if (parent !== symbolStack[0]) {
+            symbol.parent = parent;
+        }
+
+        if (!parent.innerSymbols) {
+            parent.innerSymbols = {};
+            parent.rangeIndex = [];
+        }
+        parent.innerSymbols[symbolName] = symbol;
+        parent.rangeIndex.push({
+            rowStart: symbol.row,
+            symbol: symbol
+        });
+        symbolStack.push(symbol);
+        divertTargets.add(symbolName);
+    };
+
     tree.iterate({
         enter: (node) => {
             const name = node.name;
@@ -80,48 +122,30 @@ InkFileSymbols.prototype.parse = function() {
                 isfunc = true;
             }
 
-            if (name === "KnotName" || name === "StitchName") {
-                const symbolName = value;
-                const isKnot = (name === "KnotName");
-                const level = isKnot ? 1 : 2;
-                const flowType = {
-                    name: isKnot ? "Knot" : "Stitch",
-                    code: isKnot ? "Knot" : "Stitch",
-                    level: level
-                };
+            const pos = getLineCol(from);
+            const row = pos.row;
 
-                const pos = getLineCol(from);
+            if (name === "Knot" || name === "KnotName" || name === "Stitch" || name === "StitchName") {
+                if (!handledFlowLines.has(row)) {
+                    const lineText = lines[row] || "";
+                    const knotMatch = lineText.match(/^\s*==+\s*(?:function\s+)?(\w+)/);
+                    const stitchMatch = lineText.match(/^\s*=\s*(\w+)/);
 
-                while (level <= symbolStack.currentElement().flowType.level) {
-                    symbolStack.pop();
+                    if (knotMatch) {
+                        const symName = knotMatch[1];
+                        const isKnotFunc = /^\s*==+\s*function\b/.test(lineText) || isfunc;
+                        const col = lineText.indexOf(symName);
+                        processFlowSymbol(symName, true, isKnotFunc, row, col);
+                        handledFlowLines.add(row);
+                        isfunc = false;
+                    } else if (stitchMatch) {
+                        const symName = stitchMatch[1];
+                        const col = lineText.indexOf(symName);
+                        processFlowSymbol(symName, false, false, row, col);
+                        handledFlowLines.add(row);
+                        isfunc = false;
+                    }
                 }
-
-                var symbol = {
-                    name: symbolName,
-                    isfunc: isfunc,
-                    flowType: flowType,
-                    row: pos.row,
-                    column: pos.column,
-                    inkFile: this.inkFile
-                };
-
-                var parent = symbolStack.currentElement();
-                if (parent !== symbolStack[0]) {
-                    symbol.parent = parent;
-                }
-
-                if (!parent.innerSymbols) {
-                    parent.innerSymbols = {};
-                    parent.rangeIndex = [];
-                }
-                parent.innerSymbols[symbolName] = symbol;
-                parent.rangeIndex.push({
-                    rowStart: symbol.row,
-                    symbol: symbol
-                });
-                symbolStack.push(symbol);
-                divertTargets.add(symbolName);
-                isfunc = false;
             }
             else if (name === "VariableDeclaration" || name === "ConstDeclaration") {
                 const match = value.match(/(?:VAR|CONST)\s+(\w+)/i);
@@ -143,9 +167,13 @@ InkFileSymbols.prototype.parse = function() {
             else if (name === "Include") {
                 const pathMatch = value.match(/INCLUDE\s+(.+)/i);
                 if (pathMatch) {
-                    const filePath = pathMatch[1].trim();
-                    includes.push(filePath);
-                    lastIncludeRow = getLineCol(from).row;
+                    let filePath = pathMatch[1].trim();
+                    filePath = filePath.replace(/\/\/.*$/, '').trim();
+                    filePath = filePath.replace(/^["']|["']$/g, '').trim();
+                    if (filePath && !includes.includes(filePath)) {
+                        includes.push(filePath);
+                        lastIncludeRow = getLineCol(from).row;
+                    }
                 }
             }
             else if (name === "Tag") {
@@ -170,6 +198,40 @@ InkFileSymbols.prototype.parse = function() {
             }
         }
     });
+
+    // Fallback: capture any INCLUDE declarations or purely numeric knot/stitch declarations
+    const includeRegex = /^\s*INCLUDE\s+([^\r\n]+)/gim;
+    let incMatch;
+    while ((incMatch = includeRegex.exec(textContent)) !== null) {
+        let filePath = incMatch[1].trim();
+        filePath = filePath.replace(/\/\/.*$/, '').trim();
+        filePath = filePath.replace(/^["']|["']$/g, '').trim();
+        if (filePath && !includes.includes(filePath)) {
+            includes.push(filePath);
+            const pos = getLineCol(incMatch.index);
+            lastIncludeRow = Math.max(lastIncludeRow, pos.row);
+        }
+    }
+
+    for (let r = 0; r < lines.length; r++) {
+        if (!handledFlowLines.has(r)) {
+            const lineText = lines[r] || "";
+            const knotMatch = lineText.match(/^\s*==+\s*(?:function\s+)?(\w+)/);
+            const stitchMatch = lineText.match(/^\s*=\s*(\w+)/);
+            if (knotMatch) {
+                const symName = knotMatch[1];
+                const isKnotFunc = /^\s*==+\s*function\b/.test(lineText);
+                const col = lineText.indexOf(symName);
+                processFlowSymbol(symName, true, isKnotFunc, r, col);
+                handledFlowLines.add(r);
+            } else if (stitchMatch) {
+                const symName = stitchMatch[1];
+                const col = lineText.indexOf(symName);
+                processFlowSymbol(symName, false, false, r, col);
+                handledFlowLines.add(r);
+            }
+        }
+    }
 
     this.symbols = symbolStack[0].innerSymbols;
     this.rangeIndex = symbolStack[0].rangeIndex;
