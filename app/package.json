@@ -1,7 +1,7 @@
 {
   "name": "eenky",
   "productName": "eenky",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "The story editor for ereaders running the eenk firmware",
   "main": "main-process/main.js",
   "repository": {
