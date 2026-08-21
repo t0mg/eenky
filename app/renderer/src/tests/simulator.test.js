@@ -79,4 +79,21 @@ describe('Simulator Component', () => {
     // Choices should be cleared from view
     expect(wrapper.find('.choice-btn').exists()).toBe(false);
   });
+
+  it('reloads and halts LiveCompiler when preview panel visibility toggles', async () => {
+    const reloadSpy = vi.spyOn(LiveCompiler, 'reload').mockImplementation(() => {});
+    const stopSpy = vi.spyOn(LiveCompiler, 'stop').mockImplementation(() => {});
+
+    const wrapper = mount(Simulator);
+    const { useUiStore } = await import('../stores/uiStore');
+    const uiStore = useUiStore();
+
+    uiStore.showSimulator = true;
+    await wrapper.vm.$nextTick();
+    expect(reloadSpy).toHaveBeenCalled();
+
+    uiStore.showSimulator = false;
+    await wrapper.vm.$nextTick();
+    expect(stopSpy).toHaveBeenCalled();
+  });
 });

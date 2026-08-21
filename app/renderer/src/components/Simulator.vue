@@ -60,8 +60,18 @@
 import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { LiveCompiler } from '../core/liveCompiler.js';
 import { useProjectStore } from '../stores/projectStore';
+import { useUiStore } from '../stores/uiStore';
 
 const projectStore = useProjectStore();
+const uiStore = useUiStore();
+
+watch(() => uiStore.showSimulator, (show) => {
+  if (show) {
+    LiveCompiler.reload();
+  } else {
+    LiveCompiler.stop();
+  }
+});
 
 const storyFontRaw = computed(() => {
   const content = projectStore.mainInkFile?.content || '';

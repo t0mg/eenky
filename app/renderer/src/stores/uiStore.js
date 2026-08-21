@@ -15,6 +15,7 @@ export const useUiStore = defineStore('ui', {
     lineWrap: true,
     sidebarWidth: 250,
     simulatorWidth: 350,
+    selectedText: '',
     modalState: {
       isOpen: false,
       type: '',

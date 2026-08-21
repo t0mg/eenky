@@ -49,9 +49,11 @@
 <script setup>
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useProjectStore } from '../stores/projectStore';
+import { useUiStore } from '../stores/uiStore';
 import fuzzaldrin from 'fuzzaldrin-plus';
 
 const projectStore = useProjectStore();
+const uiStore = useUiStore();
 const isVisible = ref(false);
 const searchQuery = ref('');
 const results = ref([]);
@@ -79,7 +81,8 @@ function toggle() {
 
 function show() {
   isVisible.value = true;
-  searchQuery.value = '';
+  const initialQuery = uiStore.selectedText || '';
+  searchQuery.value = initialQuery;
   results.value = [];
   selectedIndex.value = 0;
   
@@ -118,9 +121,18 @@ function show() {
       });
     });
   });
+
+  if (initialQuery) {
+    refreshResults();
+  }
   
   nextTick(() => {
-    if (searchInput.value) searchInput.value.focus();
+    if (searchInput.value) {
+      searchInput.value.focus();
+      if (initialQuery) {
+        searchInput.value.select();
+      }
+    }
   });
 }
 

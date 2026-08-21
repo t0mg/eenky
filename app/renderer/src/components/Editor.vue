@@ -19,11 +19,12 @@ const customHistoryKeymap = [
 ];
 import { syntaxHighlighting, HighlightStyle, indentService } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { autocompletion } from "@codemirror/autocomplete";
+import { autocompletion, acceptCompletion, completionKeymap } from "@codemirror/autocomplete";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
 import { InkLanguageSupport } from "@mavnn/codemirror-lang-ink";
 import { inkCompletionSource } from "../core/inkCompleter.js";
 import { search, searchKeymap, openSearchPanel } from "@codemirror/search";
+import { findSymbolDeclaration } from "../core/symbolLookup.js";
 
 const projectStore = useProjectStore();
 const uiStore = useUiStore();
@@ -168,6 +169,20 @@ const inkEditorTheme = EditorView.theme({
 });
 
 const onUpdate = EditorView.updateListener.of((update) => {
+  if (update.selectionSet || update.docChanged) {
+    const mainSel = update.state.selection.main;
+    if (!mainSel.empty) {
+      const selected = update.state.sliceDoc(mainSel.from, mainSel.to);
+      if (selected && !selected.includes('\n') && selected.length <= 100) {
+        uiStore.selectedText = selected.trim();
+      } else {
+        uiStore.selectedText = '';
+      }
+    } else {
+      uiStore.selectedText = '';
+    }
+  }
+
   if (update.docChanged && projectStore.activeInkFile) {
     // Prevent recursive updates and ignore newline-only differences
     const fileContent = projectStore.activeInkFile.content || "";
@@ -182,6 +197,63 @@ const inkIndentService = indentService.of((context, pos) => {
   return context.lineIndent(line.from, -1);
 });
 
+const domClickHandlers = EditorView.domEventHandlers({
+  click(event, view) {
+    const isModifier = event.ctrlKey || event.altKey || event.metaKey;
+    if (!isModifier) return false;
+
+    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (pos === null) return false;
+
+    const line = view.state.doc.lineAt(pos);
+    const col = pos - line.from;
+    const text = line.text;
+
+    let start = col;
+    while (start > 0 && /[\w.]/.test(text[start - 1])) {
+      start--;
+    }
+    let end = col;
+    while (end < text.length && /[\w.]/.test(text[end])) {
+      end++;
+    }
+    let token = text.slice(start, end).trim();
+    token = token.replace(/^\.+|\.+$/g, '');
+    if (!token || /^\d+$/.test(token)) return false;
+
+    const target = findSymbolDeclaration(
+      token,
+      projectStore.activeInkFile,
+      projectStore.files,
+      line.number - 1
+    );
+
+    if (!target) return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (target.file && target.file !== projectStore.activeInkFile) {
+      projectStore.setActiveFile(target.file);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('editor-jump-to-line', { detail: { line: target.row } }));
+      }, 50);
+    } else {
+      const doc = view.state.doc;
+      const targetLineNum = target.row + 1;
+      if (targetLineNum >= 1 && targetLineNum <= doc.lines) {
+        const lineObj = doc.line(targetLineNum);
+        view.dispatch({
+          selection: { anchor: lineObj.from, head: lineObj.from },
+          effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' })
+        });
+        view.focus();
+      }
+    }
+    return true;
+  }
+});
+
 const getEditorExtensions = () => [
   lineNumbers(),
   highlightActiveLineGutter(),
@@ -194,6 +266,9 @@ const getEditorExtensions = () => [
   highlightActiveLine(),
   inkIndentService,
   keymap.of([
+    { key: "Tab", run: acceptCompletion },
+    ...completionKeymap,
+    { key: "Mod-s", run: () => { ProjectController.saveAll(); return true; } },
     ...defaultKeymap,
     ...customHistoryKeymap,
     ...searchKeymap,
@@ -204,6 +279,7 @@ const getEditorExtensions = () => [
   languageCompartment.of(InkLanguageSupport()),
   autocompleteCompartment.of(uiStore.autoCompleteDisabled ? [] : autocompletion({ override: [inkCompletionSource] })),
   lineWrapCompartment.of(uiStore.lineWrap ? EditorView.lineWrapping : []),
+  domClickHandlers,
   onUpdate
 ];
 

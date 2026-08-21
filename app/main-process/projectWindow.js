@@ -191,6 +191,11 @@ ProjectWindow.prototype.finalClose = function () {
     this.browserWindow.close();
 }
 
+ProjectWindow.prototype.cancelClose = function () {
+    this.isSafeToClose = false;
+    this.safeToClose = false;
+}
+
 ProjectWindow.prototype.openDevTools = function () {
     this.browserWindow.webContents.openDevTools();
 }
@@ -284,6 +289,11 @@ ProjectWindow.focused = function () {
 ProjectWindow.withWebContents = function (webContents) {
     if (!webContents) return null;
     return windows.find(pwin => pwin.browserWindow && pwin.browserWindow.webContents && pwin.browserWindow.webContents.id === webContents.id);
+}
+
+ProjectWindow.withBrowserWindow = function (browserWindow) {
+    if (!browserWindow) return null;
+    return windows.find(pwin => pwin.browserWindow === browserWindow);
 }
 
 

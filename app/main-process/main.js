@@ -182,7 +182,7 @@ app.on('before-quit', function () {
 
 ipcMain.on("project-cancelled-close", (event) => {
     isQuitting = false;
-    var win = ProjectWindow.withBrowserWindow(event.sender.getOwnerBrowserWindow());
+    var win = ProjectWindow.withWebContents(event.sender) || (event.sender.getOwnerBrowserWindow ? ProjectWindow.withBrowserWindow(event.sender.getOwnerBrowserWindow()) : null);
     if (win) win.cancelClose();
 });
 

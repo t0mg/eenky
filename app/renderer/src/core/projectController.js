@@ -17,18 +17,13 @@ export const ProjectController = {
     window.api.receive('project-export-js-only', () => { this.exportProject('js'); });
 
     window.api.receive('project-save', async () => {
-      const store = useProjectStore();
-      for (const file of store.files) {
-        if (file.hasUnsavedChanges) {
-          await this.saveFile(file.id);
-        }
-      }
+      await this.saveAll();
     });
 
     window.api.receive('project-tryClose', async () => {
       const store = useProjectStore();
       const uiStore = useUiStore();
-      const hasUnsavedChanges = store.files.some(f => f.hasUnsavedChanges);
+      const hasUnsavedChanges = store.hasUnsavedChanges;
 
       if (hasUnsavedChanges) {
         uiStore.openModal('close-confirm');
@@ -37,12 +32,12 @@ export const ProjectController = {
         });
 
         if (choice === 'save') {
-          for (const file of store.files) {
-            if (file.hasUnsavedChanges) {
-              await this.saveFile(file.id);
-            }
+          const success = await this.saveAll();
+          if (success) {
+            window.api.send("project-final-close");
+          } else {
+            window.api.send("project-cancelled-close");
           }
-          window.api.send("project-final-close");
         } else if (choice === 'dontsave') {
           window.api.send("project-final-close");
         } else {
@@ -570,6 +565,26 @@ export const ProjectController = {
     }
   },
 
+  async saveAll() {
+    const store = useProjectStore();
+    const dirtyFiles = store.files.filter(f => f.hasUnsavedChanges);
+    if (dirtyFiles.length === 0) return true;
+
+    // If main file is brand new (no absolutePath), save it first so save dialog is shown once
+    // and the project directory is established for any new includes.
+    const mainFile = dirtyFiles.find(f => f.isMain && !f.absolutePath);
+    if (mainFile) {
+      const mainSaved = await this.saveFile(mainFile.id);
+      if (!mainSaved) return false;
+    }
+
+    const remainingDirty = store.files.filter(f => f.hasUnsavedChanges);
+    if (remainingDirty.length === 0) return true;
+
+    const results = await Promise.all(remainingDirty.map(file => this.saveFile(file.id)));
+    return results.every(Boolean);
+  },
+
   async saveFile(fileId) {
     console.log("[DEBUG] ProjectController.saveFile called for fileId:", fileId);
     const store = useProjectStore();
@@ -577,6 +592,14 @@ export const ProjectController = {
     if (!file) {
       console.log("[DEBUG] saveFile aborted: file not found in store");
       return false;
+    }
+
+    // If this is an include file and main file has an absolutePath, resolve absolutePath if needed
+    if (!file.isMain && store.mainInkFile && store.mainInkFile.absolutePath) {
+      const mainDir = this._dirname(store.mainInkFile.absolutePath);
+      if (!file.absolutePath || file.absolutePath.startsWith('/' + file.relPath)) {
+        file.absolutePath = this._join(mainDir, file.relPath);
+      }
     }
 
     try {
@@ -592,8 +615,10 @@ export const ProjectController = {
         file.isBrandNew = false;
         file.justSaved = true; // flag to ignore watcher
 
-        console.log("[DEBUG] sending main-file-saved IPC...");
-        window.api.send('main-file-saved', file.absolutePath);
+        if (file.isMain) {
+          console.log("[DEBUG] sending main-file-saved IPC...");
+          window.api.send('main-file-saved', file.absolutePath);
+        }
         return true;
       } else {
         console.log("[DEBUG] File has no absolutePath, showing save dialog...");

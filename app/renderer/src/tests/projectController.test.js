@@ -7,7 +7,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('../core/liveCompiler', () => ({
   LiveCompiler: {
     setProject: vi.fn(),
-    needsRecompile: vi.fn()
+    needsRecompile: vi.fn(),
+    setEdited: vi.fn()
   }
 }));
 
@@ -51,5 +52,63 @@ describe('Project Controller', () => {
       'utf8'
     );
     expect(file.hasUnsavedChanges).toBe(false);
+    expect(window.api.send).toHaveBeenCalledWith('main-file-saved', '/path/to/main.ink');
+  });
+
+  it('saves all dirty files in the project including includes', async () => {
+    const store = useProjectStore();
+    await ProjectController.loadProject('/path/to/main.ink');
+
+    const mainFile = store.mainInkFile;
+    mainFile.content = 'Main modified';
+
+    const includeFile = ProjectController.createFile('/path/to/chapter1.ink', false);
+    includeFile.relPath = 'chapter1.ink';
+    includeFile.content = 'Include modified';
+    store.addFile(includeFile);
+
+    expect(store.hasUnsavedChanges).toBe(true);
+
+    window.api.send.mockClear();
+    const result = await ProjectController.saveAll();
+
+    expect(result).toBe(true);
+    expect(window.api.fs.writeFile).toHaveBeenCalledWith(
+      '/path/to/main.ink',
+      'Main modified',
+      'utf8'
+    );
+    expect(window.api.fs.writeFile).toHaveBeenCalledWith(
+      '/path/to/chapter1.ink',
+      'Include modified',
+      'utf8'
+    );
+
+    expect(mainFile.hasUnsavedChanges).toBe(false);
+    expect(includeFile.hasUnsavedChanges).toBe(false);
+    expect(store.hasUnsavedChanges).toBe(false);
+
+    // main-file-saved should be sent for main file but NOT for include file
+    expect(window.api.send).toHaveBeenCalledWith('main-file-saved', '/path/to/main.ink');
+    expect(window.api.send).not.toHaveBeenCalledWith('main-file-saved', '/path/to/chapter1.ink');
+  });
+
+  it('correctly resolves relative paths for newly added includes on save', async () => {
+    const store = useProjectStore();
+    await ProjectController.loadProject('/path/to/main.ink');
+
+    const newInclude = ProjectController.addNewInclude(store.mainInkFile, 'subfolder/story.ink');
+    newInclude.content = 'New include content';
+
+    expect(newInclude.hasUnsavedChanges).toBe(true);
+
+    await ProjectController.saveAll();
+
+    expect(window.api.fs.writeFile).toHaveBeenCalledWith(
+      '/path/to/subfolder/story.ink',
+      'New include content',
+      'utf8'
+    );
+    expect(newInclude.hasUnsavedChanges).toBe(false);
   });
 });

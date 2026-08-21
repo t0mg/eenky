@@ -1,4 +1,5 @@
 import i18n from './i18n.js';
+import { useUiStore } from '../stores/uiStore';
 
 const ipc = window.api.liveCompiler;
 
@@ -28,6 +29,15 @@ let project = null;
 let events = {};
 
 let compilerBusy = false;
+
+function isPreviewEnabled() {
+    try {
+        const uiStore = useUiStore();
+        return !!uiStore.showSimulator;
+    } catch (e) {
+        return true;
+    }
+}
 
 function setProject(p) {
     project = p;
@@ -77,7 +87,28 @@ function updateCompilerIsBusy(isBusy) {
     }
 }
 
+function stopInklecateSession(idToStop) {
+    ipc.send("play-stop-ink", idToStop);
+    updateCompilerIsBusy(false);
+}
+
+function stop() {
+    if (currentPlaySessionId) {
+        stopInklecateSession(currentPlaySessionId);
+        currentPlaySessionId = null;
+    }
+}
+
 function reloadInklecateSession() {
+    if (!isPreviewEnabled()) {
+        reloadPending = true;
+        if (currentPlaySessionId) {
+            stopInklecateSession(currentPlaySessionId);
+            currentPlaySessionId = null;
+        }
+        return;
+    }
+
     if( project == null || !project.mainInkFile ) {
         reloadPending = true;
         updateCompilerIsBusy(true);
@@ -131,11 +162,6 @@ function completeExport(error, path) {
         if( error ) callback(error.message);
         else callback(null, path);
     }
-    updateCompilerIsBusy(false);
-}
-
-function stopInklecateSession(idToStop) {
-    ipc.send("play-stop-ink", idToStop);
     updateCompilerIsBusy(false);
 }
 
@@ -330,6 +356,7 @@ ipc.on("return-stats", (statsObj, fromSessionId) => {
 export const LiveCompiler = {
     setProject: setProject,
     reload: reloadInklecateSession,
+    stop: stop,
     exportJson: exportJson,
     setEdited: () => { lastEditorChange = Date.now(); },
     setEvents: (e) => { Object.assign(events, e); },

@@ -54,14 +54,7 @@ const projectStore = useProjectStore();
 const isMac = window.api && window.api.platform === 'darwin';
 
 const saveAllFiles = async () => {
-  let success = true;
-  for (const file of projectStore.files) {
-    if (file.hasUnsavedChanges) {
-      const saved = await ProjectController.saveFile(file.id);
-      if (!saved) success = false;
-    }
-  }
-  return success;
+  return await ProjectController.saveAll();
 };
 
 const checkAndSave = async (actionName) => {
