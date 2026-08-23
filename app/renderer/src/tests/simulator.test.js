@@ -53,17 +53,22 @@ describe('Simulator Component', () => {
     expect(storyText.html()).toContain('Hello <em>world</em> and <strong>bold</strong> with <b>tags</b><br>Second line');
   });
 
-  it('handles choosing a choice correctly', async () => {
+  it('handles choosing a choice correctly and injects hr divider', async () => {
+    let textAddedCallback;
     let choiceAddedCallback;
     vi.spyOn(LiveCompiler, 'setEvents').mockImplementation((events) => {
+      textAddedCallback = events.textAdded;
       choiceAddedCallback = events.choiceAdded;
     });
     const chooseSpy = vi.spyOn(LiveCompiler, 'choose').mockImplementation(() => {});
 
     const wrapper = mount(Simulator);
 
+    textAddedCallback('First chapter story text.');
+    await wrapper.vm.$nextTick();
+
     const mockChoice = {
-      number: 0,
+      number: 1,
       choice: {
         text: 'Select _option_'
       }
@@ -72,11 +77,53 @@ describe('Simulator Component', () => {
     choiceAddedCallback(mockChoice, true);
     await wrapper.vm.$nextTick();
 
+    expect(wrapper.findAll('.story-divider').length).toBe(0);
+
     const choiceBtn = wrapper.find('.choice-btn');
     await choiceBtn.trigger('click');
 
     expect(chooseSpy).toHaveBeenCalledWith(mockChoice);
     // Choices should be cleared from view
     expect(wrapper.find('.choice-btn').exists()).toBe(false);
+    // Divider hr should be injected
+    expect(wrapper.findAll('.story-divider').length).toBe(1);
+    expect(wrapper.find('hr.story-divider').exists()).toBe(true);
+  });
+
+  it('injects hr divider between turns during story replay', async () => {
+    let textAddedCallback;
+    let playerPromptCallback;
+    vi.spyOn(LiveCompiler, 'setEvents').mockImplementation((events) => {
+      textAddedCallback = events.textAdded;
+      playerPromptCallback = events.playerPrompt;
+    });
+
+    const wrapper = mount(Simulator);
+
+    // Turn 1 text arrives
+    textAddedCallback('Turn 1 text.');
+    await wrapper.vm.$nextTick();
+
+    // Player prompt during replay
+    const doneCallback = vi.fn();
+    playerPromptCallback(true, doneCallback);
+    await wrapper.vm.$nextTick();
+
+    expect(doneCallback).toHaveBeenCalled();
+    expect(wrapper.findAll('.story-divider').length).toBe(1);
+
+    // Turn 2 text arrives
+    textAddedCallback('Turn 2 text.');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findAll('.story-divider').length).toBe(1);
+
+    // Turn 2 replaying next prompt
+    const doneCallback2 = vi.fn();
+    playerPromptCallback(true, doneCallback2);
+    await wrapper.vm.$nextTick();
+
+    expect(doneCallback2).toHaveBeenCalled();
+    expect(wrapper.findAll('.story-divider').length).toBe(2);
   });
 });

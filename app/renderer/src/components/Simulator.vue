@@ -45,6 +45,7 @@
           <button @click="makeChoice(block.choice)" class="choice-btn" v-html="formatText(block.choice.choice.text)">
           </button>
         </div>
+        <hr v-else-if="block.type === 'divider'" class="story-divider" />
         <div v-else-if="block.type === 'error'" class="story-error">
           {{ block.message }}
         </div>
@@ -205,6 +206,7 @@ onMounted(() => {
     playerPrompt: (replaying, callback) => {
       evaluateAllWatches(() => {
         if (replaying) {
+          addDivider();
           callback();
         }
       });
@@ -220,9 +222,17 @@ onMounted(() => {
   });
 });
 
+const addDivider = () => {
+  if (blocks.value.length > 0 && blocks.value[blocks.value.length - 1].type !== 'divider') {
+    blocks.value.push({ type: 'divider' });
+    scrollToBottom();
+  }
+};
+
 const makeChoice = (choice) => {
   // Clear choices from this turn
   blocks.value = blocks.value.filter(b => b.type !== 'choice');
+  addDivider();
   LiveCompiler.choose(choice);
 };
 
@@ -330,6 +340,12 @@ const formatText = (text) => {
 
 .choice-btn:hover {
   opacity: 0.7;
+}
+
+.story-divider {
+  border: 0;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  margin: 16px 0;
 }
 
 .story-end {
