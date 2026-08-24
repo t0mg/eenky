@@ -105,6 +105,35 @@ if (!fs.existsSync(submoduleCheck)) {
         allOk = false;
     } else {
         copyBin(simSrc, simDst, `eenk-sim  →  ${path.relative(ROOT, simDst)}`);
+
+        // On macOS: bundle non-system dynamic libraries (e.g. Homebrew's libSDL2) using install_name_tool
+        if (process.platform === 'darwin' && !checkOnly) {
+            try {
+                const { execSync } = require('child_process');
+                const otoolOut = execSync(`otool -L "${simDst}"`).toString();
+                const lines = otoolOut.split('\n').slice(1);
+                for (const line of lines) {
+                    const match = line.trim().match(/^(\S+)\s+\(/);
+                    if (!match) continue;
+                    const dylibPath = match[1];
+                    // Match non-system dylibs (Homebrew, /usr/local, etc.)
+                    if (dylibPath.startsWith('/opt/homebrew') || dylibPath.startsWith('/usr/local')) {
+                        const realDylibPath = fs.existsSync(dylibPath) ? fs.realpathSync(dylibPath) : dylibPath;
+                        if (fs.existsSync(realDylibPath)) {
+                            const dylibName = path.basename(dylibPath);
+                            const targetDylib = path.join(DEST_DIR, dylibName);
+                            fs.copyFileSync(realDylibPath, targetDylib);
+                            fs.chmodSync(targetDylib, 0o755);
+                            execSync(`install_name_tool -id "@loader_path/${dylibName}" "${targetDylib}"`);
+                            execSync(`install_name_tool -change "${dylibPath}" "@loader_path/${dylibName}" "${simDst}"`);
+                            console.log(`  ✔  Bundled dylib: ${dylibName} (remapped to @loader_path/${dylibName})`);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn(`  ⚠  Could not bundle macOS dylibs: ${e.message}`);
+            }
+        }
     }
 }
 
