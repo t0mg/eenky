@@ -106,7 +106,7 @@ jobs:
 
       - name: Install SDL2 (macOS)
         if: matrix.os == 'macos-latest'
-        run: brew install sdl2 sdl2_image sdl2_ttf sdl2_gfx
+        run: brew install sdl2 sdl3 sdl2_image sdl2_ttf sdl2_gfx
 
       - name: Install SDL2 (Linux)
         if: matrix.os == 'ubuntu-latest'

@@ -85,9 +85,16 @@ function launchSimulator(binPath, sender) {
         let earlyStdout = [];
         let hasSettled = false;
 
+        const simDir = path.dirname(simExe);
+        const simEnv = { ...process.env };
+        if (process.platform === 'darwin') {
+            simEnv.DYLD_LIBRARY_PATH = simDir + (simEnv.DYLD_LIBRARY_PATH ? `:${simEnv.DYLD_LIBRARY_PATH}` : '');
+            simEnv.DYLD_FALLBACK_LIBRARY_PATH = simDir + (simEnv.DYLD_FALLBACK_LIBRARY_PATH ? `:${simEnv.DYLD_FALLBACK_LIBRARY_PATH}` : '');
+        }
+
         const proc = spawn(simExe, [binPath], {
             cwd: path.dirname(binPath),
-            env: { ...process.env }
+            env: simEnv
         });
         simProcess = proc;
 

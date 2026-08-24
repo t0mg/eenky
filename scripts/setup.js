@@ -106,20 +106,30 @@ if (!fs.existsSync(submoduleCheck)) {
     } else {
         copyBin(simSrc, simDst, `eenk-sim  →  ${path.relative(ROOT, simDst)}`);
 
-        // On macOS: bundle non-system dynamic libraries (e.g. Homebrew's libSDL2) using install_name_tool
+        // On macOS: bundle non-system dynamic libraries (Homebrew's libSDL2 and its underlying libSDL3)
         if (process.platform === 'darwin' && !checkOnly) {
             try {
                 const { execSync } = require('child_process');
+
+                // Ensure @loader_path is in RPATH of eenk-sim
+                try {
+                    execSync(`install_name_tool -add_rpath "@loader_path" "${simDst}" 2>/dev/null || true`);
+                } catch (_) {}
+
                 const otoolOut = execSync(`otool -L "${simDst}"`).toString();
                 const lines = otoolOut.split('\n').slice(1);
+                let libDirs = new Set();
+
                 for (const line of lines) {
                     const match = line.trim().match(/^(\S+)\s+\(/);
                     if (!match) continue;
                     const dylibPath = match[1];
                     // Match non-system dylibs (Homebrew, /usr/local, etc.)
                     if (dylibPath.startsWith('/opt/homebrew') || dylibPath.startsWith('/usr/local')) {
+                        libDirs.add(path.dirname(dylibPath));
                         const realDylibPath = fs.existsSync(dylibPath) ? fs.realpathSync(dylibPath) : dylibPath;
                         if (fs.existsSync(realDylibPath)) {
+                            libDirs.add(path.dirname(realDylibPath));
                             const dylibName = path.basename(dylibPath);
                             const targetDylib = path.join(DEST_DIR, dylibName);
                             fs.copyFileSync(realDylibPath, targetDylib);
@@ -127,12 +137,81 @@ if (!fs.existsSync(submoduleCheck)) {
                             execSync(`install_name_tool -id "@loader_path/${dylibName}" "${targetDylib}"`);
                             execSync(`install_name_tool -change "${dylibPath}" "@loader_path/${dylibName}" "${simDst}"`);
                             try {
-                                execSync(`codesign -f -s - "${targetDylib}"`);
-                                execSync(`codesign -f -s - "${simDst}"`);
+                                execSync(`install_name_tool -add_rpath "@loader_path" "${targetDylib}" 2>/dev/null || true`);
                             } catch (_) {}
                             console.log(`  ✔  Bundled dylib: ${dylibName} (remapped to @loader_path/${dylibName})`);
                         }
                     }
+                }
+
+                // sdl2-compat dynamically loads libSDL3 via dlopen. Search for and bundle libSDL3 as well.
+                const searchDirs = [
+                    ...Array.from(libDirs),
+                    '/opt/homebrew/lib',
+                    '/opt/homebrew/opt/sdl3/lib',
+                    '/opt/homebrew/opt/sdl2/lib',
+                    '/usr/local/lib',
+                    '/usr/local/opt/sdl3/lib',
+                    '/usr/local/opt/sdl2/lib'
+                ];
+
+                for (const dir of searchDirs) {
+                    if (!fs.existsSync(dir)) continue;
+                    try {
+                        const entries = fs.readdirSync(dir);
+                        for (const entry of entries) {
+                            if ((entry.startsWith('libSDL3') || entry.startsWith('libSDL2')) && (entry.endsWith('.dylib') || entry.includes('.dylib.'))) {
+                                const srcPath = path.join(dir, entry);
+                                const realSrcPath = fs.existsSync(srcPath) ? fs.realpathSync(srcPath) : srcPath;
+                                if (fs.existsSync(realSrcPath) && fs.statSync(realSrcPath).isFile()) {
+                                    const targetPath = path.join(DEST_DIR, entry);
+                                    if (!fs.existsSync(targetPath)) {
+                                        fs.copyFileSync(realSrcPath, targetPath);
+                                        fs.chmodSync(targetPath, 0o755);
+                                        try {
+                                            execSync(`install_name_tool -id "@loader_path/${entry}" "${targetPath}" 2>/dev/null || true`);
+                                            execSync(`install_name_tool -add_rpath "@loader_path" "${targetPath}" 2>/dev/null || true`);
+                                        } catch (_) {}
+                                        console.log(`  ✔  Bundled SDL dylib: ${entry}`);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_) {}
+                }
+
+                // Create standard fallback aliases/copies in DEST_DIR for any name variant sdl2-compat may dlopen
+                const bundledFiles = fs.readdirSync(DEST_DIR);
+                const sdl3Candidate = bundledFiles.find(f => f.startsWith('libSDL3') && f.endsWith('.dylib'));
+                if (sdl3Candidate) {
+                    for (const linkName of ['libSDL3.dylib', 'libSDL3.0.dylib', 'libSDL3-3.0.0.dylib']) {
+                        const linkPath = path.join(DEST_DIR, linkName);
+                        if (!fs.existsSync(linkPath)) {
+                            try {
+                                fs.copyFileSync(path.join(DEST_DIR, sdl3Candidate), linkPath);
+                            } catch (_) {}
+                        }
+                    }
+                }
+
+                const sdl2Candidate = bundledFiles.find(f => f.startsWith('libSDL2') && f.endsWith('.dylib'));
+                if (sdl2Candidate) {
+                    for (const linkName of ['libSDL2.dylib', 'libSDL2-2.0.0.dylib']) {
+                        const linkPath = path.join(DEST_DIR, linkName);
+                        if (!fs.existsSync(linkPath)) {
+                            try {
+                                fs.copyFileSync(path.join(DEST_DIR, sdl2Candidate), linkPath);
+                            } catch (_) {}
+                        }
+                    }
+                }
+
+                // Re-sign all binaries and dylibs in DEST_DIR with ad-hoc signature
+                for (const f of fs.readdirSync(DEST_DIR)) {
+                    const fullPath = path.join(DEST_DIR, f);
+                    try {
+                        execSync(`codesign -f -s - "${fullPath}" 2>/dev/null || true`);
+                    } catch (_) {}
                 }
             } catch (e) {
                 console.warn(`  ⚠  Could not bundle macOS dylibs: ${e.message}`);
