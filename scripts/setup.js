@@ -126,6 +126,10 @@ if (!fs.existsSync(submoduleCheck)) {
                             fs.chmodSync(targetDylib, 0o755);
                             execSync(`install_name_tool -id "@loader_path/${dylibName}" "${targetDylib}"`);
                             execSync(`install_name_tool -change "${dylibPath}" "@loader_path/${dylibName}" "${simDst}"`);
+                            try {
+                                execSync(`codesign -f -s - "${targetDylib}"`);
+                                execSync(`codesign -f -s - "${simDst}"`);
+                            } catch (_) {}
                             console.log(`  ✔  Bundled dylib: ${dylibName} (remapped to @loader_path/${dylibName})`);
                         }
                     }
