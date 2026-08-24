@@ -51,51 +51,95 @@ function sendLog(msg) {
 }
 
 function launchSimulator(binPath, sender) {
-    stopSimulator();
-    senderRef = sender;
+    return new Promise((resolve, reject) => {
+        stopSimulator();
+        senderRef = sender;
 
-    const simExe = getSimBinary();
+        const simExe = getSimBinary();
 
-    if (!fs.existsSync(simExe)) {
-        const rel = path.relative(path.join(__dirname, '..', '..'), simExe);
-        throw new Error(
-            `Simulator binary not found: ${rel}\n` +
-            `Build it with: pio run -e native\n` +
-            `Then copy the output to tools/eenky/bin/win/eenk-sim.exe`
-        );
-    }
-
-    if (!fs.existsSync(binPath)) {
-        throw new Error(`Story binary not found: ${binPath}`);
-    }
-
-    sendLog(`[sim] Launching: ${path.basename(simExe)} ${path.basename(binPath)}`);
-
-    simProcess = spawn(simExe, [binPath], {
-        cwd: path.dirname(binPath),
-        env: { ...process.env }
-    });
-
-    simProcess.stdout.setEncoding('utf8');
-    simProcess.stderr.setEncoding('utf8');
-
-    simProcess.stdout.on('data', d => sendLog(d.trimEnd()));
-    simProcess.stderr.on('data', d => sendLog(d.trimEnd()));
-
-    simProcess.on('error', err => {
-        sendLog(`[sim] ERROR: ${err.message}`);
-        simProcess = null;
-        if (senderRef && !senderRef.isDestroyed()) {
-            senderRef.send('eenk:sim-exited', { code: -1, error: err.message });
+        if (!fs.existsSync(simExe)) {
+            const rel = path.relative(path.join(__dirname, '..', '..'), simExe);
+            return reject(new Error(
+                `Simulator binary not found: ${rel}\n` +
+                `Build it with: pio run -e native\n` +
+                `Then copy the output to tools/eenky/bin/win/eenk-sim.exe`
+            ));
         }
-    });
 
-    simProcess.on('close', code => {
-        sendLog(`[sim] Exited (code ${code})`);
-        simProcess = null;
-        if (senderRef && !senderRef.isDestroyed()) {
-            senderRef.send('eenk:sim-exited', { code });
+        if (!fs.existsSync(binPath)) {
+            return reject(new Error(`Story binary not found: ${binPath}`));
         }
+
+        // Ensure executable permissions on POSIX systems
+        if (process.platform !== 'win32') {
+            try {
+                fs.chmodSync(simExe, 0o755);
+            } catch (e) {
+                console.warn(`[sim] Warning: Could not chmod simulator binary: ${e.message}`);
+            }
+        }
+
+        sendLog(`[sim] Launching: ${path.basename(simExe)} ${path.basename(binPath)}`);
+
+        let earlyStderr = [];
+        let earlyStdout = [];
+        let hasSettled = false;
+
+        const proc = spawn(simExe, [binPath], {
+            cwd: path.dirname(binPath),
+            env: { ...process.env }
+        });
+        simProcess = proc;
+
+        proc.stdout.setEncoding('utf8');
+        proc.stderr.setEncoding('utf8');
+
+        proc.stdout.on('data', d => {
+            const str = d.trimEnd();
+            sendLog(str);
+            if (!hasSettled) earlyStdout.push(str);
+        });
+
+        proc.stderr.on('data', d => {
+            const str = d.trimEnd();
+            sendLog(str);
+            if (!hasSettled) earlyStderr.push(str);
+        });
+
+        proc.on('error', err => {
+            sendLog(`[sim] ERROR: ${err.message}`);
+            if (simProcess === proc) simProcess = null;
+            if (!hasSettled) {
+                hasSettled = true;
+                clearTimeout(startupTimer);
+                reject(new Error(`Failed to launch simulator: ${err.message}`));
+            }
+            if (senderRef && !senderRef.isDestroyed()) {
+                senderRef.send('eenk:sim-exited', { code: -1, error: err.message });
+            }
+        });
+
+        proc.on('close', (code, signal) => {
+            sendLog(`[sim] Exited (code ${code}${signal ? `, signal ${signal}` : ''})`);
+            if (simProcess === proc) simProcess = null;
+            if (!hasSettled) {
+                hasSettled = true;
+                clearTimeout(startupTimer);
+                const errMsg = earlyStderr.join('\n') || earlyStdout.join('\n') || `Process exited unexpectedly (code ${code}${signal ? `, signal ${signal}` : ''})`;
+                reject(new Error(errMsg));
+            }
+            if (senderRef && !senderRef.isDestroyed()) {
+                senderRef.send('eenk:sim-exited', { code, signal });
+            }
+        });
+
+        // Give the simulator 400ms to fail early (e.g. dynamic link failure, missing library, missing permission)
+        const startupTimer = setTimeout(() => {
+            if (!hasSettled) {
+                hasSettled = true;
+                resolve({ ok: true });
+            }
+        }, 400);
     });
 }
 
@@ -103,7 +147,7 @@ function launchSimulator(binPath, sender) {
 
 ipcMain.handle('eenk:sim-launch', async (event, binPath) => {
     try {
-        launchSimulator(binPath, event.sender);
+        await launchSimulator(binPath, event.sender);
         return { ok: true };
     } catch (err) {
         return { ok: false, error: err.message };

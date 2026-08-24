@@ -51,6 +51,11 @@ function getFontconvertScript() {
 // ── Process runner ───────────────────────────────────────────────────────────
 
 function runProcess(exePath, args, cwd, onProgress) {
+    if (process.platform !== 'win32') {
+        try {
+            fs.chmodSync(exePath, 0o755);
+        } catch (_) {}
+    }
     return new Promise((resolve, reject) => {
         const proc = spawn(exePath, args, { cwd });
 

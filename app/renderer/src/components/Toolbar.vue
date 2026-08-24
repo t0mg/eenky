@@ -116,6 +116,15 @@ onMounted(() => {
   if (window.api && window.api.receive) {
     window.api.receive('eenk:trigger-compile', runCompilation);
     window.api.receive('eenk:launch-simulator', runSimulation);
+    window.api.receive('eenk:sim-exited', ({ code, signal, error } = {}) => {
+      if (code !== 0 && code !== null && code !== undefined) {
+        uiStore.alert({
+          title: 'Simulator Error',
+          message: error || `Simulator exited with error code ${code}${signal ? ` (${signal})` : ''}`,
+          isError: true
+        });
+      }
+    });
   }
 });
 

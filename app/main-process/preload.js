@@ -18,7 +18,8 @@ contextBridge.exposeInMainWorld('api', {
             'insertSnippet', 'eenk:trigger-compile', 'eenk:launch-simulator',
             'toggle-toolbar', 'toggle-file-browser', 'toggle-knot-browser', 'toggle-preview', 'toggle-line-wrap',
             'zoom', 'goto-anything', 'add-watch-expression', 'set-tags-visible',
-            'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about', 'set-fullscreen'
+            'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about', 'set-fullscreen',
+            'eenk:sim-exited', 'eenk:sim-log'
         ];
         if (validChannels.includes(channel)) {
             // Deliberately strip event as it includes `sender` 
