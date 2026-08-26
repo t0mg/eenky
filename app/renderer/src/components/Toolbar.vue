@@ -7,6 +7,9 @@
       <button @click="toggleKnotBrowser" title="Toggle Knot Browser" class="toolbar-btn" :class="{ active: uiStore.showKnotBrowser }">
         <span class="material-symbols-outlined">account_tree</span>
       </button>
+      <button @click="goBack" title="Go Back" class="toolbar-btn" :disabled="uiStore.jumpHistory.length === 0" :class="{ disabled: uiStore.jumpHistory.length === 0 }">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </button>
     </div>
     
     <div class="center-actions">
@@ -155,6 +158,12 @@ const toggleKnotBrowser = () => {
   uiStore.showKnotBrowser = nextState;
 };
 
+const goBack = () => {
+  if (uiStore.jumpHistory.length > 0) {
+    window.dispatchEvent(new CustomEvent('editor-go-back'));
+  }
+};
+
 const toggleTheme = () => {
   // Cycle: light -> dark -> os (system) -> light
   const current = uiStore.theme;
@@ -218,6 +227,16 @@ const exportJS = () => ProjectController.exportProject('js');
 
 .toolbar-btn.active {
   color: var(--primary-color, #1976d2);
+}
+
+.toolbar-btn.disabled {
+  color: var(--text-muted, #888);
+  cursor: default;
+}
+
+.toolbar-btn.disabled:hover {
+  border: 2px solid transparent;
+  background-color: transparent;
 }
 
 .material-symbols-outlined {
