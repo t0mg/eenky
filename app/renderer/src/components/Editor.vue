@@ -31,6 +31,11 @@ const uiStore = useUiStore();
 const editorContainer = ref(null);
 let view = null;
 
+let isNavigatingBack = false;
+let ignoreNextJump = false;
+let lastRecordedFile = null;
+let lastRecordedLine = null;
+
 const showContextMenu = () => {
   if (window.api && window.api.send) {
     window.api.send('show-context-menu', { type: 'editor' });
@@ -170,6 +175,26 @@ const inkEditorTheme = EditorView.theme({
 
 const onUpdate = EditorView.updateListener.of((update) => {
   if (update.selectionSet || update.docChanged) {
+    if (update.selectionSet && !update.docChanged && projectStore.activeInkFile) {
+      const mainSel = update.state.selection.main;
+      const doc = update.state.doc;
+      const currentLine = doc.lineAt(mainSel.from).number - 1;
+
+      if (!isNavigatingBack && !ignoreNextJump) {
+        if (lastRecordedLine !== null && Math.abs(currentLine - lastRecordedLine) > 1) {
+          // A jump of more than 1 line happened in the same file
+          uiStore.pushJumpHistory({
+            file: projectStore.activeInkFile,
+            line: lastRecordedLine
+          });
+        }
+      }
+
+      lastRecordedFile = projectStore.activeInkFile;
+      lastRecordedLine = currentLine;
+      ignoreNextJump = false;
+    }
+
     const mainSel = update.state.selection.main;
     if (!mainSel.empty) {
       const selected = update.state.sliceDoc(mainSel.from, mainSel.to);
@@ -234,11 +259,20 @@ const domClickHandlers = EditorView.domEventHandlers({
     event.stopPropagation();
 
     if (target.file && target.file !== projectStore.activeInkFile) {
+      uiStore.pushJumpHistory({
+        file: projectStore.activeInkFile,
+        line: view.state.doc.lineAt(view.state.selection.main.from).number - 1
+      });
       projectStore.setActiveFile(target.file);
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('editor-jump-to-line', { detail: { line: target.row } }));
+        window.dispatchEvent(new CustomEvent('editor-jump-to-line', { detail: { line: target.row, fromClick: true } }));
       }, 50);
     } else {
+      uiStore.pushJumpHistory({
+        file: projectStore.activeInkFile,
+        line: view.state.doc.lineAt(view.state.selection.main.from).number - 1
+      });
+      ignoreNextJump = true;
       const doc = view.state.doc;
       const targetLineNum = target.row + 1;
       if (targetLineNum >= 1 && targetLineNum <= doc.lines) {
@@ -294,6 +328,20 @@ onMounted(() => {
 
   window.addEventListener('editor-jump-to-line', (e) => {
     if (!view) return;
+    if (e.detail.fromClick) {
+      ignoreNextJump = true;
+    } else if (!e.detail.isBack) {
+      // It's a programmatic jump (e.g., from knot browser, goto anything) not initiated by clicking a symbol in the editor.
+      // We should record the current position before jumping.
+      if (!isNavigatingBack) {
+        uiStore.pushJumpHistory({
+          file: projectStore.activeInkFile,
+          line: view.state.doc.lineAt(view.state.selection.main.from).number - 1
+        });
+      }
+      ignoreNextJump = true;
+    }
+
     const lineNumber = e.detail.line + 1; // CodeMirror is 1-indexed, symbols might be 0-indexed. Let's assume 0-indexed row.
     const doc = view.state.doc;
     if (lineNumber >= 1 && lineNumber <= doc.lines) {
@@ -303,6 +351,23 @@ onMounted(() => {
         effects: EditorView.scrollIntoView(line.from, { y: 'center' })
       });
       view.focus();
+    }
+  });
+
+  window.addEventListener('editor-go-back', () => {
+    const historyItem = uiStore.popJumpHistory();
+    if (historyItem && historyItem.file) {
+      isNavigatingBack = true;
+      if (historyItem.file !== projectStore.activeInkFile) {
+        projectStore.setActiveFile(historyItem.file);
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('editor-jump-to-line', { detail: { line: historyItem.line, isBack: true } }));
+          setTimeout(() => { isNavigatingBack = false; }, 50);
+        }, 50);
+      } else {
+        window.dispatchEvent(new CustomEvent('editor-jump-to-line', { detail: { line: historyItem.line, isBack: true } }));
+        setTimeout(() => { isNavigatingBack = false; }, 50);
+      }
     }
   });
 
@@ -386,12 +451,32 @@ onBeforeUnmount(() => {
 // Watch for active file changes (switching tabs)
 watch(() => projectStore.activeInkFile, (newFile, oldFile) => {
   if (view && newFile) {
+    if (oldFile && !isNavigatingBack && view.state.doc.toString() === (oldFile.content || "")) {
+      // Record position when switching files via tabs or file browser if we have a valid selection
+      const ranges = view.state.selection.ranges;
+      if (ranges && ranges.length > 0) {
+          const fromPos = ranges[0].from;
+          if (fromPos <= view.state.doc.length) {
+              const prevLine = view.state.doc.lineAt(fromPos).number - 1;
+              uiStore.pushJumpHistory({
+                file: oldFile,
+                line: prevLine
+              });
+          }
+      }
+    }
+
     const text = newFile.content || "";
     if (view.state.doc.toString() !== text) {
+      // File changed its content completely (different file loaded)
+      ignoreNextJump = true;
       view.setState(EditorState.create({
         doc: text,
         extensions: getEditorExtensions()
       }));
+    } else {
+       // Switching back to a file we already had loaded without resetting state completely
+       ignoreNextJump = true;
     }
   }
 });

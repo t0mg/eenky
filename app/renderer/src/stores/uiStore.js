@@ -16,6 +16,7 @@ export const useUiStore = defineStore('ui', {
     sidebarWidth: 250,
     simulatorWidth: 350,
     selectedText: '',
+    jumpHistory: [],
     modalState: {
       isOpen: false,
       type: '',
@@ -24,6 +25,15 @@ export const useUiStore = defineStore('ui', {
     }
   }),
   actions: {
+    pushJumpHistory(location) {
+      this.jumpHistory.push(location);
+      if (this.jumpHistory.length > 100) {
+        this.jumpHistory.shift();
+      }
+    },
+    popJumpHistory() {
+      return this.jumpHistory.pop();
+    },
     setLineWrap(wrap) {
       this.lineWrap = wrap;
     },
