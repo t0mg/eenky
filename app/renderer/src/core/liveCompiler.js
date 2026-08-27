@@ -1,4 +1,5 @@
 import i18n from './i18n.js';
+import { AutoPlayer } from './autoPlayer.js';
 
 const ipc = window.api.liveCompiler;
 
@@ -8,6 +9,7 @@ let sessionIdx = 0;
 let currentPlaySessionId = null;
 let currentExportSessionId = null;
 let currentStatsSessionId = null;
+const exportCallbacks = new Map();
 let exportCompleteCallback = null;
 let statsCompleteCallback = null;
 
@@ -123,11 +125,13 @@ function reloadInklecateSession() {
 }
 
 function exportJson(inkJsCompatible, callback) {
-    exportCompleteCallback = callback;
     var instr = buildCompileInstruction();
     instr.export = true;
     instr.inkJsCompatible = inkJsCompatible;
     currentExportSessionId = instr.sessionId;
+    if (callback) {
+        exportCallbacks.set(instr.sessionId, callback);
+    }
     ipc.send("compile", instr);
     updateCompilerIsBusy(true);
 }
@@ -142,12 +146,21 @@ function getStats(callback) {
     updateCompilerIsBusy(true);
 }
 
-function completeExport(error, path) {
-    var callback = exportCompleteCallback;
-    exportCompleteCallback = null;
-    if (callback) {
-        if( error ) callback(error.message);
-        else callback(null, path);
+function completeExport(error, path, sessionId) {
+    if (sessionId && exportCallbacks.has(sessionId)) {
+        const callback = exportCallbacks.get(sessionId);
+        exportCallbacks.delete(sessionId);
+        if (callback) {
+            if (error) callback(error.message || error);
+            else callback(null, path);
+        }
+    } else if (exportCompleteCallback) {
+        var callback = exportCompleteCallback;
+        exportCompleteCallback = null;
+        if (callback) {
+            if( error ) callback(error.message || error);
+            else callback(null, path);
+        }
     }
     updateCompilerIsBusy(false);
 }
@@ -205,6 +218,21 @@ ipc.on("compile-complete", (fromSessionId) => {
     if( fromSessionId != currentPlaySessionId ) return;
     updateCompilerIsBusy(false);
     if (events.compileComplete) events.compileComplete(fromSessionId);
+
+    const hasErrors = issues.some(i => i.type === 'ERROR' || i.type === 'error');
+    if (!hasErrors) {
+        exportJson(true, async (err, jsonPath) => {
+            if (!err && jsonPath && window.api && window.api.fs) {
+                try {
+                    const jsonText = await window.api.fs.readFile(jsonPath, 'utf8');
+                    const parsed = JSON.parse(jsonText);
+                    AutoPlayer.onStoryCompiled(parsed);
+                } catch (e) {
+                    console.warn('AutoPlayer failed to load compiled JSON:', e);
+                }
+            }
+        });
+    }
 });
 
 ipc.on("play-generated-text", (result, fromSessionId) => {
@@ -267,16 +295,16 @@ ipc.on("inklecate-complete", (fromSessionId, exportJsonPath) => {
             if (events.replayComplete) events.replayComplete(currentPlaySessionId);
         }
     }
-    else if( fromSessionId == currentExportSessionId ) {
-        completeExport(null, exportJsonPath);
+    else {
+        completeExport(null, exportJsonPath, fromSessionId);
     }
 });
 
 ipc.on("play-exit-due-to-error", (exitCode, fromSessionId) => {
-    if( !sessionIsCurrent(fromSessionId) ) return;
+    if( !sessionIsCurrent(fromSessionId) && !exportCallbacks.has(fromSessionId) ) return;
 
-    if( fromSessionId == currentExportSessionId ) {
-        completeExport({message: i18n._("Ink has errors - please fix them before exporting.")});
+    if( fromSessionId == currentExportSessionId || exportCallbacks.has(fromSessionId) ) {
+        completeExport({message: i18n._("Ink has errors - please fix them before exporting.")}, null, fromSessionId);
     } else {
         if( replaying ) {
             replaying = false;
@@ -288,10 +316,10 @@ ipc.on("play-exit-due-to-error", (exitCode, fromSessionId) => {
 });
 
 ipc.on("play-story-unexpected-error", (error, fromSessionId) => {
-    if( !sessionIsCurrent(fromSessionId) ) return;
+    if( !sessionIsCurrent(fromSessionId) && !exportCallbacks.has(fromSessionId) ) return;
 
-    if( fromSessionId == currentExportSessionId ) {
-        completeExport({message: i18n._("Unexpected error")});
+    if( fromSessionId == currentExportSessionId || exportCallbacks.has(fromSessionId) ) {
+        completeExport({message: i18n._("Unexpected error")}, null, fromSessionId);
     } else {
         if( replaying ) {
             replaying = false;
@@ -344,7 +372,10 @@ export const LiveCompiler = {
     reload: reloadInklecateSession,
     stop: stop,
     exportJson: exportJson,
-    setEdited: () => { lastEditorChange = Date.now(); },
+    setEdited: () => {
+        lastEditorChange = Date.now();
+        AutoPlayer.onStoryEdited();
+    },
     setEvents: (e) => { Object.assign(events, e); },
     get events() { return events; },
     getIssues: () => { return issues; },

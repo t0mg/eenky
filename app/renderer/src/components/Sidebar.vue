@@ -88,6 +88,57 @@
         </div>
       </div>
     </div>
+
+    <!-- Auto-Player Issues Panel -->
+    <div class="auto-player-panel" v-if="projectStore.autoPlayerEnabled">
+      <div class="sidebar-header auto-player-header">
+        <div class="header-left">
+          <span class="title">Auto-Player</span>
+          <span class="status-badge" :class="projectStore.autoPlayerStatus">
+            {{ autoPlayerStatusText }}
+          </span>
+        </div>
+        <div class="header-actions">
+          <button 
+            class="icon-btn" 
+            title="Restart Fuzzer"
+            @click="restartAutoPlayer"
+          >
+            <span class="material-symbols-outlined">restart_alt</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="auto-player-body">
+        <div v-if="projectStore.autoPlayerIssues.length === 0" class="auto-player-msg">
+          <span v-if="projectStore.autoPlayerStatus === 'running'">Fuzzing story paths ({{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs)...</span>
+          <span v-else-if="projectStore.autoPlayerStats.runsCompleted > 0">No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs.</span>
+          <span v-else class="muted">Waiting for story compilation...</span>
+        </div>
+        <div v-else class="issue-list auto-player-issue-list">
+          <div 
+            v-for="issue in projectStore.autoPlayerIssues" 
+            :key="issue.id"
+            class="issue-item auto-player-issue-item"
+            :class="issue.type"
+            @click="selectAutoPlayerIssue(issue)"
+            title="Click to replay this run in JS Preview"
+          >
+            <span class="material-symbols-outlined issue-icon" :class="issue.type">
+              {{ getIssueIcon(issue.type) }}
+            </span>
+            <div class="issue-details">
+              <div class="issue-top-row">
+                <span class="issue-type-tag" :class="issue.type">{{ getIssueLabel(issue.type) }}</span>
+                <span class="occurrence-badge">{{ issue.turnCount }} turns &bull; {{ issue.occurrenceCount || 1 }}x</span>
+              </div>
+              <span class="issue-file">{{ issue.knotOrPath }}</span>
+              <span class="issue-message">{{ issue.message }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <!-- Custom Context Menu for Files -->
     <div 
@@ -109,9 +160,54 @@ import { useProjectStore } from '../stores/projectStore';
 import KnotBrowser from './KnotBrowser.vue';
 import { ProjectController } from '../core/projectController.js';
 import { LiveCompiler } from '../core/liveCompiler';
+import { AutoPlayer } from '../core/autoPlayer.js';
 
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
+
+const restartAutoPlayer = () => {
+  AutoPlayer.restart();
+};
+
+const selectAutoPlayerIssue = (issue) => {
+  AutoPlayer.replayIssue(issue);
+};
+
+const autoPlayerStatusText = computed(() => {
+  if (!projectStore.autoPlayerEnabled) return 'Paused';
+  const status = projectStore.autoPlayerStatus;
+  const runs = projectStore.autoPlayerStats?.runsCompleted || 0;
+  const issues = projectStore.autoPlayerIssues?.length || 0;
+
+  if (status === 'running') {
+    return runs > 0 ? `Running (${runs.toLocaleString()})` : 'Running';
+  }
+  if (status === 'complete') {
+    return issues > 0 ? `${issues} Found` : 'Clean';
+  }
+  if (status === 'paused') return 'Paused';
+  return runs > 0 ? `${runs.toLocaleString()} runs` : 'Idle';
+});
+
+const getIssueIcon = (type) => {
+  switch (type) {
+    case 'runtime_error': return 'error';
+    case 'loose_end': return 'call_split';
+    case 'infinite_loop': return 'sync_problem';
+    case 'outlier': return 'query_stats';
+    default: return 'report_problem';
+  }
+};
+
+const getIssueLabel = (type) => {
+  switch (type) {
+    case 'runtime_error': return 'Runtime Error';
+    case 'loose_end': return 'Loose End';
+    case 'infinite_loop': return 'Infinite Loop';
+    case 'outlier': return 'Statistical Outlier';
+    default: return 'Anomaly';
+  }
+};
 
 const renamingFile = ref(null);
 const renameInput = ref("");
@@ -446,5 +542,128 @@ onUnmounted(() => {
 .issue-message {
   color: var(--text-muted, #666);
   word-break: break-word;
+}
+
+/* Auto-Player Panel */
+.auto-player-panel {
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  max-height: 45%;
+  display: flex;
+  flex-direction: column;
+}
+
+.auto-player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-badge {
+  font-size: calc(10px * var(--zoom-factor, 1));
+  padding: 1px 6px;
+  font-weight: 500;
+  text-transform: none;
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.06));
+  color: var(--text-muted, #777);
+}
+
+.status-badge.running {
+  background-color: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+}
+
+.status-badge.complete {
+  background-color: rgba(76, 175, 80, 0.12);
+  color: #388e3c;
+}
+
+.status-badge.paused {
+  background-color: rgba(158, 158, 158, 0.12);
+  color: #757575;
+}
+
+.auto-player-body {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.auto-player-msg {
+  padding: 12px;
+  font-size: calc(12px * var(--zoom-factor, 1));
+  color: var(--text-muted, #777);
+  text-align: center;
+  font-style: italic;
+}
+
+.auto-player-msg.muted {
+  opacity: 0.7;
+}
+
+.auto-player-issue-item {
+  position: relative;
+}
+
+.issue-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  gap: 6px;
+}
+
+.issue-type-tag {
+  font-weight: 700;
+  font-size: calc(11px * var(--zoom-factor, 1));
+  text-transform: uppercase;
+}
+
+.issue-type-tag.runtime_error {
+  color: var(--error-color, #d32f2f);
+}
+
+.issue-type-tag.loose_end {
+  color: var(--warning-color, #f57c00);
+}
+
+.issue-type-tag.infinite_loop {
+  color: #9c27b0;
+}
+
+.issue-type-tag.outlier {
+  color: #0288d1;
+}
+
+.occurrence-badge {
+  font-size: calc(10px * var(--zoom-factor, 1));
+  color: var(--text-muted, #888);
+  white-space: nowrap;
+}
+
+.issue-item .issue-icon.runtime_error {
+  color: var(--error-color, #d32f2f);
+}
+
+.issue-item .issue-icon.loose_end {
+  color: var(--warning-color, #f57c00);
+}
+
+.issue-item .issue-icon.infinite_loop {
+  color: #9c27b0;
+}
+
+.issue-item .issue-icon.outlier {
+  color: #0288d1;
 }
 </style>

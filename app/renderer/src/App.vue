@@ -3,8 +3,8 @@
     <div class="mac-titlebar" v-if="isMac && !uiStore.isFullscreen && (!projectStore.mainInkFile || !uiStore.showToolbar)"></div>
     <Toolbar v-if="projectStore.mainInkFile && uiStore.showToolbar" />
     <div id="main-content" v-if="projectStore.mainInkFile" @mousemove="onMouseMove" @mouseup="onMouseUp" @mouseleave="onMouseUp">
-      <Sidebar :style="{ width: uiStore.sidebarWidth + 'px' }" v-if="uiStore.showFileBrowser || uiStore.showKnotBrowser" />
-      <div class="resizer" v-if="uiStore.showFileBrowser || uiStore.showKnotBrowser" @mousedown="startResizeSidebar"></div>
+      <Sidebar :style="{ width: uiStore.sidebarWidth + 'px' }" v-if="uiStore.showFileBrowser || uiStore.showKnotBrowser || projectStore.autoPlayerEnabled" />
+      <div class="resizer" v-if="uiStore.showFileBrowser || uiStore.showKnotBrowser || projectStore.autoPlayerEnabled" @mousedown="startResizeSidebar"></div>
       
       <Editor style="flex: 1" />
       
@@ -43,6 +43,7 @@ import Modals from './components/Modals.vue';
 import GotoAnything from './components/GotoAnything.vue';
 import { ProjectController } from './core/projectController.js';
 import { LiveCompiler } from './core/liveCompiler.js';
+import { AutoPlayer } from './core/autoPlayer.js';
 
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
@@ -116,6 +117,7 @@ const openDeviceManager = () => {
 
 onMounted(() => {
   ProjectController.init();
+  AutoPlayer.init();
 
   document.body.className = uiStore.theme;
 

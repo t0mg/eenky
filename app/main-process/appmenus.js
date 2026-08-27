@@ -18,6 +18,7 @@ let showToolbar = true;
 let showFileBrowser = true;
 let showKnotBrowser = false;
 let showPreview = false;
+let showAutoPlayer = true;
 let lineWrap = true;
 
 
@@ -344,6 +345,13 @@ function refresh(appState = { isHome: false }) {
                     click: callbacks.toggleKnotBrowser
                 },
                 {
+                    label: i18n._("Auto-Player"),
+                    type: "checkbox",
+                    checked: showAutoPlayer,
+                    accelerator: 'CmdOrCtrl+Shift+A',
+                    click: callbacks.toggleAutoPlayer
+                },
+                {
                     label: i18n._("Preview Panel"),
                     type: "checkbox",
                     checked: showPreview,
@@ -564,6 +572,7 @@ exports.AppMenus = {
     setShowFileBrowser: (e) => showFileBrowser = e,
     setShowKnotBrowser: (e) => showKnotBrowser = e,
     setShowPreview: (e) => showPreview = e,
+    setShowAutoPlayer: (e) => showAutoPlayer = e,
     setLineWrap: (e) => lineWrap = e,
     setCustomSnippetMenus: (snippets) => { customInkSnippets = snippets },
     refresh: refresh

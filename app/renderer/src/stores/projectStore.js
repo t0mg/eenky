@@ -10,6 +10,11 @@ export const useProjectStore = defineStore('project', {
     issues: [],
     ready: false,
     instructionPrefix: "",
+    autoPlayerEnabled: true,
+    autoPlayerStatus: 'idle', // 'idle', 'running', 'paused', 'complete'
+    autoPlayerIssues: [],
+    autoPlayerStats: { runsCompleted: 0, uniqueIssuesCount: 0, meanLength: 0, stdDevLength: 0 },
+    compiledStoryJson: null,
   }),
   getters: {
     hasUnsavedChanges(state) {
@@ -17,6 +22,25 @@ export const useProjectStore = defineStore('project', {
     }
   },
   actions: {
+    setAutoPlayerEnabled(enabled) {
+      this.autoPlayerEnabled = enabled;
+    },
+    setAutoPlayerStatus(status) {
+      this.autoPlayerStatus = status;
+    },
+    setAutoPlayerIssues(issues) {
+      this.autoPlayerIssues = issues;
+    },
+    setAutoPlayerStats(stats) {
+      this.autoPlayerStats = { ...this.autoPlayerStats, ...stats };
+    },
+    setCompiledStoryJson(json) {
+      this.compiledStoryJson = json;
+    },
+    clearAutoPlayerIssues() {
+      this.autoPlayerIssues = [];
+      this.autoPlayerStats = { runsCompleted: 0, uniqueIssuesCount: 0, meanLength: 0, stdDevLength: 0 };
+    },
     setProjectInfo({ files, mainInkFile, instructionPrefix }) {
       this.files = files;
       this.mainInkFile = mainInkFile;
@@ -62,6 +86,9 @@ export const useProjectStore = defineStore('project', {
       this.compilerBusy = false;
       this.issues = [];
       this.ready = false;
+      this.autoPlayerIssues = [];
+      this.autoPlayerStatus = 'idle';
+      this.compiledStoryJson = null;
       const uiStore = useUiStore();
       uiStore.setActiveView('home');
     }

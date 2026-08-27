@@ -140,6 +140,7 @@ function ProjectWindow(filePath) {
         this.browserWindow.webContents.send('toggle-file-browser', settings.showFileBrowser !== false);
         this.browserWindow.webContents.send('toggle-knot-browser', settings.showKnotBrowser === true);
         this.browserWindow.webContents.send('toggle-preview', settings.showPreview === true);
+        this.browserWindow.webContents.send('toggle-auto-player', settings.showAutoPlayer !== false);
         this.browserWindow.webContents.send('toggle-line-wrap', settings.lineWrap !== false);
     });
 

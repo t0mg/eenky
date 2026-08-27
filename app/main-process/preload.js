@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('api', {
             'toggle-toolbar', 'toggle-file-browser', 'toggle-knot-browser', 'toggle-preview', 'toggle-line-wrap',
             'zoom', 'goto-anything', 'add-watch-expression', 'set-tags-visible',
             'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about', 'set-fullscreen',
+            'toggle-auto-player',
             'eenk:sim-exited', 'eenk:sim-log'
         ];
         if (validChannels.includes(channel)) {

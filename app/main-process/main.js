@@ -389,6 +389,17 @@ app.on('ready', function () {
         addWatchExpression: (item, focusedWindow) => {
             focusedWindow.webContents.send("add-watch-expression");
         },
+        toggleAutoPlayer: () => {
+            let win = ProjectWindow.focused();
+            if (win) {
+                let showAutoPlayer = ProjectWindow.getViewSettings().showAutoPlayer !== false;
+                showAutoPlayer = !showAutoPlayer;
+                ProjectWindow.addOrChangeViewSetting('showAutoPlayer', showAutoPlayer);
+                win.browserWindow.webContents.send("toggle-auto-player", showAutoPlayer);
+                AppMenus.setShowAutoPlayer(showAutoPlayer);
+                AppMenus.refresh(AppMenus.currentState);
+            }
+        },
         find: (item, focusedWindow) => {
             if (focusedWindow) focusedWindow.webContents.send("find");
         },
@@ -550,6 +561,7 @@ app.on('ready', function () {
     AppMenus.setShowFileBrowser(ProjectWindow.getViewSettings().showFileBrowser !== false);
     AppMenus.setShowKnotBrowser(ProjectWindow.getViewSettings().showKnotBrowser === true);
     AppMenus.setShowPreview(ProjectWindow.getViewSettings().showPreview === true);
+    AppMenus.setShowAutoPlayer(ProjectWindow.getViewSettings().showAutoPlayer !== false);
     AppMenus.setAutoCompleteDisabled(ProjectWindow.getViewSettings().autoCompleteDisabled);
     AppMenus.setLineWrap(ProjectWindow.getViewSettings().lineWrap !== false);
 
@@ -571,6 +583,7 @@ app.on('ready', function () {
             AppMenus.setShowFileBrowser(viewSettings.showFileBrowser !== false);
             AppMenus.setShowKnotBrowser(viewSettings.showKnotBrowser === true);
             AppMenus.setShowPreview(viewSettings.showPreview === true);
+            AppMenus.setShowAutoPlayer(viewSettings.showAutoPlayer !== false);
             AppMenus.setAutoCompleteDisabled(viewSettings.autoCompleteDisabled);
             AppMenus.setLineWrap(viewSettings.lineWrap !== false);
             AppMenus.refresh();

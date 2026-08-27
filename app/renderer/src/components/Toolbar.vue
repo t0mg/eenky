@@ -7,6 +7,9 @@
       <button @click="toggleKnotBrowser" title="Toggle Knot Browser" class="toolbar-btn" :class="{ active: uiStore.showKnotBrowser }">
         <span class="material-symbols-outlined">account_tree</span>
       </button>
+      <button @click="toggleAutoPlayer" title="Toggle Auto-Player" class="toolbar-btn" :class="{ active: projectStore.autoPlayerEnabled }">
+        <span class="material-symbols-outlined">smart_toy</span>
+      </button>
       <button @click="goBack" title="Go Back" class="toolbar-btn" :disabled="uiStore.jumpHistory.length === 0" :class="{ disabled: uiStore.jumpHistory.length === 0 }">
         <span class="material-symbols-outlined">arrow_back</span>
       </button>
@@ -50,6 +53,7 @@ import { useUiStore } from '../stores/uiStore';
 import { useProjectStore } from '../stores/projectStore';
 import { LiveCompiler } from '../core/liveCompiler.js';
 import { ProjectController } from '../core/projectController.js';
+import { AutoPlayer } from '../core/autoPlayer.js';
 
 const uiStore = useUiStore();
 const projectStore = useProjectStore();
@@ -156,6 +160,14 @@ const toggleKnotBrowser = () => {
     window.api.invoke('set-view-setting', 'showKnotBrowser', nextState);
   }
   uiStore.showKnotBrowser = nextState;
+};
+
+const toggleAutoPlayer = () => {
+  const nextState = !projectStore.autoPlayerEnabled;
+  if (window.api && window.api.invoke) {
+    window.api.invoke('set-view-setting', 'showAutoPlayer', nextState);
+  }
+  AutoPlayer.setEnabled(nextState);
 };
 
 const goBack = () => {

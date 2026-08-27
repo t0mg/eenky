@@ -126,4 +126,62 @@ describe('Simulator Component', () => {
     expect(doneCallback2).toHaveBeenCalled();
     expect(wrapper.findAll('.story-divider').length).toBe(2);
   });
+
+  it('renders fuzzer issue banner and allows stepping back through injected states', async () => {
+    let replayCallback;
+    const { AutoPlayer } = await import('../core/autoPlayer.js');
+    vi.spyOn(AutoPlayer, 'setEvents').mockImplementation((events) => {
+      replayCallback = events.replayIssue;
+    });
+
+    const wrapper = mount(Simulator);
+    expect(replayCallback).toBeDefined();
+
+    const mockIssue = {
+      id: 'test_issue_1',
+      type: 'loose_end',
+      message: 'Story ran out of content without reaching -> END or -> DONE',
+      turnCount: 1,
+      knotOrPath: 'knot_cliff',
+      stateHistory: [
+        {
+          text: 'You reach the edge of the cliff.\n',
+          tags: ['location: cliff'],
+          choices: [{ text: 'Jump', index: 0 }],
+          chosenIndex: 0,
+          stateJson: '{"variablesState":{}}'
+        },
+        {
+          text: 'You fall into the void with no ending.\n',
+          tags: [],
+          choices: [],
+          chosenIndex: null,
+          stateJson: '{"variablesState":{}}'
+        }
+      ]
+    };
+
+    replayCallback(mockIssue, null);
+    await wrapper.vm.$nextTick();
+
+    // Verify transcript is rendered
+    expect(wrapper.text()).toContain('You reach the edge of the cliff.');
+    expect(wrapper.text()).toContain('Jump');
+    expect(wrapper.text()).toContain('You fall into the void with no ending.');
+
+    // Verify fuzzer issue banner is rendered
+    const issueBanner = wrapper.find('.story-fuzzer-issue');
+    expect(issueBanner.exists()).toBe(true);
+    expect(issueBanner.text()).toContain('Loose End');
+    expect(issueBanner.text()).toContain('knot_cliff');
+
+    // Step back
+    const stepBackBtn = wrapper.findAll('.toolbar button')[1];
+    await stepBackBtn.trigger('click');
+    await wrapper.vm.$nextTick();
+
+    // After step back, banner should no longer be rendered on step 0
+    expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(false);
+    expect(wrapper.text()).toContain('You reach the edge of the cliff.');
+  });
 });
