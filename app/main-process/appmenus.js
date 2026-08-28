@@ -220,7 +220,7 @@ function refresh(appState = { isHome: false }) {
                     click: callbacks.exportJSOnly
                 },
                 {
-                    label: i18n._('Compile to eenk .bin...'),
+                    label: i18n._('Compile to .eenk package...'),
                     accelerator: 'CmdOrCtrl+B',
                     click: () => {
                         if (callbacks.compileEenkBin) callbacks.compileEenkBin();
