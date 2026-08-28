@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { packImages } = require('./imagePacker');
+const { createEenkPackage } = require('./eenkPackage');
 
 // ── Configuration ────────────────────────────────────────────────────────────
 // Default font size used when converting side-loaded TTF fonts to .epdfont
@@ -378,11 +379,30 @@ async function compileEenk(inkFilePath, onProgress = () => {}, options = {}) {
         }
     }
 
+    // ── Generate .eenk ZIP Package ──
+    const eenkPackageFile = path.join(buildDir, `${baseName}.eenk`);
+    const filesToPack = [
+        { name: `${baseName}.bin`, path: binFile }
+    ];
+    if (hasMedia) {
+        filesToPack.push({ name: `${baseName}.media`, path: mediaFile });
+    }
+    for (const fontPath of fontFiles) {
+        filesToPack.push({ name: path.basename(fontPath), path: fontPath });
+    }
+    try {
+        createEenkPackage(eenkPackageFile, filesToPack);
+        onProgress(`✔ Story package created: ${path.basename(eenkPackageFile)}`);
+    } catch (pkgErr) {
+        onProgress(`[WARN] Failed to create .eenk package: ${pkgErr.message}`);
+    }
+
     return {
         jsonFile,
         binFile,
         mediaFile: hasMedia ? mediaFile : null,
         fontFiles,
+        eenkPackageFile: fs.existsSync(eenkPackageFile) ? eenkPackageFile : null,
         numContainers,
         heapRequirement,
         totalFileSize,

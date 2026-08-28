@@ -244,6 +244,7 @@ const exportJS = () => ProjectController.exportProject('js');
 .toolbar-btn.disabled {
   color: var(--text-muted, #888);
   cursor: default;
+  box-shadow: none !important;
 }
 
 .toolbar-btn.disabled:hover {

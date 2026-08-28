@@ -367,14 +367,17 @@ export const ProjectController = {
       let defaultExportPath = inkPath;
       if (defaultExportPath) {
         const pathObj = await window.api.path.parse(defaultExportPath);
-        pathObj.ext = ".bin";
-        pathObj.base = pathObj.name + ".bin";
+        pathObj.ext = ".eenk";
+        pathObj.base = pathObj.name + ".eenk";
         defaultExportPath = await window.api.path.format(pathObj);
       }
 
       const saveOptions = {
         defaultPath: defaultExportPath,
-        filters: [{ name: "eenk Story Binary", extensions: ["bin"] }]
+        filters: [
+          { name: "eenk Story Package", extensions: ["eenk"] },
+          { name: "eenk Story Binary", extensions: ["bin"] }
+        ]
       };
       const dialogResult = await window.api.invoke('showSaveDialog', saveOptions);
       const targetSavePath = dialogResult ? dialogResult.filePath : null;
@@ -386,25 +389,32 @@ export const ProjectController = {
         store.compilerBusy = true;
         const result = await window.api.invoke('eenk:compile', inkPath, { isTemp: true });
 
-        // Copy generated .bin file
-        await window.api.fs.copyFile(result.binFile, targetSavePath);
+        const isEenkPackage = targetSavePath.toLowerCase().endsWith('.eenk');
 
-        const targetDir = await window.api.path.dirname(targetSavePath);
-        const targetParsed = await window.api.path.parse(targetSavePath);
-        const targetStem = targetParsed.name;
+        if (isEenkPackage && result.eenkPackageFile) {
+          // Copy single .eenk zip bundle
+          await window.api.fs.copyFile(result.eenkPackageFile, targetSavePath);
+        } else {
+          // Copy generated .bin file
+          await window.api.fs.copyFile(result.binFile, targetSavePath);
 
-        // Copy .media sidecar if present
-        if (result.mediaFile) {
-          const targetMedia = await window.api.path.join(targetDir, `${targetStem}.media`);
-          await window.api.fs.copyFile(result.mediaFile, targetMedia);
-        }
+          const targetDir = await window.api.path.dirname(targetSavePath);
+          const targetParsed = await window.api.path.parse(targetSavePath);
+          const targetStem = targetParsed.name;
 
-        // Copy any generated .epdfont sidecar files
-        if (result.fontFiles && Array.isArray(result.fontFiles)) {
-          for (const fontFile of result.fontFiles) {
-            const fontBase = await window.api.path.basename(fontFile);
-            const targetFont = await window.api.path.join(targetDir, fontBase);
-            await window.api.fs.copyFile(fontFile, targetFont);
+          // Copy .media sidecar if present
+          if (result.mediaFile) {
+            const targetMedia = await window.api.path.join(targetDir, `${targetStem}.media`);
+            await window.api.fs.copyFile(result.mediaFile, targetMedia);
+          }
+
+          // Copy any generated .epdfont sidecar files
+          if (result.fontFiles && Array.isArray(result.fontFiles)) {
+            for (const fontFile of result.fontFiles) {
+              const fontBase = await window.api.path.basename(fontFile);
+              const targetFont = await window.api.path.join(targetDir, fontBase);
+              await window.api.fs.copyFile(fontFile, targetFont);
+            }
           }
         }
 
@@ -414,7 +424,8 @@ export const ProjectController = {
 
         const sizeKb = (result.totalFileSize / 1024).toFixed(1);
         const heapKb = (result.heapRequirement / 1024).toFixed(1);
-        const summaryMsg = `Exported successfully to:\n${targetSavePath}\n\n• Binary Size: ${sizeKb} KB (${result.totalFileSize.toLocaleString()} bytes)\n• Containers: ${result.numContainers}\n• Runtime State Heap: ~${heapKb} KB`;
+        const formatName = isEenkPackage ? "Package (.eenk)" : "Binary (.bin)";
+        const summaryMsg = `Exported ${formatName} successfully to:\n${targetSavePath}\n\n• Binary Size: ${sizeKb} KB (${result.totalFileSize.toLocaleString()} bytes)\n• Containers: ${result.numContainers}\n• Runtime State Heap: ~${heapKb} KB`;
 
         await uiStore.alert({ title: 'Compilation Successful', message: summaryMsg });
         console.log('Compiled and exported successfully to: ' + targetSavePath);

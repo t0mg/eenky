@@ -32,7 +32,7 @@ eenky started as a hack to help develop [eenk](https://github.com/t0mg/eenk), an
   - **Search & Includes**: Universal project search and include file management.
   - **View Controls & Themes**: Line wrap toggle and built-in Light/Dark themes.
   - **Embedded Documentation**: Searchable documentation window covering Ink syntax and eenk-specific authoring (metadata, fonts, image tags).
-- **One-Click, eenk-specific Compilation Pipeline**: Converts `.ink` to `.json` via `inklecate`, then to `.bin` via `inkcpp_cl` for hardware execution on eenk. Automatically converts `.ttf` fonts to `.epdfont` format, dithers and packs image assets into a `.media` sidecar file, and supports standard Web export.
+- **One-Click, eenk-specific Compilation Pipeline**: Converts `.ink` to `.json` via `inklecate`, then to binary via `inkcpp_cl` for hardware execution on eenk. Automatically converts `.ttf` fonts to `.epdfont` format, dithers and packs image assets into `.media`, and bundles everything into a single `.eenk` package file (also supports standard Web export).
 - **Embedded Desktop Simulator**: Pixel-accurate e-ink preview of the 800×480 display compiled directly from the `eenk` firmware (SDL2 backend).
 - **USB Device Manager**: Transfer stories, fonts, and save games directly to the device via Web Serial without removing the SD card.
 - **Firmware Flasher**: Wizard-style firmware installer for updating hardware over USB.

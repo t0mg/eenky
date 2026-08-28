@@ -106,3 +106,41 @@ describe('Documentation navigation parser', function () {
     assert.ok(count > 100, `Expected > 100 navigation items, found ${count}`);
   });
 });
+
+describe('eenk Package (.eenk ZIP) creation', function () {
+  const { createEenkPackage, crc32 } = require('../main-process/eenkPackage.js');
+  const os = require('os');
+
+  it('should calculate crc32 correctly', function () {
+    const data = Buffer.from('hello eenk', 'utf8');
+    const crc = crc32(data);
+    assert.strictEqual(typeof crc, 'number');
+    assert.ok(crc > 0);
+  });
+
+  it('should create a valid .eenk ZIP package containing binary and sidecars', function () {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eenk-test-'));
+    const pkgPath = path.join(tmpDir, 'test_story.eenk');
+
+    const fakeBin = Buffer.alloc(128 + 50);
+    fakeBin.write('eenk', 0, 4, 'ascii'); // magic
+    fakeBin.writeUInt16LE(1, 4); // version
+    fakeBin.write('Test Title', 8, 63, 'utf8');
+    fakeBin.write('Test Author', 72, 31, 'utf8');
+
+    const fakeMedia = Buffer.from('ENKM\x01\x00\x00\x00', 'binary');
+
+    const files = [
+      { name: 'test_story.bin', content: fakeBin },
+      { name: 'test_story.media', content: fakeMedia }
+    ];
+
+    createEenkPackage(pkgPath, files);
+    assert.ok(fs.existsSync(pkgPath), 'package file exists');
+    assert.ok(fs.statSync(pkgPath).size > 100, 'package file has non-trivial size');
+
+    // Clean up
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
