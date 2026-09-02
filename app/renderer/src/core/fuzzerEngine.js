@@ -14,6 +14,7 @@ export class FuzzerEngine {
     this.enableOutliers = options.enableOutliers || false;
     this.minRunsForOutliers = options.minRunsForOutliers || 30;
     this.outlierZThreshold = options.outlierZThreshold || 3.0;
+    this.checkpointBudgetBytes = options.checkpointBudgetBytes || 25 * 1024;
 
     this.reset();
   }
@@ -57,6 +58,7 @@ export class FuzzerEngine {
     }
 
     const stateHistory = [];
+    const activeCheckpoints = new Map();
     let turn = 0;
     let error = null;
     let issue = null;
@@ -80,6 +82,38 @@ export class FuzzerEngine {
         }
       } catch (err) {
         error = err?.message || String(err);
+      }
+
+      // Track checkpoints encountered along this run
+      if (tags && tags.length > 0) {
+        for (const t of tags) {
+          let isCheckpoint = false;
+          let title = '';
+          const cpNamedMatch = t.match(/^CHECKPOINT(?::\s*|\s+)(.*)$/i);
+          if (cpNamedMatch) {
+            isCheckpoint = true;
+            title = cpNamedMatch[1].trim();
+          } else if (t.trim().toUpperCase() === 'CHECKPOINT') {
+            isCheckpoint = true;
+            title = '';
+          }
+
+          if (isCheckpoint) {
+            let stateJsonLen = 1000;
+            try {
+              stateJsonLen = (story.state?.ToJson() || '').length;
+            } catch (_) {}
+            // Estimated inkcpp snapshot size: ~30% of inkjs JSON state size + 64 bytes header
+            const estSnapBytes = Math.round(stateJsonLen * 0.3) + 64;
+            // Unnamed checkpoint retains display history (~2 KB)
+            const estHistoryBytes = (title === '') ? 2048 : 0;
+            activeCheckpoints.set(title, {
+              turn,
+              knotOrPath: story.state?.currentPathString || 'Unknown',
+              estBytes: estSnapBytes + estHistoryBytes
+            });
+          }
+        }
       }
 
       if (error) {
@@ -237,6 +271,31 @@ export class FuzzerEngine {
         stateHistory,
         finalStateJson: stateJson
       };
+    }
+
+    if (!issue && activeCheckpoints.size > 0) {
+      let totalEstBytes = 4096; // Base save file & main snapshot overhead
+      let latestCpKnot = 'Unknown';
+      for (const [, cp] of activeCheckpoints.entries()) {
+        totalEstBytes += cp.estBytes;
+        latestCpKnot = cp.knotOrPath;
+      }
+      const SAFE_CHECKPOINT_BUDGET_BYTES = this.checkpointBudgetBytes;
+      if (totalEstBytes > SAFE_CHECKPOINT_BUDGET_BYTES) {
+        const estKb = Math.round(totalEstBytes / 1024);
+        let stateJson = null;
+        try {
+          stateJson = story.state?.ToJson();
+        } catch (_) {}
+        issue = {
+          type: 'checkpoint_budget',
+          message: `High checkpoint memory usage: ${activeCheckpoints.size} active checkpoints (~${estKb} KB estimated). On ESP32-C3 hardware (320 KB RAM), accumulating many checkpoints may cause memory pressure. Please test on real hardware.`,
+          turnCount: turn,
+          knotOrPath: latestCpKnot,
+          stateHistory,
+          finalStateJson: stateJson
+        };
+      }
     }
 
     return {

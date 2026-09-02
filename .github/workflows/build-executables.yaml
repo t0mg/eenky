@@ -37,10 +37,32 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           submodules: recursive
-          lfs: true
+          lfs: false
+
+      - name: Create Git LFS cache key
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: Restore Git LFS cache
+        uses: actions/cache@v4
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: |
+            ${{ runner.os }}-lfs-
+
+      - name: Pull Git LFS objects
+        run: |
+          case "${{ matrix.os }}" in
+            macos-latest)   FILTER="*mac*" ;;
+            windows-latest) FILTER="*win*" ;;
+            ubuntu-latest)  FILTER="*linux*" ;;
+          esac
+          git lfs pull --include="$FILTER"
 
       - name: Install Node.js
         uses: actions/setup-node@v4

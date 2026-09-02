@@ -195,6 +195,7 @@ const getIssueIcon = (type) => {
     case 'loose_end': return 'call_split';
     case 'infinite_loop': return 'sync_problem';
     case 'outlier': return 'query_stats';
+    case 'checkpoint_budget': return 'sd_card_alert';
     default: return 'report_problem';
   }
 };
@@ -205,6 +206,7 @@ const getIssueLabel = (type) => {
     case 'loose_end': return 'Loose End';
     case 'infinite_loop': return 'Infinite Loop';
     case 'outlier': return 'Statistical Outlier';
+    case 'checkpoint_budget': return 'Memory Warning';
     default: return 'Anomaly';
   }
 };
@@ -645,6 +647,10 @@ onUnmounted(() => {
   color: #0288d1;
 }
 
+.issue-type-tag.checkpoint_budget {
+  color: #e65100;
+}
+
 .occurrence-badge {
   font-size: calc(10px * var(--zoom-factor, 1));
   color: var(--text-muted, #888);
@@ -665,5 +671,9 @@ onUnmounted(() => {
 
 .issue-item .issue-icon.outlier {
   color: #0288d1;
+}
+
+.issue-item .issue-icon.checkpoint_budget {
+  color: #e65100;
 }
 </style>

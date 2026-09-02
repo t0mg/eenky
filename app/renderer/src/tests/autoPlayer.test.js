@@ -348,6 +348,24 @@ Turn 2. Score is {score}.
     expect(replayStory.variablesState['score']).toBe(10);
   });
 
+  it('detects high checkpoint memory budget and issues a warning', () => {
+    // Generate a story with 20 checkpoints and custom low budget
+    let ink = 'VAR x = 0\n-> start\n=== start ===\n';
+    for (let i = 1; i <= 20; i++) {
+      ink += `~ x = ${i * 100}\nLine ${i}\n# CHECKPOINT: Chapter ${i}\n`;
+    }
+    ink += '-> END\n';
+
+    const json = compileInk(ink);
+    const engine = new FuzzerEngine({ checkpointBudgetBytes: 5 * 1024 });
+    const result = engine.runSingleSimulation(json);
+
+    expect(result.issue).toBeDefined();
+    expect(result.issue.type).toBe('checkpoint_budget');
+    expect(result.issue.message).toContain('High checkpoint memory usage');
+    expect(result.issue.message).toContain('active checkpoints');
+  });
+
   it('autoPlayer controller toggles enabled state and updates store', () => {
     const projectStore = useProjectStore();
     expect(projectStore.autoPlayerEnabled).toBe(true);
