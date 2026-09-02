@@ -348,22 +348,50 @@ Turn 2. Score is {score}.
     expect(replayStory.variablesState['score']).toBe(10);
   });
 
-  it('detects high checkpoint memory budget and issues a warning', () => {
-    // Generate a story with 20 checkpoints and custom low budget
+  it('tracks discovered milestones and permits normal chapter counts without warning', () => {
+    let ink = '-> start\n=== start ===\n';
+    for (let i = 1; i <= 5; i++) {
+      ink += `Line ${i}\n# CHAPTER: Awakening ${i}\n`;
+    }
+    ink += '-> END\n';
+
+    const json = compileInk(ink);
+    const engine = new FuzzerEngine({ maxCheckpointsPerRun: 25 });
+    const result = engine.runSingleSimulation(json);
+
+    expect(result.issue).toBeNull();
+    expect(result.success).toBe(true);
+
+    engine.recordSimulationResult(result);
+    const stats = engine.getStats();
+    expect(stats.milestonesDiscoveredCount).toBe(5);
+    expect(stats.milestonesList).toContain('Awakening 1');
+    expect(stats.milestonesList).toContain('Awakening 5');
+    expect(stats.uniqueIssuesCount).toBe(0);
+  });
+
+  it('detects runaway checkpoints and issues an excessive checkpoints warning', () => {
+    // Generate a story with 30 checkpoints exceeding threshold
     let ink = 'VAR x = 0\n-> start\n=== start ===\n';
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 30; i++) {
       ink += `~ x = ${i * 100}\nLine ${i}\n# CHECKPOINT: Chapter ${i}\n`;
     }
     ink += '-> END\n';
 
     const json = compileInk(ink);
-    const engine = new FuzzerEngine({ checkpointBudgetBytes: 5 * 1024 });
+    const engine = new FuzzerEngine({ maxCheckpointsPerRun: 25 });
     const result = engine.runSingleSimulation(json);
 
     expect(result.issue).toBeDefined();
-    expect(result.issue.type).toBe('checkpoint_budget');
-    expect(result.issue.message).toContain('High checkpoint memory usage');
-    expect(result.issue.message).toContain('active checkpoints');
+    expect(result.issue.type).toBe('excessive_checkpoints');
+    expect(result.issue.message).toContain('Runaway checkpoints');
+    expect(result.issue.message).toContain('30 active checkpoints');
+
+    engine.recordSimulationResult(result);
+    const stats = engine.getStats();
+    expect(stats.milestonesDiscoveredCount).toBe(30);
+    expect(stats.milestonesList).toContain('Chapter 1');
+    expect(stats.milestonesList).toContain('Chapter 30');
   });
 
   it('autoPlayer controller toggles enabled state and updates store', () => {

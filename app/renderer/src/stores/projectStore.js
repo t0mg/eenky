@@ -13,7 +13,15 @@ export const useProjectStore = defineStore('project', {
     autoPlayerEnabled: true,
     autoPlayerStatus: 'idle', // 'idle', 'running', 'paused', 'complete'
     autoPlayerIssues: [],
-    autoPlayerStats: { runsCompleted: 0, uniqueIssuesCount: 0, meanLength: 0, stdDevLength: 0 },
+    autoPlayerStats: {
+      runsCompleted: 0,
+      uniqueIssuesCount: 0,
+      meanLength: 0,
+      stdDevLength: 0,
+      milestonesDiscoveredCount: 0,
+      milestonesList: [],
+      maxCheckpointsInSingleRun: 0
+    },
     compiledStoryJson: null,
   }),
   getters: {
@@ -39,7 +47,15 @@ export const useProjectStore = defineStore('project', {
     },
     clearAutoPlayerIssues() {
       this.autoPlayerIssues = [];
-      this.autoPlayerStats = { runsCompleted: 0, uniqueIssuesCount: 0, meanLength: 0, stdDevLength: 0 };
+      this.autoPlayerStats = {
+        runsCompleted: 0,
+        uniqueIssuesCount: 0,
+        meanLength: 0,
+        stdDevLength: 0,
+        milestonesDiscoveredCount: 0,
+        milestonesList: [],
+        maxCheckpointsInSingleRun: 0
+      };
     },
     setProjectInfo({ files, mainInkFile, instructionPrefix }) {
       this.files = files;

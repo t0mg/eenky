@@ -112,7 +112,9 @@
       <div class="auto-player-body">
         <div v-if="projectStore.autoPlayerIssues.length === 0" class="auto-player-msg">
           <span v-if="projectStore.autoPlayerStatus === 'running'">Fuzzing story paths ({{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs)...</span>
-          <span v-else-if="projectStore.autoPlayerStats.runsCompleted > 0">No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs.</span>
+          <span v-else-if="projectStore.autoPlayerStats.runsCompleted > 0">
+            No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs<span v-if="projectStore.autoPlayerStats.milestonesDiscoveredCount > 0" :title="projectStore.autoPlayerStats.milestonesList?.join(', ')"> ({{ projectStore.autoPlayerStats.milestonesDiscoveredCount }} {{ projectStore.autoPlayerStats.milestonesDiscoveredCount === 1 ? 'milestone' : 'milestones' }} discovered)</span>.
+          </span>
           <span v-else class="muted">Waiting for story compilation...</span>
         </div>
         <div v-else class="issue-list auto-player-issue-list">
@@ -195,6 +197,7 @@ const getIssueIcon = (type) => {
     case 'loose_end': return 'call_split';
     case 'infinite_loop': return 'sync_problem';
     case 'outlier': return 'query_stats';
+    case 'excessive_checkpoints': return 'bookmark_alert';
     case 'checkpoint_budget': return 'sd_card_alert';
     default: return 'report_problem';
   }
@@ -206,6 +209,7 @@ const getIssueLabel = (type) => {
     case 'loose_end': return 'Loose End';
     case 'infinite_loop': return 'Infinite Loop';
     case 'outlier': return 'Statistical Outlier';
+    case 'excessive_checkpoints': return 'Runaway Checkpoints';
     case 'checkpoint_budget': return 'Memory Warning';
     default: return 'Anomaly';
   }
@@ -647,6 +651,7 @@ onUnmounted(() => {
   color: #0288d1;
 }
 
+.issue-type-tag.excessive_checkpoints,
 .issue-type-tag.checkpoint_budget {
   color: #e65100;
 }
@@ -673,6 +678,7 @@ onUnmounted(() => {
   color: #0288d1;
 }
 
+.issue-item .issue-icon.excessive_checkpoints,
 .issue-item .issue-icon.checkpoint_budget {
   color: #e65100;
 }

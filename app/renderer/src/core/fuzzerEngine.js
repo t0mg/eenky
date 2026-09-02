@@ -14,7 +14,7 @@ export class FuzzerEngine {
     this.enableOutliers = options.enableOutliers || false;
     this.minRunsForOutliers = options.minRunsForOutliers || 30;
     this.outlierZThreshold = options.outlierZThreshold || 3.0;
-    this.checkpointBudgetBytes = options.checkpointBudgetBytes || 25 * 1024;
+    this.maxCheckpointsPerRun = options.maxCheckpointsPerRun || 25;
 
     this.reset();
   }
@@ -26,6 +26,8 @@ export class FuzzerEngine {
     this.sumLengths = 0;
     this.sumSquaredLengths = 0;
     this.issuesMap = new Map(); // key -> issue object
+    this.discoveredMilestones = new Set();
+    this.maxCheckpointsInSingleRun = 0;
   }
 
   /**
@@ -89,28 +91,19 @@ export class FuzzerEngine {
         for (const t of tags) {
           let isCheckpoint = false;
           let title = '';
-          const cpNamedMatch = t.match(/^CHECKPOINT(?::\s*|\s+)(.*)$/i);
+          const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
           if (cpNamedMatch) {
             isCheckpoint = true;
             title = cpNamedMatch[1].trim();
-          } else if (t.trim().toUpperCase() === 'CHECKPOINT') {
+          } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
             isCheckpoint = true;
             title = '';
           }
 
           if (isCheckpoint) {
-            let stateJsonLen = 1000;
-            try {
-              stateJsonLen = (story.state?.ToJson() || '').length;
-            } catch (_) {}
-            // Estimated inkcpp snapshot size: ~30% of inkjs JSON state size + 64 bytes header
-            const estSnapBytes = Math.round(stateJsonLen * 0.3) + 64;
-            // Unnamed checkpoint retains display history (~2 KB)
-            const estHistoryBytes = (title === '') ? 2048 : 0;
             activeCheckpoints.set(title, {
               turn,
-              knotOrPath: story.state?.currentPathString || 'Unknown',
-              estBytes: estSnapBytes + estHistoryBytes
+              knotOrPath: story.state?.currentPathString || 'Unknown'
             });
           }
         }
@@ -169,6 +162,30 @@ export class FuzzerEngine {
           chosenIndex: choiceIdx,
           stateJson
         });
+
+        // Track choice tags if present
+        const chosenChoice = story.currentChoices ? story.currentChoices[choiceIdx] : null;
+        if (chosenChoice && chosenChoice.tags && chosenChoice.tags.length > 0) {
+          for (const t of chosenChoice.tags) {
+            let isCheckpoint = false;
+            let title = '';
+            const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
+            if (cpNamedMatch) {
+              isCheckpoint = true;
+              title = cpNamedMatch[1].trim();
+            } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
+              isCheckpoint = true;
+              title = '';
+            }
+
+            if (isCheckpoint) {
+              activeCheckpoints.set(title, {
+                turn,
+                knotOrPath: story.state?.currentPathString || 'Unknown'
+              });
+            }
+          }
+        }
 
         try {
           story.ChooseChoiceIndex(choiceIdx);
@@ -273,28 +290,29 @@ export class FuzzerEngine {
       };
     }
 
-    if (!issue && activeCheckpoints.size > 0) {
-      let totalEstBytes = 4096; // Base save file & main snapshot overhead
+    if (!issue && activeCheckpoints.size > this.maxCheckpointsPerRun) {
       let latestCpKnot = 'Unknown';
       for (const [, cp] of activeCheckpoints.entries()) {
-        totalEstBytes += cp.estBytes;
         latestCpKnot = cp.knotOrPath;
       }
-      const SAFE_CHECKPOINT_BUDGET_BYTES = this.checkpointBudgetBytes;
-      if (totalEstBytes > SAFE_CHECKPOINT_BUDGET_BYTES) {
-        const estKb = Math.round(totalEstBytes / 1024);
-        let stateJson = null;
-        try {
-          stateJson = story.state?.ToJson();
-        } catch (_) {}
-        issue = {
-          type: 'checkpoint_budget',
-          message: `High checkpoint memory usage: ${activeCheckpoints.size} active checkpoints (~${estKb} KB estimated). On ESP32-C3 hardware (320 KB RAM), accumulating many checkpoints may cause memory pressure. Please test on real hardware.`,
-          turnCount: turn,
-          knotOrPath: latestCpKnot,
-          stateHistory,
-          finalStateJson: stateJson
-        };
+      let stateJson = null;
+      try {
+        stateJson = story.state?.ToJson();
+      } catch (_) {}
+      issue = {
+        type: 'excessive_checkpoints',
+        message: `Runaway checkpoints: playthrough accumulated ${activeCheckpoints.size} active checkpoints. Checkpoints should mark major chapter milestones; having more than ${this.maxCheckpointsPerRun} in a single run degrades menu navigation and save performance.`,
+        turnCount: turn,
+        knotOrPath: latestCpKnot,
+        stateHistory,
+        finalStateJson: stateJson
+      };
+    }
+
+    const discoveredInRun = [];
+    for (const title of activeCheckpoints.keys()) {
+      if (title && title.length > 0) {
+        discoveredInRun.push(title);
       }
     }
 
@@ -302,7 +320,9 @@ export class FuzzerEngine {
       issue,
       turnCount: turn,
       success: !issue,
-      stateHistory
+      stateHistory,
+      checkpointsDiscovered: discoveredInRun,
+      activeCheckpointCount: activeCheckpoints.size
     };
   }
 
@@ -313,6 +333,20 @@ export class FuzzerEngine {
    */
   recordSimulationResult(result) {
     this.runsCompleted++;
+
+    if (result.checkpointsDiscovered) {
+      for (const title of result.checkpointsDiscovered) {
+        if (title) {
+          this.discoveredMilestones.add(title);
+        }
+      }
+    }
+    if (result.activeCheckpointCount !== undefined) {
+      this.maxCheckpointsInSingleRun = Math.max(
+        this.maxCheckpointsInSingleRun,
+        result.activeCheckpointCount
+      );
+    }
 
     let isNewIssue = false;
 
@@ -407,7 +441,10 @@ export class FuzzerEngine {
       successfulRuns: n,
       uniqueIssuesCount: this.issuesMap.size,
       meanLength: Number(mean.toFixed(1)),
-      stdDevLength: Number(stdDev.toFixed(1))
+      stdDevLength: Number(stdDev.toFixed(1)),
+      milestonesDiscoveredCount: this.discoveredMilestones.size,
+      milestonesList: Array.from(this.discoveredMilestones),
+      maxCheckpointsInSingleRun: this.maxCheckpointsInSingleRun
     };
   }
 
