@@ -183,6 +183,15 @@ function stepBack() {
     reloadInklecateSession();
 }
 
+function setChoiceSequence(seq) {
+    choiceSequence = Array.isArray(seq) ? seq.slice() : [];
+    currentTurnIdx = 0;
+}
+
+function getChoiceSequence() {
+    return choiceSequence.slice();
+}
+
 function getLocationInSource(offset, callback) {
     ipc.send("get-location-in-source", offset, currentPlaySessionId);
     locationInSourceCallbackObj = { callback: callback, sessionId: currentPlaySessionId };
@@ -386,5 +395,7 @@ export const LiveCompiler = {
     getLocationInSource: getLocationInSource,
     getRuntimePathInSource: getRuntimePathInSource,
     evaluateExpression: evaluateExpression,
-    getStats: getStats
+    getStats: getStats,
+    setChoiceSequence: setChoiceSequence,
+    getChoiceSequence: getChoiceSequence
 };

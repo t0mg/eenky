@@ -238,6 +238,19 @@ const scrollToBottom = async () => {
   }
 };
 
+const extractChoiceSequence = (history, maxStepIdx) => {
+  if (!Array.isArray(history)) return [];
+  const seq = [];
+  const limit = maxStepIdx !== undefined ? Math.min(history.length, maxStepIdx) : history.length;
+  for (let i = 0; i < limit; i++) {
+    const step = history[i];
+    if (step && step.chosenIndex !== null && step.chosenIndex !== undefined) {
+      seq.push(step.chosenIndex + 1);
+    }
+  }
+  return seq;
+};
+
 const injectFuzzerReplay = (issue, storyJson) => {
   if (!issue || !issue.stateHistory) return;
 
@@ -257,6 +270,10 @@ const injectFuzzerReplay = (issue, storyJson) => {
   }
 
   renderFuzzerUpToStep(fuzzerCurrentStepIdx.value);
+
+  // Promote autoplay run to become the main LiveCompiler choice sequence
+  const seq = extractChoiceSequence(fuzzerHistory.value, fuzzerCurrentStepIdx.value);
+  LiveCompiler.setChoiceSequence(seq);
 };
 
 const renderFuzzerUpToStep = (stepIdx) => {
@@ -430,6 +447,10 @@ const makeChoice = (choice) => {
       activeReplayIssue.value = null; // Cleared error state on new branch
 
       renderFuzzerUpToStep(fuzzerCurrentStepIdx.value);
+
+      // Keep LiveCompiler choice sequence in sync with new choice
+      const seq = extractChoiceSequence(fuzzerHistory.value, fuzzerCurrentStepIdx.value);
+      LiveCompiler.setChoiceSequence(seq);
     } catch (e) {
       blocks.value.push({ type: 'error', message: 'Runtime Error: ' + (e.message || String(e)) });
       scrollToBottom();
@@ -450,6 +471,8 @@ const stepBack = () => {
     if (fuzzerCurrentStepIdx.value > 0) {
       fuzzerCurrentStepIdx.value--;
       renderFuzzerUpToStep(fuzzerCurrentStepIdx.value);
+      const seq = extractChoiceSequence(fuzzerHistory.value, fuzzerCurrentStepIdx.value);
+      LiveCompiler.setChoiceSequence(seq);
     }
   } else {
     LiveCompiler.stepBack();

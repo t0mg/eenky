@@ -175,6 +175,10 @@ describe('Simulator Component', () => {
     expect(issueBanner.text()).toContain('Loose End');
     expect(issueBanner.text()).toContain('knot_cliff');
 
+    // Verify choice sequence was promoted to LiveCompiler for story editing replay
+    const { LiveCompiler } = await import('../core/liveCompiler.js');
+    expect(LiveCompiler.getChoiceSequence()).toEqual([1]);
+
     // Step back
     const stepBackBtn = wrapper.findAll('.toolbar button')[1];
     await stepBackBtn.trigger('click');
@@ -183,5 +187,6 @@ describe('Simulator Component', () => {
     // After step back, banner should no longer be rendered on step 0
     expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(false);
     expect(wrapper.text()).toContain('You reach the edge of the cliff.');
+    expect(LiveCompiler.getChoiceSequence()).toEqual([]);
   });
 });
