@@ -405,4 +405,58 @@ Turn 2. Score is {score}.
     AutoPlayer.toggle();
     expect(projectStore.autoPlayerEnabled).toBe(true);
   });
+
+  it('assigns random seeds and tracks seed in results and issues', () => {
+    const looseEndInk = '-> knot\n=== knot ===\nLoose end content\n';
+    const json = compileInk(looseEndInk);
+    const engine = new FuzzerEngine();
+    const result = engine.runSingleSimulation(json);
+
+    expect(typeof result.seed).toBe('number');
+    expect(result.seed).toBeGreaterThan(0);
+    expect(result.issue).toBeDefined();
+    expect(result.issue.seed).toBe(result.seed);
+
+    engine.recordSimulationResult(result);
+    const issues = engine.getIssuesList();
+    expect(issues.length).toBe(1);
+    expect(issues[0].seed).toBe(result.seed);
+  });
+
+  it('respects in-script SEED_RANDOM over engine seed and records the script seed', () => {
+    const seededInk = `
+~ SEED_RANDOM(777)
+{RANDOM(1, 100)}
+-> dead_end
+=== dead_end ===
+Dead end without done or end
+`;
+    const json = compileInk(seededInk);
+    const engine = new FuzzerEngine();
+    const result = engine.runSingleSimulation(json, 9999);
+
+    expect(result.seed).toBe(777);
+    expect(result.issue).toBeDefined();
+    expect(result.issue.seed).toBe(777);
+  });
+
+  it('produces identical deterministic runs when forcedSeed is provided', () => {
+    const randomStory = `
+{RANDOM(1, 1000)}
+* [A]
+    {RANDOM(1, 1000)}
+    -> END
+* [B]
+    {RANDOM(1, 1000)}
+    -> END
+`;
+    const json = compileInk(randomStory);
+    const engine = new FuzzerEngine();
+    const run1 = engine.runSingleSimulation(json, 4242);
+    const run2 = engine.runSingleSimulation(json, 4242);
+
+    expect(run1.seed).toBe(4242);
+    expect(run2.seed).toBe(4242);
+    expect(run1.stateHistory[0].text).toBe(run2.stateHistory[0].text);
+  });
 });

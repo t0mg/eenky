@@ -30,6 +30,15 @@ let project = null;
 let events = {};
 
 let compilerBusy = false;
+let currentRngSeed = null;
+
+function setRngSeed(seed) {
+    currentRngSeed = seed;
+}
+
+function getRngSeed() {
+    return currentRngSeed;
+}
 
 function setProject(p) {
     project = p;
@@ -116,6 +125,21 @@ function reloadInklecateSession() {
     var instr = buildCompileInstruction();
     instr.play = true;
 
+    // Apply locked RNG seed if playing and not locked in script
+    const isScriptLocked = project && project.isScriptRngSeedLocked;
+    if (!isScriptLocked) {
+        if (currentRngSeed === null) {
+            if (project && project.rollNewRngSeed) {
+                currentRngSeed = project.rollNewRngSeed();
+            } else {
+                currentRngSeed = Math.floor(Math.random() * 1000000) + 1;
+            }
+        } else if (project && project.setCurrentRngSeed && project.currentRngSeed !== currentRngSeed) {
+            project.setCurrentRngSeed(currentRngSeed);
+        }
+        instr.seed = currentRngSeed;
+    }
+
     if (events.resetting) events.resetting(instr.sessionId);
     resetErrors();
 
@@ -174,6 +198,14 @@ function choose(choice) {
 function rewind() {
     choiceSequence = [];
     currentTurnIdx = -1;
+    const isScriptLocked = project && project.isScriptRngSeedLocked;
+    if (!isScriptLocked) {
+        if (project && project.rollNewRngSeed) {
+            currentRngSeed = project.rollNewRngSeed();
+        } else {
+            currentRngSeed = Math.floor(Math.random() * 1000000) + 1;
+        }
+    }
     reloadInklecateSession();
 }
 
@@ -397,5 +429,7 @@ export const LiveCompiler = {
     evaluateExpression: evaluateExpression,
     getStats: getStats,
     setChoiceSequence: setChoiceSequence,
-    getChoiceSequence: getChoiceSequence
+    getChoiceSequence: getChoiceSequence,
+    setRngSeed: setRngSeed,
+    getRngSeed: getRngSeed
 };

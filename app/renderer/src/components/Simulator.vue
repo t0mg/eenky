@@ -264,9 +264,18 @@ const injectFuzzerReplay = (issue, storyJson) => {
     const StoryClass = inkjs.Story || inkjs;
     try {
       activeStory.value = new StoryClass(jsonToUse);
+      if (issue.seed !== undefined && issue.seed !== null && activeStory.value.state) {
+        activeStory.value.state.storySeed = issue.seed;
+        activeStory.value.state.previousRandom = 0;
+      }
     } catch (e) {
       console.warn('Could not construct inkjs.Story for replay:', e);
     }
+  }
+
+  if (issue.seed !== undefined && issue.seed !== null) {
+    projectStore.setCurrentRngSeed(issue.seed);
+    LiveCompiler.setRngSeed(issue.seed);
   }
 
   renderFuzzerUpToStep(fuzzerCurrentStepIdx.value);

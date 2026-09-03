@@ -56,6 +56,13 @@ function compile(compileInstruction, requester) {
 
     var mainInkPath = path.join(uniqueDirPath, compileInstruction.mainName);
 
+    var injectedSeedLine = false;
+    if (compileInstruction.play && compileInstruction.seed !== undefined && compileInstruction.seed !== null) {
+        var mainContent = (compileInstruction.updatedFiles && compileInstruction.updatedFiles[compileInstruction.mainName]) || fs.readFileSync(mainInkPath, 'utf8');
+        fs.writeFileSync(mainInkPath, `~ SEED_RANDOM(${compileInstruction.seed})\n` + mainContent);
+        injectedSeedLine = true;
+    }
+
     var inklecateOptions = ["-ckj"];
 
     if( compileInstruction.play )
@@ -94,7 +101,9 @@ function compile(compileInstruction, requester) {
         stopped: false,
         ended: false,
         evaluatingExpression: false,
-        justRequestedDebugSource: false
+        justRequestedDebugSource: false,
+        injectedSeedLine: injectedSeedLine,
+        mainName: compileInstruction.mainName
     };
     var session = sessions[sessionId];
 
@@ -187,13 +196,18 @@ function compile(compileInstruction, requester) {
                         continue;
                     }
                     let msg = issueMatches[6].trim();
+                    let issueFilename = issueMatches[3];
+                    let lineNo = parseInt(issueMatches[5] || 0);
+                    if (session.injectedSeedLine && issueFilename === session.mainName && lineNo > 0) {
+                        lineNo = Math.max(1, lineNo - 1);
+                    }
                     if( session.evaluatingExpression ) {
                         requester.send('play-evaluated-expression-error', msg, sessionId);
                     } else {
                         inkErrors.push({
                             type: issueMatches[1],
-                            filename: issueMatches[3],
-                            lineNumber: parseInt(issueMatches[5] || 0),
+                            filename: issueFilename,
+                            lineNumber: lineNo,
                             message: msg
                         });
                     }
@@ -239,10 +253,14 @@ function compile(compileInstruction, requester) {
 
                 let debugSourceMatches = jsonResponse.cmdOutput.match(debugSourceRegex);
                 if( debugSourceMatches ) {
-                    // session.justRequestedDebugSource = true;
+                    let lineNo = parseInt(debugSourceMatches[2]);
+                    let srcFile = debugSourceMatches[3];
+                    if (session.injectedSeedLine && srcFile === session.mainName && lineNo > 0) {
+                        lineNo = Math.max(1, lineNo - 1);
+                    }
                     requester.send('return-location-from-source', sessionId, {
-                        lineNumber: parseInt(debugSourceMatches[2]),
-                        filename: debugSourceMatches[3]
+                        lineNumber: lineNo,
+                        filename: srcFile
                     });
                 } else if( session.evaluatingExpression ) {
                     requester.send('play-evaluated-expression', jsonResponse.cmdOutput, sessionId);

@@ -23,10 +23,34 @@ export const useProjectStore = defineStore('project', {
       maxCheckpointsInSingleRun: 0
     },
     compiledStoryJson: null,
+    currentRngSeed: null,
   }),
   getters: {
     hasUnsavedChanges(state) {
       return state.files.some(f => f.hasUnsavedChanges);
+    },
+    isScriptRngSeedLocked(state) {
+      const stripComments = (str) => {
+        if (!str) return '';
+        return str
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/\/\/.*/g, '');
+      };
+      const regex = /\bSEED_RANDOM\s*\(/i;
+      for (const f of state.files) {
+        if (f.content && regex.test(stripComments(f.content))) {
+          return true;
+        }
+      }
+      if (state.compiledStoryJson) {
+        const jsonStr = typeof state.compiledStoryJson === 'string'
+          ? state.compiledStoryJson
+          : JSON.stringify(state.compiledStoryJson);
+        if (jsonStr.includes('"srnd"')) {
+          return true;
+        }
+      }
+      return false;
     }
   },
   actions: {
@@ -95,6 +119,14 @@ export const useProjectStore = defineStore('project', {
     setIssues(issues) {
       this.issues = issues;
     },
+    setCurrentRngSeed(seed) {
+      this.currentRngSeed = seed;
+    },
+    rollNewRngSeed() {
+      const newSeed = Math.floor(Math.random() * 1000000) + 1;
+      this.currentRngSeed = newSeed;
+      return newSeed;
+    },
     closeProject() {
       this.files = [];
       this.mainInkFile = null;
@@ -105,6 +137,7 @@ export const useProjectStore = defineStore('project', {
       this.autoPlayerIssues = [];
       this.autoPlayerStatus = 'idle';
       this.compiledStoryJson = null;
+      this.currentRngSeed = null;
       const uiStore = useUiStore();
       uiStore.setActiveView('home');
     }

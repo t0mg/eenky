@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import Simulator from '../components/Simulator.vue';
 import { LiveCompiler } from '../core/liveCompiler.js';
+import { AutoPlayer } from '../core/autoPlayer.js';
 
 describe('Simulator Component', () => {
   beforeEach(() => {
@@ -188,5 +189,64 @@ describe('Simulator Component', () => {
     expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(false);
     expect(wrapper.text()).toContain('You reach the edge of the cliff.');
     expect(LiveCompiler.getChoiceSequence()).toEqual([]);
+  });
+
+  it('re-rolls random seed when rewind (restart) is clicked', async () => {
+    const { useProjectStore } = await import('../stores/projectStore');
+    const projectStore = useProjectStore();
+    const { LiveCompiler } = await import('../core/liveCompiler.js');
+
+    projectStore.mainInkFile = { relPath: 'main.ink', content: 'Hello' };
+    LiveCompiler.setProject(projectStore);
+
+    const wrapper = mount(Simulator);
+    const initialSeed = 11111;
+    projectStore.setCurrentRngSeed(initialSeed);
+    LiveCompiler.setRngSeed(initialSeed);
+
+    const rewindBtn = wrapper.findAll('.toolbar button')[0];
+    await rewindBtn.trigger('click');
+
+    expect(projectStore.currentRngSeed).not.toBeNull();
+    expect(projectStore.currentRngSeed).not.toBe(initialSeed);
+    expect(LiveCompiler.getRngSeed()).toBe(projectStore.currentRngSeed);
+  });
+
+  it('applies issue seed to preview player and LiveCompiler on replay', async () => {
+    let replayCallback;
+    vi.spyOn(AutoPlayer, 'setEvents').mockImplementation((events) => {
+      replayCallback = events.replayIssue;
+    });
+
+    const { useProjectStore } = await import('../stores/projectStore');
+    const projectStore = useProjectStore();
+    const { LiveCompiler } = await import('../core/liveCompiler.js');
+
+    const wrapper = mount(Simulator);
+    expect(replayCallback).toBeDefined();
+
+    const mockIssueWithSeed = {
+      id: 'seeded_issue',
+      type: 'runtime_error',
+      message: 'Some runtime error',
+      turnCount: 0,
+      knotOrPath: 'root',
+      seed: 888888,
+      stateHistory: [
+        {
+          text: 'Start\n',
+          tags: [],
+          choices: [],
+          chosenIndex: null,
+          stateJson: null
+        }
+      ]
+    };
+
+    replayCallback(mockIssueWithSeed, { inkVersion: 21, root: [['^Start', '\n', ['done', {}], null], {}] });
+    await wrapper.vm.$nextTick();
+
+    expect(projectStore.currentRngSeed).toBe(888888);
+    expect(LiveCompiler.getRngSeed()).toBe(888888);
   });
 });

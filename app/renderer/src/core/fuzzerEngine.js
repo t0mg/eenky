@@ -33,13 +33,22 @@ export class FuzzerEngine {
   /**
    * Run a single simulation playthrough of the story.
    * @param {Object|string} storyJson Compiled Ink JSON
-   * @returns {Object} { issue: Object|null, turnCount: number, success: boolean, stateHistory: Array }
+   * @param {number|null} [forcedSeed=null] Optional seed to run with
+   * @returns {Object} { issue: Object|null, turnCount: number, success: boolean, stateHistory: Array, seed: number }
    */
-  runSingleSimulation(storyJson) {
+  runSingleSimulation(storyJson, forcedSeed = null) {
     const StoryClass = inkjs.Story || inkjs;
+    const seed = forcedSeed !== null && forcedSeed !== undefined
+      ? forcedSeed
+      : Math.floor(Math.random() * 1000000) + 1;
+
     let story;
     try {
       story = new StoryClass(storyJson);
+      if (story.state) {
+        story.state.storySeed = seed;
+        story.state.previousRandom = 0;
+      }
     } catch (err) {
       const errorMsg = err?.message || String(err);
       return {
@@ -52,10 +61,12 @@ export class FuzzerEngine {
           stateHistory: [],
           finalStateJson: null,
           occurrenceCount: 1,
+          seed
         },
         turnCount: 0,
         success: false,
-        stateHistory: []
+        stateHistory: [],
+        seed
       };
     }
 
@@ -316,13 +327,22 @@ export class FuzzerEngine {
       }
     }
 
+    const actualSeed = (story && story.state && story.state.storySeed !== undefined && story.state.storySeed !== null)
+      ? story.state.storySeed
+      : seed;
+
+    if (issue) {
+      issue.seed = actualSeed;
+    }
+
     return {
       issue,
       turnCount: turn,
       success: !issue,
       stateHistory,
       checkpointsDiscovered: discoveredInRun,
-      activeCheckpointCount: activeCheckpoints.size
+      activeCheckpointCount: activeCheckpoints.size,
+      seed: actualSeed
     };
   }
 
@@ -377,7 +397,8 @@ export class FuzzerEngine {
                 knotOrPath: result.issue?.knotOrPath || 'Completed Flow',
                 stateHistory: result.stateHistory,
                 finalStateJson: result.stateHistory[result.stateHistory.length - 1]?.stateJson || null,
-                zScore
+                zScore,
+                seed: result.seed !== undefined ? result.seed : null
               };
               isNewIssue = this._addOrUpdateIssue(outlierIssue);
             }
@@ -412,13 +433,17 @@ export class FuzzerEngine {
         existing.stateHistory = issue.stateHistory;
         existing.finalStateJson = issue.finalStateJson;
         existing.turnCount = issue.turnCount;
+        if (issue.seed !== undefined) {
+          existing.seed = issue.seed;
+        }
       }
       return false;
     } else {
       const newIssue = {
         ...issue,
         id: `fuzz_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        occurrenceCount: 1
+        occurrenceCount: 1,
+        seed: issue.seed !== undefined ? issue.seed : null
       };
       this.issuesMap.set(key, newIssue);
       return true;
