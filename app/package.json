@@ -4,6 +4,7 @@
   "version": "0.2.1",
   "description": "The story editor for ereaders running the eenk firmware",
   "main": "main-process/main.js",
+  "desktopName": "eenky.desktop",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/t0mg/eenky.git"
@@ -85,6 +86,8 @@
     "linux": {
       "icon": "../resources/Icon1024.png",
       "category": "Development",
+      "maintainer": "Tom Granger <eenk@t0m.fr>",
+      "syncDesktopName": true,
       "target": [
         "deb",
         "AppImage",
@@ -119,12 +122,12 @@
     "narrative",
     "editor"
   ],
-  "author": "Tom Granger (fork of inkle/inky by inkle Ltd)",
+  "author": "Tom Granger <eenk@t0m.fr> (fork of inkle/inky by inkle Ltd)",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/t0mg/eenky/issues"
   },
-  "homepage": "http://www.inklestudios.com/ink",
+  "homepage": "https://github.com/t0mg/eenky",
   "dependencies": {
     "chokidar": "^3.6.0",
     "inkjs": "^2.2.3",
