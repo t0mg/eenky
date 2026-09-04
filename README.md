@@ -20,6 +20,26 @@ To bypass this security feature:
 3. Run `xattr -cr /Applications/eenky.app`
 This removes the quarantine flag and allows macOS to open the app normally.
 
+### Note for Linux Users
+Linux releases are available in three formats on the Releases page:
+- **Debian / Ubuntu package (`.deb`)**: Recommended for Debian, Ubuntu, and derivatives. Automatically registers desktop launcher entries and icons:
+  ```bash
+  sudo apt install ./eenky_*_amd64.deb
+  ```
+- **AppImage (`.AppImage`)**: Standalone portable single-file executable across distributions. Make it executable and run:
+  ```bash
+  chmod +x eenky-*_amd64.AppImage
+  ./eenky-*_amd64.AppImage
+  ```
+- **Portable archive (`.zip`)**: Extract the archive and launch with the included `eenky.sh` wrapper:
+  ```bash
+  ./eenky.sh
+  ```
+
+> [!NOTE]
+> On modern Linux distributions with restricted unprivileged user namespaces (such as **Ubuntu 24.04 LTS**), running the raw `./eenky` binary directly without `--no-sandbox` will abort with a `FATAL:setuid_sandbox_host.cc` error because user-extracted files cannot hold setuid root permissions on `chrome-sandbox`. Use `./eenky.sh`, install the `.deb`, or pass `--no-sandbox` manually (`./eenky --no-sandbox`).
+
+
 ## Features & Differences from Original Inky
 
 eenky started as a hack to help develop [eenk](https://github.com/t0mg/eenk), and evolved into a comprehensive authoring environment for e-ink devices:

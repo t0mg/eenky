@@ -4,6 +4,6 @@ Type=Application
 Categories=Development;IDE;
 Name=eenky
 Comment=eenky — The story editor for ereaders running the eenk firmware
-Exec=/opt/eenky/eenky
+Exec=/opt/eenky/eenky --no-sandbox %U
 Path=/opt/eenky/
 Icon=eenky

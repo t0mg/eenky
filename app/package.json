@@ -84,8 +84,20 @@
     },
     "linux": {
       "icon": "../resources/Icon1024.png",
+      "category": "Development",
       "target": [
+        "deb",
+        "AppImage",
         "zip"
+      ],
+      "executableArgs": [
+        "--no-sandbox"
+      ],
+      "extraFiles": [
+        {
+          "from": "../resources/eenky.sh",
+          "to": "eenky.sh"
+        }
       ],
       "extraResources": [
         {

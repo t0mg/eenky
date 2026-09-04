@@ -196,5 +196,7 @@ jobs:
             dist-eenky/*.zip
             dist-eenky/*.dmg
             dist-eenky/*.exe
+            dist-eenky/*.deb
+            dist-eenky/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
