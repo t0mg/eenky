@@ -86,11 +86,7 @@
     "linux": {
       "icon": "../resources/Icon1024.png",
       "category": "Development",
-      "maintainer": {
-        "name": "Tom Granger",
-        "email": "eenk@t0m.fr",
-        "url": "https://github.com/t0mg/eenky"
-      },
+      "maintainer": "Tom Granger <eenk@t0m.fr> (https://github.com/t0mg/eenky)",
       "syncDesktopName": true,
       "target": [
         "deb",
