@@ -86,7 +86,11 @@
     "linux": {
       "icon": "../resources/Icon1024.png",
       "category": "Development",
-      "maintainer": "Tom Granger <eenk@t0m.fr>",
+      "maintainer": {
+        "name": "Tom Granger",
+        "email": "eenk@t0m.fr",
+        "url": "https://github.com/t0mg/eenky"
+      },
       "syncDesktopName": true,
       "target": [
         "deb",
@@ -122,7 +126,7 @@
     "narrative",
     "editor"
   ],
-  "author": "Tom Granger <eenk@t0m.fr> (fork of inkle/inky by inkle Ltd)",
+  "author": "Tom Granger <eenk@t0m.fr>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/t0mg/eenky/issues"
