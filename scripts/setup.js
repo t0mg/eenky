@@ -86,6 +86,7 @@ if (!fs.existsSync(submoduleCheck)) {
                 }
             }
             const { execSync } = require('child_process');
+            execSync('git submodule update --init --recursive', { cwd: eenk, stdio: 'inherit' });
             execSync('pio run -e native -v', { cwd: eenk, stdio: 'inherit' });
         } catch (e) {
             console.warn(`  ⚠  Could not pull/build eenk simulator: ${e.message}`);
