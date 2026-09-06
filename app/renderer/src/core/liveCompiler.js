@@ -321,10 +321,11 @@ ipc.on("play-requires-input", (fromSessionId) => {
                 currentTurnIdx++;
                 ipc.send("play-continue-with-choice-number", replayChoiceNumber, fromSessionId);
             } 
-            if( justCompletedReplay && events.replayComplete ) 
-                events.replayComplete(currentPlaySessionId);
         });
     }
+
+    if( justCompletedReplay && events.replayComplete ) 
+        events.replayComplete(currentPlaySessionId);
 });
 
 ipc.on("inklecate-complete", (fromSessionId, exportJsonPath) => {
@@ -430,6 +431,7 @@ export const LiveCompiler = {
     getStats: getStats,
     setChoiceSequence: setChoiceSequence,
     getChoiceSequence: getChoiceSequence,
+    isReplaying: () => replaying,
     setRngSeed: setRngSeed,
     getRngSeed: getRngSeed
 };

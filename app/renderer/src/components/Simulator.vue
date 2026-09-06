@@ -30,7 +30,7 @@
       </table>
     </div>
     
-    <div class="player-content" ref="scrollContainer">
+    <div class="player-content" :class="{ 'is-staging': isStaging, 'is-swapping': isSwapping }" ref="scrollContainer">
       <div v-for="(block, index) in blocks" :key="index" class="story-block">
         <div v-if="block.type === 'text'" class="story-text" v-html="formatText(block.text)"></div>
         <div v-else-if="block.type === 'tags'" class="story-tags">
@@ -129,6 +129,10 @@ const fontStyle = computed(() => {
 });
 
 const blocks = ref([]);
+const isStaging = ref(false);
+const isSwapping = ref(false);
+const stagingBlocks = ref([]);
+let commitToken = 0;
 const scrollContainer = ref(null);
 const watchExpressions = ref([]);
 
@@ -175,8 +179,7 @@ const evaluateAllWatches = (onComplete) => {
   
   const evalNext = (index) => {
     if (index >= expressionsToEval.length) {
-      blocks.value.push({ type: 'watch-result', results });
-      scrollToBottom();
+      pushBlock({ type: 'watch-result', results });
       if (onComplete) onComplete();
       return;
     }
@@ -236,6 +239,49 @@ const scrollToBottom = async () => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
   }
+};
+
+const pushBlock = (block, shouldScroll = true) => {
+  if (isStaging.value) {
+    stagingBlocks.value.push(block);
+  } else {
+    blocks.value.push(block);
+    if (shouldScroll) {
+      scrollToBottom();
+    }
+  }
+};
+
+const commitStaging = async () => {
+  const currentToken = ++commitToken;
+  if (stagingBlocks.value.length === 0) {
+    isStaging.value = false;
+    isSwapping.value = false;
+    return;
+  }
+
+  // Fade out briefly so DOM replacement and scroll jump happen invisibly
+  isSwapping.value = true;
+  await new Promise(resolve => setTimeout(resolve, 60));
+  if (currentToken !== commitToken) return;
+
+  // Swap blocks in the DOM
+  blocks.value = stagingBlocks.value;
+  stagingBlocks.value = [];
+  isStaging.value = false;
+
+  // Wait for Vue DOM update and scroll to bottom while still at opacity: 0
+  await nextTick();
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
+  }
+
+  // Ensure scroll is applied before fading back in
+  await new Promise(resolve => setTimeout(resolve, 30));
+  if (currentToken !== commitToken) return;
+
+  // Fade back in smoothly
+  isSwapping.value = false;
 };
 
 const extractChoiceSequence = (history, maxStepIdx) => {
@@ -351,29 +397,35 @@ onMounted(() => {
 
   LiveCompiler.setEvents({
     resetting: (sessionId) => {
+      commitToken++;
       isFuzzerReplayMode.value = false;
       activeStory.value = null;
-      blocks.value = [];
+      isSwapping.value = false;
+      if (blocks.value.length > 0) {
+        isStaging.value = true;
+        stagingBlocks.value = [];
+      } else {
+        isStaging.value = false;
+        stagingBlocks.value = [];
+        blocks.value = [];
+      }
     },
     compilerBusyChanged: (isBusy) => {
       projectStore.setCompilerBusy(isBusy);
     },
     textAdded: (text) => {
       if (!isFuzzerReplayMode.value) {
-        blocks.value.push({ type: 'text', text });
-        scrollToBottom();
+        pushBlock({ type: 'text', text });
       }
     },
     tagsAdded: (tags) => {
       if (!isFuzzerReplayMode.value) {
-        blocks.value.push({ type: 'tags', tags });
-        scrollToBottom();
+        pushBlock({ type: 'tags', tags });
       }
     },
     choiceAdded: (choice, isLatestTurn) => {
       if (!isFuzzerReplayMode.value && isLatestTurn) {
-        blocks.value.push({ type: 'choice', choice });
-        scrollToBottom();
+        pushBlock({ type: 'choice', choice });
       }
     },
     errorsAdded: (errors) => {
@@ -382,8 +434,10 @@ onMounted(() => {
     storyCompleted: () => {
       if (!isFuzzerReplayMode.value) {
         evaluateAllWatches(() => {
-          blocks.value.push({ type: 'end' });
-          scrollToBottom();
+          pushBlock({ type: 'end' });
+          if (isStaging.value) {
+            commitStaging();
+          }
         });
       }
     },
@@ -397,25 +451,44 @@ onMounted(() => {
         });
       }
     },
+    replayComplete: () => {
+      if (!isFuzzerReplayMode.value && isStaging.value) {
+        commitStaging();
+      }
+    },
     exitDueToError: () => {
       if (!isFuzzerReplayMode.value) {
-        blocks.value.push({ type: 'error', message: 'Story exited due to error.' });
-        scrollToBottom();
+        commitToken++;
+        isSwapping.value = false;
+        if (isStaging.value) {
+          isStaging.value = false;
+          stagingBlocks.value = [];
+        } else {
+          blocks.value.push({ type: 'error', message: 'Story exited due to error.' });
+          scrollToBottom();
+        }
       }
     },
     unexpectedError: (err) => {
       if (!isFuzzerReplayMode.value) {
-        blocks.value.push({ type: 'error', message: 'Unexpected Error: ' + err });
-        scrollToBottom();
+        commitToken++;
+        isSwapping.value = false;
+        if (isStaging.value) {
+          isStaging.value = false;
+          stagingBlocks.value = [];
+        } else {
+          blocks.value.push({ type: 'error', message: 'Unexpected Error: ' + err });
+          scrollToBottom();
+        }
       }
     }
   });
 });
 
 const addDivider = () => {
-  if (blocks.value.length > 0 && blocks.value[blocks.value.length - 1].type !== 'divider') {
-    blocks.value.push({ type: 'divider' });
-    scrollToBottom();
+  const target = isStaging.value ? stagingBlocks.value : blocks.value;
+  if (target.length > 0 && target[target.length - 1].type !== 'divider') {
+    pushBlock({ type: 'divider' });
   }
 };
 
@@ -470,8 +543,13 @@ const makeChoice = (choice) => {
 };
 
 const rewind = () => {
+  commitToken++;
   isFuzzerReplayMode.value = false;
   activeStory.value = null;
+  isStaging.value = false;
+  isSwapping.value = false;
+  stagingBlocks.value = [];
+  blocks.value = [];
   LiveCompiler.rewind();
 };
 
@@ -542,6 +620,16 @@ const formatText = (text) => {
   font-size: calc(16px * var(--zoom-factor, 1));
   line-height: 1.6;
   color: var(--text-color);
+  transition: opacity 0.15s ease-in-out;
+}
+
+.player-content.is-staging {
+  opacity: 0.85;
+}
+
+.player-content.is-swapping {
+  opacity: 0;
+  transition: opacity 0.06s ease-out;
 }
 
 .story-block {

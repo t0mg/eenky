@@ -249,4 +249,103 @@ describe('Simulator Component', () => {
     expect(projectStore.currentRngSeed).toBe(888888);
     expect(LiveCompiler.getRngSeed()).toBe(888888);
   });
+
+  it('implements staged double-buffering during replay so existing story is preserved until replay completes', async () => {
+    let liveEvents;
+    vi.spyOn(LiveCompiler, 'setEvents').mockImplementation((events) => {
+      liveEvents = events;
+    });
+
+    const wrapper = mount(Simulator);
+
+    // Initial playthrough before edit
+    liveEvents.textAdded('Initial story before edit.');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.story-text').text()).toContain('Initial story before edit.');
+    expect(wrapper.find('.player-content').classes()).not.toContain('is-staging');
+
+    // User edits ink: reload begins with resetting
+    liveEvents.resetting('session_1');
+    await wrapper.vm.$nextTick();
+
+    // Staging mode should be active; previous story is STILL visible, not wiped!
+    expect(wrapper.find('.player-content').classes()).toContain('is-staging');
+    expect(wrapper.find('.story-text').text()).toContain('Initial story before edit.');
+
+    // During replay, incoming chunks go to staging and do NOT alter the visible DOM
+    liveEvents.textAdded('Updated story chunk 1.');
+    liveEvents.tagsAdded(['tag1']);
+    const doneFn = vi.fn();
+    liveEvents.playerPrompt(true, doneFn);
+    await wrapper.vm.$nextTick();
+
+    expect(doneFn).toHaveBeenCalled();
+    // Visible DOM still shows initial story!
+    expect(wrapper.find('.story-text').text()).toContain('Initial story before edit.');
+    expect(wrapper.findAll('.story-divider').length).toBe(0);
+
+    // Final turn arrives
+    liveEvents.textAdded('Updated story chunk 2.');
+    liveEvents.choiceAdded({ number: 1, choice: { text: 'New Choice' } }, true);
+    await wrapper.vm.$nextTick();
+
+    // Replay completes - triggers brief opacity fade-out during swap
+    liveEvents.replayComplete();
+    await wrapper.vm.$nextTick();
+
+    // Verify is-swapping class is active during fade
+    expect(wrapper.find('.player-content').classes()).toContain('is-swapping');
+
+    // Wait for swap and fade-in to complete
+    await new Promise((r) => setTimeout(r, 120));
+    await wrapper.vm.$nextTick();
+
+    // Now staging and swapping are deactivated and DOM has swapped atomically!
+    expect(wrapper.find('.player-content').classes()).not.toContain('is-staging');
+    expect(wrapper.find('.player-content').classes()).not.toContain('is-swapping');
+    expect(wrapper.text()).toContain('Updated story chunk 1.');
+    expect(wrapper.text()).toContain('Updated story chunk 2.');
+    expect(wrapper.findAll('.story-divider').length).toBe(1);
+    expect(wrapper.find('.choice-btn').text()).toContain('New Choice');
+  });
+
+  it('preserves existing story preview and cancels staging on compilation error', async () => {
+    let liveEvents;
+    vi.spyOn(LiveCompiler, 'setEvents').mockImplementation((events) => {
+      liveEvents = events;
+    });
+
+    const wrapper = mount(Simulator);
+
+    // Initial playthrough
+    liveEvents.textAdded('Good working story.');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.story-text').text()).toContain('Good working story.');
+
+    // Edit triggers recompile
+    liveEvents.resetting('session_2');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.player-content').classes()).toContain('is-staging');
+
+    // Compile fails due to error in ink syntax
+    liveEvents.exitDueToError();
+    await wrapper.vm.$nextTick();
+
+    // Staging cancelled, old story preserved intact
+    expect(wrapper.find('.player-content').classes()).not.toContain('is-staging');
+    expect(wrapper.find('.story-text').text()).toContain('Good working story.');
+  });
+
+  it('clears preview immediately when restart story (rewind) is clicked', async () => {
+    const wrapper = mount(Simulator);
+    wrapper.vm.blocks = [{ type: 'text', text: 'Old content' }];
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.story-text').exists()).toBe(true);
+
+    const rewindBtn = wrapper.findAll('.toolbar button')[0];
+    await rewindBtn.trigger('click');
+
+    expect(wrapper.find('.story-text').exists()).toBe(false);
+    expect(wrapper.vm.blocks.length).toBe(0);
+  });
 });
