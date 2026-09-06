@@ -333,7 +333,7 @@ Turn 2. Score is {score}.
 -> END
 `);
 
-    const engine = new FuzzerEngine({ maxTurnsPerRun: 100 });
+    const engine = new FuzzerEngine({ maxTurnsPerRun: 100, captureStepStates: true });
     const result = engine.runSingleSimulation(json);
 
     expect(result.stateHistory.length).toBeGreaterThanOrEqual(2);
@@ -458,5 +458,67 @@ Dead end without done or end
     expect(run1.seed).toBe(4242);
     expect(run2.seed).toBe(4242);
     expect(run1.stateHistory[0].text).toBe(run2.stateHistory[0].text);
+  });
+
+  it('omits per-turn stateJson by default for speed, while retaining finalStateJson on issues', () => {
+    const errorStory = `
+VAR count = 0
+-> step1
+=== step1 ===
+~ count = count + 1
+First step.
+* [Go] -> step2
+=== step2 ===
+~ count = count + 1
+Second step with loose end.
+`;
+    const json = compileInk(errorStory);
+    const engine = new FuzzerEngine({ maxTurnsPerRun: 100 });
+    const result = engine.runSingleSimulation(json);
+
+    expect(result.issue).toBeDefined();
+    expect(result.issue.type).toBe('loose_end');
+    expect(result.issue.finalStateJson).toBeDefined();
+
+    // Verify intermediate step omitted stateJson to save CPU/memory
+    expect(result.stateHistory[0].stateJson).toBeUndefined();
+  });
+
+  it('captures per-turn stateJson when captureStepStates is explicitly enabled', () => {
+    const story = `
+VAR count = 0
+-> step1
+=== step1 ===
+~ count = count + 1
+First step.
+* [Go] -> step2
+=== step2 ===
+Second step.
+-> END
+`;
+    const json = compileInk(story);
+    const engine = new FuzzerEngine({ maxTurnsPerRun: 100, captureStepStates: true });
+    const result = engine.runSingleSimulation(json);
+
+    expect(result.success).toBe(true);
+    expect(result.stateHistory[0].stateJson).toBeDefined();
+    expect(typeof result.stateHistory[0].stateJson).toBe('string');
+  });
+
+  it('defaults maxTurnsPerRun to 2000 and detects infinite loop at 2000', () => {
+    const loopStory = `
+-> loop
+=== loop ===
+Spinning...
++ [Again] -> loop
+`;
+    const json = compileInk(loopStory);
+    const engine = new FuzzerEngine();
+    expect(engine.maxTurnsPerRun).toBe(2000);
+
+    const result = engine.runSingleSimulation(json);
+    expect(result.issue).toBeDefined();
+    expect(result.issue.type).toBe('infinite_loop');
+    expect(result.issue.turnCount).toBe(2000);
   });
 });

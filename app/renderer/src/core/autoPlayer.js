@@ -106,7 +106,7 @@ class AutoPlayerController {
           type: 'start',
           storyJson: this.currentStoryJson,
           config: {
-            maxTurnsPerRun: 10000,
+            maxTurnsPerRun: 2000,
             maxTotalRuns: 5000,
             stableRunsThreshold: 5000,
             batchSize: 50
@@ -124,19 +124,31 @@ class AutoPlayerController {
   startDirect() {
     const store = useProjectStore();
     this.directEngine = new FuzzerEngine({
-      maxTurnsPerRun: 10000,
+      maxTurnsPerRun: 2000,
       maxTotalRuns: 5000,
       stableRunsThreshold: 5000,
       batchSize: 50
     });
 
+    let lastProgressPostTime = Date.now();
+    const PROGRESS_THROTTLE_MS = 500;
+    const TIME_SLICE_MS = 60;
+
     const runChunk = () => {
       if (store.autoPlayerStatus !== 'running' || !this.directEngine) return;
 
-      const batchSize = this.directEngine.batchSize;
-      for (let i = 0; i < batchSize; i++) {
+      const sliceStart = Date.now();
+      const maxRunsPerSlice = this.directEngine.batchSize || 50;
+      let runsInSlice = 0;
+      let newIssueFound = false;
+
+      while (store.autoPlayerStatus === 'running' && this.directEngine && runsInSlice < maxRunsPerSlice) {
         const result = this.directEngine.runSingleSimulation(this.currentStoryJson);
-        this.directEngine.recordSimulationResult(result);
+        const isNew = this.directEngine.recordSimulationResult(result);
+        if (isNew) {
+          newIssueFound = true;
+        }
+        runsInSlice++;
 
         const term = this.directEngine.shouldTerminate();
         if (term.shouldStop) {
@@ -145,12 +157,23 @@ class AutoPlayerController {
           store.setAutoPlayerStatus('complete');
           return;
         }
+
+        if (Date.now() - sliceStart >= TIME_SLICE_MS) {
+          break;
+        }
       }
 
-      store.setAutoPlayerIssues(this.directEngine.getIssuesList());
-      store.setAutoPlayerStats(this.directEngine.getStats());
+      if (store.autoPlayerStatus === 'running' && this.directEngine) {
+        const now = Date.now();
+        const runs = this.directEngine.runsCompleted;
+        if (runs === 1 || newIssueFound || (now - lastProgressPostTime >= PROGRESS_THROTTLE_MS)) {
+          lastProgressPostTime = now;
+          store.setAutoPlayerIssues(this.directEngine.getIssuesList());
+          store.setAutoPlayerStats(this.directEngine.getStats());
+        }
 
-      setTimeout(runChunk, 10);
+        setTimeout(runChunk, 10);
+      }
     };
 
     runChunk();

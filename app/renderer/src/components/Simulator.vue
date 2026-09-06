@@ -331,6 +331,30 @@ const injectFuzzerReplay = (issue, storyJson) => {
   LiveCompiler.setChoiceSequence(seq);
 };
 
+const syncActiveStoryToStep = (targetStepIdx) => {
+  const jsonToUse = activeStory.value?._json || projectStore.compiledStoryJson;
+  if (!jsonToUse) return;
+  const StoryClass = inkjs.Story || inkjs;
+  try {
+    const s = new StoryClass(jsonToUse);
+    if (activeReplayIssue.value?.seed !== undefined && activeReplayIssue.value?.seed !== null && s.state) {
+      s.state.storySeed = activeReplayIssue.value.seed;
+      s.state.previousRandom = 0;
+    }
+    for (let i = 0; i < targetStepIdx; i++) {
+      while (s.canContinue) s.Continue();
+      const step = fuzzerHistory.value[i];
+      if (step && step.chosenIndex !== null && step.chosenIndex !== undefined) {
+        s.ChooseChoiceIndex(step.chosenIndex);
+      }
+    }
+    while (s.canContinue) s.Continue();
+    activeStory.value = s;
+  } catch (e) {
+    console.warn('Could not sync active story to step:', e);
+  }
+};
+
 const renderFuzzerUpToStep = (stepIdx) => {
   blocks.value = [];
   if (stepIdx < 0 || stepIdx >= fuzzerHistory.value.length) return;
@@ -354,11 +378,21 @@ const renderFuzzerUpToStep = (stepIdx) => {
       addDivider();
     } else {
       // Current active step
-      if (activeStory.value && step.stateJson) {
-        try {
-          activeStory.value.state.LoadJson(step.stateJson);
-        } catch (e) {
-          console.warn('Failed to load state JSON into story:', e);
+      if (activeStory.value) {
+        if (step.stateJson) {
+          try {
+            activeStory.value.state.LoadJson(step.stateJson);
+          } catch (e) {
+            console.warn('Failed to load state JSON into story:', e);
+          }
+        } else if (stepIdx === fuzzerHistory.value.length - 1 && activeReplayIssue.value?.finalStateJson) {
+          try {
+            activeStory.value.state.LoadJson(activeReplayIssue.value.finalStateJson);
+          } catch (e) {
+            console.warn('Failed to load final state JSON into story:', e);
+          }
+        } else {
+          syncActiveStoryToStep(stepIdx);
         }
       }
 

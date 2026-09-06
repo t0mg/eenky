@@ -7,7 +7,7 @@ import inkjs from 'inkjs';
  */
 export class FuzzerEngine {
   constructor(options = {}) {
-    this.maxTurnsPerRun = options.maxTurnsPerRun || 10000;
+    this.maxTurnsPerRun = options.maxTurnsPerRun || 2000;
     this.maxTotalRuns = options.maxTotalRuns || 5000;
     this.stableRunsThreshold = options.stableRunsThreshold || 5000;
     this.batchSize = options.batchSize || 50;
@@ -15,6 +15,7 @@ export class FuzzerEngine {
     this.minRunsForOutliers = options.minRunsForOutliers || 30;
     this.outlierZThreshold = options.outlierZThreshold || 3.0;
     this.maxCheckpointsPerRun = options.maxCheckpointsPerRun || 25;
+    this.captureStepStates = options.captureStepStates || false;
 
     this.reset();
   }
@@ -100,22 +101,25 @@ export class FuzzerEngine {
       // Track checkpoints encountered along this run
       if (tags && tags.length > 0) {
         for (const t of tags) {
-          let isCheckpoint = false;
-          let title = '';
-          const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
-          if (cpNamedMatch) {
-            isCheckpoint = true;
-            title = cpNamedMatch[1].trim();
-          } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
-            isCheckpoint = true;
-            title = '';
-          }
+          const upper = t.toUpperCase();
+          if (upper.includes('CHECKPOINT') || upper.includes('CHAPTER')) {
+            let isCheckpoint = false;
+            let title = '';
+            const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
+            if (cpNamedMatch) {
+              isCheckpoint = true;
+              title = cpNamedMatch[1].trim();
+            } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
+              isCheckpoint = true;
+              title = '';
+            }
 
-          if (isCheckpoint) {
-            activeCheckpoints.set(title, {
-              turn,
-              knotOrPath: story.state?.currentPathString || 'Unknown'
-            });
+            if (isCheckpoint) {
+              activeCheckpoints.set(title, {
+                turn,
+                knotOrPath: story.state?.currentPathString || 'Unknown'
+              });
+            }
           }
         }
       }
@@ -131,7 +135,7 @@ export class FuzzerEngine {
           tags,
           choices: [],
           chosenIndex: null,
-          stateJson,
+          ...(this.captureStepStates && { stateJson }),
           error
         });
 
@@ -158,10 +162,12 @@ export class FuzzerEngine {
         index: c.index !== undefined ? c.index : i
       }));
 
-      let stateJson = null;
-      try {
-        stateJson = story.state.ToJson();
-      } catch (_) {}
+      let stepStateJson = null;
+      if (this.captureStepStates) {
+        try {
+          stepStateJson = story.state.ToJson();
+        } catch (_) {}
+      }
 
       if (choices.length > 0) {
         // Pick a random choice
@@ -171,29 +177,32 @@ export class FuzzerEngine {
           tags,
           choices,
           chosenIndex: choiceIdx,
-          stateJson
+          ...(this.captureStepStates && { stateJson: stepStateJson })
         });
 
         // Track choice tags if present
         const chosenChoice = story.currentChoices ? story.currentChoices[choiceIdx] : null;
         if (chosenChoice && chosenChoice.tags && chosenChoice.tags.length > 0) {
           for (const t of chosenChoice.tags) {
-            let isCheckpoint = false;
-            let title = '';
-            const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
-            if (cpNamedMatch) {
-              isCheckpoint = true;
-              title = cpNamedMatch[1].trim();
-            } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
-              isCheckpoint = true;
-              title = '';
-            }
+            const upper = t.toUpperCase();
+            if (upper.includes('CHECKPOINT') || upper.includes('CHAPTER')) {
+              let isCheckpoint = false;
+              let title = '';
+              const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
+              if (cpNamedMatch) {
+                isCheckpoint = true;
+                title = cpNamedMatch[1].trim();
+              } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
+                isCheckpoint = true;
+                title = '';
+              }
 
-            if (isCheckpoint) {
-              activeCheckpoints.set(title, {
-                turn,
-                knotOrPath: story.state?.currentPathString || 'Unknown'
-              });
+              if (isCheckpoint) {
+                activeCheckpoints.set(title, {
+                  turn,
+                  knotOrPath: story.state?.currentPathString || 'Unknown'
+                });
+              }
             }
           }
         }
@@ -202,12 +211,17 @@ export class FuzzerEngine {
           story.ChooseChoiceIndex(choiceIdx);
         } catch (err) {
           const choiceError = err?.message || String(err);
+          let stateJson = null;
+          try {
+            stateJson = story.state?.ToJson();
+          } catch (_) {}
+
           stateHistory.push({
             text: '',
             tags: [],
             choices: [],
             chosenIndex: null,
-            stateJson,
+            ...(this.captureStepStates && { stateJson }),
             error: choiceError
           });
           issue = {
@@ -256,11 +270,15 @@ export class FuzzerEngine {
           tags,
           choices: [],
           chosenIndex: null,
-          stateJson
+          ...(this.captureStepStates && { stateJson: stepStateJson })
         });
 
         if (!isSafeExit) {
           // Out of flow / loose end
+          let stateJson = null;
+          try {
+            stateJson = story.state?.ToJson();
+          } catch (_) {}
           const loc = story.state?.currentPathString || 'root';
           issue = {
             type: 'loose_end',
@@ -286,7 +304,7 @@ export class FuzzerEngine {
         tags: [],
         choices: [],
         chosenIndex: null,
-        stateJson,
+        ...(this.captureStepStates && { stateJson }),
         error: 'Turn limit exceeded'
       });
 
