@@ -310,6 +310,7 @@ const injectFuzzerReplay = (issue, storyJson) => {
     const StoryClass = inkjs.Story || inkjs;
     try {
       activeStory.value = new StoryClass(jsonToUse);
+      activeStory.value.allowExternalFunctionFallbacks = true;
       if (issue.seed !== undefined && issue.seed !== null && activeStory.value.state) {
         activeStory.value.state.storySeed = issue.seed;
         activeStory.value.state.previousRandom = 0;
@@ -337,6 +338,7 @@ const syncActiveStoryToStep = (targetStepIdx) => {
   const StoryClass = inkjs.Story || inkjs;
   try {
     const s = new StoryClass(jsonToUse);
+    s.allowExternalFunctionFallbacks = true;
     if (activeReplayIssue.value?.seed !== undefined && activeReplayIssue.value?.seed !== null && s.state) {
       s.state.storySeed = activeReplayIssue.value.seed;
       s.state.previousRandom = 0;
