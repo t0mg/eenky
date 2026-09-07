@@ -111,7 +111,7 @@ You stand before three levers. A skull is etched above the center one.
 + [Pull the right lever] -> right_lever
 ```
 
-- Each occurrence of `# CHECKPOINT` updates the player's quick-save to that exact position.
+- Each occurrence of `# CHECKPOINT` updates the player's quick-save to that exact position. 
 - There is no visual clue that a checkpoint has been reached, it is left to you whether or not to reveal it (for example with an explicit `[checkpoint]`, or a subtler in-game message).
 - In the Story Menu, this is presented as **`Rewind to last checkpoint`**.
 
