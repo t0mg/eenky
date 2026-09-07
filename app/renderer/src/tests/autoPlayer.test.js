@@ -214,7 +214,7 @@ Spinning...
 
   it('detects runtime errors and captures error state history', () => {
     const json = compileInk(`
-EXTERNAL missing_function()
+EXTERNAL missing_function_no_fallback()
 * [Safe] -> safe
 * [Crash] -> crash
 
@@ -223,7 +223,7 @@ Safe path.
 -> END
 
 === crash ===
-~ missing_function()
+Crash {missing_function_no_fallback()}
 -> END
 `);
 
@@ -241,6 +241,33 @@ Safe path.
     }
 
     expect(foundCrash).toBe(true);
+  });
+
+  it('runs safely when an unbound external function has a fallback knot', () => {
+    const json = compileInk(`
+EXTERNAL missing_function_with_fallback()
+* [Go] -> go
+
+=== go ===
+Result is {missing_function_with_fallback()}
+-> END
+
+=== function missing_function_with_fallback() ===
+~ return "fallback_result"
+`);
+
+    const engine = new FuzzerEngine({ maxTurnsPerRun: 50 });
+
+    let foundCrash = false;
+    for (let i = 0; i < 50; i++) {
+      const result = engine.runSingleSimulation(json);
+      engine.recordSimulationResult(result);
+      if (result.issue) {
+        foundCrash = true;
+      }
+    }
+
+    expect(foundCrash).toBe(false);
   });
 
   it('deduplicates identical issues and increments occurrence counts', () => {

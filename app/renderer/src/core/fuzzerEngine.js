@@ -46,6 +46,7 @@ export class FuzzerEngine {
     let story;
     try {
       story = new StoryClass(storyJson);
+      story.allowExternalFunctionFallbacks = true;
       if (story.state) {
         story.state.storySeed = seed;
         story.state.previousRandom = 0;
