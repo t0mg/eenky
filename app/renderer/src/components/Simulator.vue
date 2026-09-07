@@ -139,6 +139,7 @@ const watchExpressions = ref([]);
 // Fuzzer Replay State
 const isFuzzerReplayMode = ref(false);
 const activeReplayIssue = ref(null);
+const activeReplayStoryJson = ref(null);
 const fuzzerHistory = ref([]);
 const fuzzerCurrentStepIdx = ref(-1);
 const activeStory = ref(null);
@@ -302,10 +303,11 @@ const injectFuzzerReplay = (issue, storyJson) => {
 
   isFuzzerReplayMode.value = true;
   activeReplayIssue.value = issue;
+  activeReplayStoryJson.value = storyJson || projectStore.compiledStoryJson;
   fuzzerHistory.value = JSON.parse(JSON.stringify(issue.stateHistory));
   fuzzerCurrentStepIdx.value = fuzzerHistory.value.length - 1;
 
-  const jsonToUse = storyJson || projectStore.compiledStoryJson;
+  const jsonToUse = activeReplayStoryJson.value;
   if (jsonToUse) {
     const StoryClass = inkjs.Story || inkjs;
     try {
@@ -333,7 +335,7 @@ const injectFuzzerReplay = (issue, storyJson) => {
 };
 
 const syncActiveStoryToStep = (targetStepIdx) => {
-  const jsonToUse = activeStory.value?._json || projectStore.compiledStoryJson;
+  const jsonToUse = activeReplayStoryJson.value || projectStore.compiledStoryJson;
   if (!jsonToUse) return;
   const StoryClass = inkjs.Story || inkjs;
   try {
@@ -419,12 +421,197 @@ const renderFuzzerUpToStep = (stepIdx) => {
             }
           });
         }
+      } else if (!activeReplayIssue.value && !step.error) {
+        blocks.value.push({ type: 'end' });
       }
     }
   }
 
   scrollToBottom();
 };
+
+const recompileFuzzerReplay = (storyJson) => {
+  if (!isFuzzerReplayMode.value || !activeReplayIssue.value || !storyJson) return;
+
+  const StoryClass = inkjs.Story || inkjs;
+  const seed = activeReplayIssue.value.seed;
+
+  // Extract choice indices that were chosen so far in the active history
+  const choiceIndices = [];
+  const limit = fuzzerCurrentStepIdx.value >= 0
+    ? Math.min(fuzzerHistory.value.length, fuzzerCurrentStepIdx.value)
+    : fuzzerHistory.value.length;
+
+  for (let i = 0; i < limit; i++) {
+    const step = fuzzerHistory.value[i];
+    if (step && step.chosenIndex !== null && step.chosenIndex !== undefined) {
+      choiceIndices.push(step.chosenIndex);
+    }
+  }
+
+  let story;
+  try {
+    story = new StoryClass(storyJson);
+    story.allowExternalFunctionFallbacks = true;
+    if (seed !== undefined && seed !== null && story.state) {
+      story.state.storySeed = seed;
+      story.state.previousRandom = 0;
+    }
+  } catch (e) {
+    console.warn('Failed to initialize Story for replay:', e);
+    return;
+  }
+
+  const newHistory = [];
+  let currentIssue = null;
+
+  for (let step = 0; step <= choiceIndices.length; step++) {
+    let text = '';
+    const tags = [];
+    let error = null;
+
+    try {
+      let continueCount = 0;
+      while (story.canContinue && continueCount++ < 10000) {
+        const chunk = story.Continue();
+        if (chunk) text += chunk;
+        if (story.currentTags && story.currentTags.length > 0) {
+          tags.push(...story.currentTags);
+        }
+      }
+      if (story.hasError) {
+        const errors = story.currentErrors || [];
+        error = errors.join('; ') || 'Unknown runtime error';
+      }
+    } catch (e) {
+      error = e?.message || String(e);
+    }
+
+    if (error) {
+      const isLooseEnd = error.toLowerCase().includes('ran out of content') ||
+                         error.toLowerCase().includes('do you need a') ||
+                         error.toLowerCase().includes('-> done') ||
+                         error.toLowerCase().includes('-> end');
+      const issueType = isLooseEnd ? 'loose_end' : 'runtime_error';
+      const loc = story.state?.currentPathString || 'root';
+
+      currentIssue = {
+        type: issueType,
+        message: error,
+        turnCount: step,
+        knotOrPath: loc,
+        seed
+      };
+
+      let stateJson = null;
+      try { stateJson = story.state?.ToJson(); } catch (_) {}
+
+      newHistory.push({
+        text,
+        tags,
+        choices: [],
+        chosenIndex: null,
+        stateJson,
+        error
+      });
+      break;
+    }
+
+    const choices = (story.currentChoices || []).map((c, i) => ({
+      text: c.text,
+      index: c.index !== undefined ? c.index : i
+    }));
+
+    let stateJson = null;
+    try { stateJson = story.state?.ToJson(); } catch (_) {}
+
+    if (step < choiceIndices.length) {
+      const chosen = choiceIndices[step];
+      if (choices.some(c => c.index === chosen)) {
+        newHistory.push({
+          text,
+          tags,
+          choices,
+          chosenIndex: chosen,
+          stateJson
+        });
+        try {
+          story.ChooseChoiceIndex(chosen);
+        } catch (e) {
+          currentIssue = {
+            type: 'runtime_error',
+            message: e?.message || String(e),
+            turnCount: step,
+            knotOrPath: story.state?.currentPathString || 'Unknown',
+            seed
+          };
+          break;
+        }
+      } else {
+        newHistory.push({
+          text,
+          tags,
+          choices,
+          chosenIndex: null,
+          stateJson
+        });
+        break;
+      }
+    } else {
+      // Last step reached
+      let isSafeExit = story.state?.didSafeExit === true;
+      if (!isSafeExit && choices.length === 0) {
+        const prevPtr = story.state?.previousPointer;
+        if (!prevPtr || prevPtr.isNull) {
+          isSafeExit = true;
+        } else {
+          const container = prevPtr.container;
+          if (container && Array.isArray(container._content)) {
+            const lastItem = container._content[container._content.length - 1];
+            if (lastItem && (lastItem.commandType === 19 || lastItem.commandType === 20)) {
+              isSafeExit = true;
+            }
+          }
+        }
+        if (!isSafeExit) {
+          const loc = story.state?.currentPathString || 'root';
+          currentIssue = {
+            type: 'loose_end',
+            message: `Loose end at ${loc}: story reached a dead end without -> DONE or -> END.`,
+            turnCount: step,
+            knotOrPath: loc,
+            seed
+          };
+        }
+      }
+
+      newHistory.push({
+        text,
+        tags,
+        choices,
+        chosenIndex: null,
+        stateJson
+      });
+    }
+  }
+
+  activeStory.value = story;
+  activeReplayIssue.value = currentIssue;
+  fuzzerHistory.value = newHistory;
+  fuzzerCurrentStepIdx.value = newHistory.length - 1;
+
+  renderFuzzerUpToStep(fuzzerCurrentStepIdx.value);
+
+  const seq = extractChoiceSequence(fuzzerHistory.value, fuzzerCurrentStepIdx.value);
+  LiveCompiler.setChoiceSequence(seq);
+};
+
+watch(() => projectStore.compiledStoryJson, (newJson) => {
+  if (isFuzzerReplayMode.value && newJson) {
+    activeReplayStoryJson.value = newJson;
+    recompileFuzzerReplay(newJson);
+  }
+});
 
 onMounted(() => {
   AutoPlayer.setEvents({
@@ -434,8 +621,15 @@ onMounted(() => {
   LiveCompiler.setEvents({
     resetting: (sessionId) => {
       commitToken++;
+      if (isFuzzerReplayMode.value) {
+        // While in fuzzer replay mode, do not switch back to inklecate preview.
+        // The replay is refreshed on the new story JSON in inkjs.
+        return;
+      }
       isFuzzerReplayMode.value = false;
       activeStory.value = null;
+      activeReplayIssue.value = null;
+      activeReplayStoryJson.value = null;
       isSwapping.value = false;
       if (blocks.value.length > 0) {
         isStaging.value = true;
@@ -485,6 +679,8 @@ onMounted(() => {
             callback();
           }
         });
+      } else if (replaying && callback) {
+        callback();
       }
     },
     replayComplete: () => {
@@ -582,6 +778,8 @@ const rewind = () => {
   commitToken++;
   isFuzzerReplayMode.value = false;
   activeStory.value = null;
+  activeReplayIssue.value = null;
+  activeReplayStoryJson.value = null;
   isStaging.value = false;
   isSwapping.value = false;
   stagingBlocks.value = [];

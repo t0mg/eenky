@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import inkjs from 'inkjs';
 import Simulator from '../components/Simulator.vue';
 import { LiveCompiler } from '../core/liveCompiler.js';
 import { AutoPlayer } from '../core/autoPlayer.js';
@@ -348,4 +349,123 @@ describe('Simulator Component', () => {
     expect(wrapper.find('.story-text').exists()).toBe(false);
     expect(wrapper.vm.blocks.length).toBe(0);
   });
+
+  it('replays fuzzer playthrough deterministically using inkjs and issue seed when story is recompiled', async () => {
+    let replayCallback;
+    vi.spyOn(AutoPlayer, 'setEvents').mockImplementation((events) => {
+      replayCallback = events.replayIssue;
+    });
+
+    let liveEvents;
+    vi.spyOn(LiveCompiler, 'setEvents').mockImplementation((events) => {
+      liveEvents = events;
+    });
+
+    const { useProjectStore } = await import('../stores/projectStore');
+    const projectStore = useProjectStore();
+
+    const compileInk = (src) => {
+      const CompilerClass = inkjs.Compiler || inkjs;
+      const compiler = new CompilerClass(src);
+      return JSON.parse(compiler.Compile().ToJson());
+    };
+
+    const brokenStory = `
+- (start)
++ [do a thing]
++ [do a different thing]
+-
+{ shuffle:
+- a
+- b
+- c
+- d
+  -> crash("d crash")  ->
+- e
+}
+-> start
+
+=== crash(txt)
+  {txt}
+  ~ temp errorGenerator = 0 + ()
+-> DONE
+`;
+
+    const brokenJson = compileInk(brokenStory);
+    projectStore.setCompiledStoryJson(brokenJson);
+
+    const wrapper = mount(Simulator);
+
+    // Run fuzzer to find the crash and seed
+    const { FuzzerEngine } = await import('../core/fuzzerEngine.js');
+    const engine = new FuzzerEngine({ maxTurnsPerRun: 50 });
+    let crashResult = null;
+    for (let i = 0; i < 50; i++) {
+      const res = engine.runSingleSimulation(brokenJson);
+      if (res.issue) {
+        crashResult = res;
+        break;
+      }
+    }
+    expect(crashResult).not.toBeNull();
+    expect(crashResult.issue).toBeDefined();
+
+    // Load crash issue into preview
+    replayCallback(crashResult.issue, brokenJson);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(true);
+    expect(wrapper.text()).toContain('d crash');
+
+    // Simulate an edit to the story (e.g. adding a comment or carriage return)
+    const editedBrokenStory = brokenStory + '\n// carriage return added';
+    const editedBrokenJson = compileInk(editedBrokenStory);
+
+    // LiveCompiler resetting fires
+    liveEvents.resetting('session_edit');
+    await wrapper.vm.$nextTick();
+
+    // In fuzzer replay mode, resetting should NOT wipe out the replay
+    expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(true);
+    expect(wrapper.text()).toContain('d crash');
+
+    // LiveCompiler exports new compiled JSON
+    projectStore.setCompiledStoryJson(editedBrokenJson);
+    await wrapper.vm.$nextTick();
+
+    // Story re-simulates in inkjs using the issue's seed: crash is still preserved!
+    expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(true);
+    expect(wrapper.text()).toContain('d crash');
+
+    // Now author fixes the crash
+    const fixedStory = `
+- (start)
++ [do a thing]
++ [do a different thing]
+-
+{ shuffle:
+- a
+- b
+- c
+- d
+  -> crash("d crash")  ->
+- e
+}
+-> start
+
+=== crash(txt)
+  {txt}
+  Fixed safely!
+-> DONE
+`;
+    const fixedJson = compileInk(fixedStory);
+
+    projectStore.setCompiledStoryJson(fixedJson);
+    await wrapper.vm.$nextTick();
+
+    // Error banner is cleared and fixed story is rendered!
+    expect(wrapper.find('.story-fuzzer-issue').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Fixed safely!');
+  });
 });
+
