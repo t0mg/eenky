@@ -1,12 +1,119 @@
 (function(storyContent) {
 
+
     // Create ink story from the content using inkjs
     var story = new inkjs.Story(storyContent);
 
     var savePoint = "";
 
-    let savedTheme;
-    let globalTagTheme;
+    const SAVE_INDEX_KEY = document.title + "story-save-index";
+
+    function makeSafeSaveId(text) {
+        return text
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+    }
+
+    function getAllSaves() {
+        try {
+            return JSON.parse(localStorage.getItem(SAVE_INDEX_KEY) || "[]");
+        } catch {
+            return [];
+        }
+    }
+
+    function saveCheckpoint(title) {
+        try {
+            const safeId = makeSafeSaveId(title);
+
+            const visibleTitle = title
+                .trim()
+                .replace(/^___(.*)___$/, "$1")
+                .replace(/^__(.*)__$/, "$1")
+                .replace(/^_(.*)_$/, "$1");
+
+            const saveData = {
+                id: safeId,
+                title: visibleTitle,
+                state: savePoint,
+                timestamp: Date.now()
+            };
+
+            localStorage.setItem(
+                `story-save-${safeId}`,
+                JSON.stringify(saveData)
+            );
+
+            let saves = getAllSaves();
+
+            // remove duplicate entry if it already exists
+            saves = saves.filter(s => s.id !== safeId);
+
+            saves.push({
+                id: safeId,
+                title: visibleTitle,
+                timestamp: saveData.timestamp
+            });
+
+            localStorage.setItem(
+                SAVE_INDEX_KEY,
+                JSON.stringify(saves)
+            );
+
+            document.getElementById("reload")?.removeAttribute("disabled");
+        } catch (e) {
+            console.warn("Couldn't create checkpoint", e);
+        }
+    }
+
+   function loadCheckpoint(id) {
+        try {
+            const raw = localStorage.getItem(`story-save-${id}`);
+            if (!raw) return false;
+
+            const save = JSON.parse(raw);
+
+            // Remove any checkpoints created after this one
+            let saves = getAllSaves();
+
+            saves.forEach(s => {
+                if (s.timestamp > save.timestamp) {
+                    localStorage.removeItem(`story-save-${s.id}`);
+                }
+            });
+
+            saves = saves.filter(s => s.timestamp <= save.timestamp);
+
+            localStorage.setItem(
+                SAVE_INDEX_KEY,
+                JSON.stringify(saves)
+            );
+
+            // Disable load button if somehow no saves remain
+            const reloadEl = document.getElementById("reload");
+            if (reloadEl && saves.length === 0) {
+                reloadEl.setAttribute("disabled", "disabled");
+            }
+
+            removeAll("p");
+            removeAll("img");
+            removeAll("hr");
+
+            story.state.LoadJson(save.state);
+
+            continueStory(true);
+
+            return true;
+
+        } catch (e) {
+            console.warn("Couldn't load checkpoint", e);
+            return false;
+        }
+    }
+
+    document.body.classList.toggle("dark");
 
     // Global tags - those at the top of the ink file
     // We support:
@@ -35,15 +142,26 @@
     var outerScrollContainer = document.querySelector('.outerContainer');
 
     // page features setup
-    setupTheme(globalTagTheme);
-    var hasSave = loadSavePoint();
+    
+    var hasSave = getAllSaves().length > 0;
     setupButtons(hasSave);
 
     // Set initial save point
-    savePoint = story.state.toJson();
+savePoint = story.state.toJson();
 
-    // Kick off the start of the story!
+// Auto-load most recent checkpoint if one exists
+const existingSaves = getAllSaves();
+
+if (existingSaves.length > 0) {
+    const latestSave = existingSaves.reduce((latest, current) =>
+        current.timestamp > latest.timestamp ? current : latest
+    );
+
+    loadCheckpoint(latestSave.id);
+} else {
+    // No save found, start from the beginning
     continueStory(true);
+}
 
     // Main story processing function. Each time this is called it generates
     // all the next content up as far as the next set of choices.
@@ -54,6 +172,8 @@
 
         // Don't over-scroll past new content
         var previousBottomEdge = firstTime ? 0 : contentBottomEdgeY();
+
+        var firstLineVisible = false;
 
         // Generate story text - loop through available content
         while(story.canContinue) {
@@ -125,15 +245,28 @@
                     outerScrollContainer.style.backgroundImage = 'url('+splitTag.val+')';
                 }
 
+                else if ( splitTag && splitTag.property == "CHECKPOINT" && splitTag.val) {
+                    saveCheckpoint(splitTag.val.trim());
+                    
+                }
+
                 // CLASS: className
                 else if( splitTag && splitTag.property == "CLASS" ) {
                     customClasses.push(splitTag.val);
+                    if (splitTag.val == 'centered' && !firstLineVisible) {
+
+
+                        removeAll("p");
+                        removeAll("hr");
+                        removeAll("img");
+                    }
                 }
 
                 // CLEAR - removes all existing content.
                 // RESTART - clears everything and restarts the story from the beginning
                 else if( tag == "CLEAR" || tag == "RESTART" ) {
                     removeAll("p");
+                    removeAll("hr");
                     removeAll("img");
 
                     // Comment out this line if you want to leave the header visible when clearing
@@ -151,10 +284,22 @@
                 continue; // Skip empty paragraphs
 		}
 
+        firstLineVisible = true;
+
+        let html = paragraphText
+          // ___text___ => <strong><em>text</em></strong>
+          .replace(/___(.*?)___/g, '<strong><em>$1</em></strong>')
+          // __text__ => <strong>text</strong>
+          .replace(/__(.*?)__/g, '<strong>$1</strong>')
+          // _text_ => <em>text</em>
+          .replace(/_(.*?)_/g, '<em>$1</em>');
+
             // Create paragraph element (initially hidden)
             var paragraphElement = document.createElement('p');
-            paragraphElement.innerHTML = paragraphText;
+            paragraphElement.innerHTML = html;
             storyContainer.appendChild(paragraphElement);
+
+
 
             // Add any custom classes derived from ink tags
             for(var i=0; i<customClasses.length; i++)
@@ -194,10 +339,17 @@
             for(var i=0; i<customClasses.length; i++)
                 choiceParagraphElement.classList.add(customClasses[i]);
 
+            let html = choice.text
+          // ___text___ => <strong><em>text</em></strong>
+          .replace(/___(.*?)___/g, '<strong><em>$1</em></strong>')
+          // _text_ => <em>text</em>
+          .replace(/_(.*?)_/g, '<em>$1</em>');
+
+
             if(isClickable){
-                choiceParagraphElement.innerHTML = `<a href='#'>${choice.text}</a>`
+                choiceParagraphElement.innerHTML = `<a href='#'>${html}</a>`
             }else{
-                choiceParagraphElement.innerHTML = `<span class='unclickable'>${choice.text}</span>`
+                choiceParagraphElement.innerHTML = `<span class='unclickable'>${html}</span>`
             }
             storyContainer.appendChild(choiceParagraphElement);
 
@@ -221,6 +373,9 @@
                     // Remove all existing choices
                     removeAll(".choice");
 
+                    var lineElement = document.createElement('hr');
+                    storyContainer.appendChild(lineElement);
+
                     // Tell the story where to go next
                     story.ChooseChoiceIndex(choice.index);
 
@@ -241,19 +396,37 @@
 
     }
 
-    function restart() {
+   function restart() {
+
+        // Delete all checkpoint saves
+        try {
+            const saves = getAllSaves();
+
+            saves.forEach(save => {
+                localStorage.removeItem(`story-save-${save.id}`);
+            });
+
+            localStorage.removeItem(SAVE_INDEX_KEY);
+
+            const reloadEl = document.getElementById("reload");
+            if (reloadEl) {
+                reloadEl.setAttribute("disabled", "disabled");
+            }
+
+        } catch (e) {
+            console.warn("Couldn't clear saves", e);
+        }
+
         story.ResetState();
 
         setVisible(".header", true);
 
-        // set save point to here
         savePoint = story.state.toJson();
 
         continueStory(true);
 
         outerScrollContainer.scrollTo(0, 0);
     }
-
     // -----------------------------------
     // Various Helper functions
     // -----------------------------------
@@ -352,39 +525,80 @@
         return null;
     }
 
-    // Loads save state if exists in the browser memory
-    function loadSavePoint() {
+    
 
-        try {
-            let savedState = window.localStorage.getItem('save-state');
-            if (savedState) {
-                story.state.LoadJson(savedState);
-                return true;
+    function closeSaveModal() {
+    const modal = document.getElementById("save-select-modal");
+    if (modal) modal.remove();
+}
+
+    function showSaveModal() {
+
+        const saves = getAllSaves();
+
+        const overlay = document.createElement("div");
+        overlay.id = "save-select-modal";
+
+        overlay.style.position = "fixed";
+        overlay.style.left = "0";
+        overlay.style.top = "0";
+        overlay.style.width = "100%";
+        overlay.style.height = "100%";
+        overlay.style.background = "rgba(0,0,0,0.5)";
+        overlay.style.zIndex = "9999";
+        overlay.style.display = "flex";
+        overlay.style.alignItems = "center";
+        overlay.style.justifyContent = "center";
+
+        const panel = document.createElement("div");
+
+        panel.style.background = "white";
+        panel.style.padding = "20px";
+        panel.style.maxHeight = "70vh";
+        panel.style.overflowY = "auto";
+        panel.style.minWidth = "300px";
+
+        const heading = document.createElement("h3");
+        heading.textContent = "Rewind Story...";
+        panel.appendChild(heading);
+
+        saves
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .forEach(save => {
+
+                const btn = document.createElement("button");
+
+                btn.textContent = save.title;
+                btn.style.fontWeight = "bold";
+
+                btn.style.display = "block";
+                btn.style.width = "100%";
+                btn.style.marginBottom = "8px";
+
+                btn.addEventListener("click", () => {
+                    closeSaveModal();
+                    loadCheckpoint(save.id);
+                });
+
+                panel.appendChild(btn);
+            });
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Resume";
+
+        cancelBtn.addEventListener("click", closeSaveModal);
+
+        panel.appendChild(cancelBtn);
+
+        overlay.appendChild(panel);
+
+        overlay.addEventListener("click", e => {
+            if (e.target === overlay) {
+                closeSaveModal();
             }
-        } catch (e) {
-            console.debug("Couldn't load save state");
-        }
-        return false;
-    }
+        });
 
-    // Detects which theme (light or dark) to use
-    function setupTheme(globalTagTheme) {
-
-        // load theme from browser memory
-        var savedTheme;
-        try {
-            savedTheme = window.localStorage.getItem('theme');
-        } catch (e) {
-            console.debug("Couldn't load saved theme");
-        }
-
-        // Check whether the OS/browser is configured for dark mode
-        var browserDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-        if (savedTheme === "dark"
-            || (savedTheme == undefined && globalTagTheme === "dark")
-            || (savedTheme == undefined && globalTagTheme == undefined && browserDark))
-            document.body.classList.add("dark");
+        document.body.appendChild(overlay);
     }
 
     // Used to hook up the functionality for global functionality buttons
@@ -398,42 +612,24 @@
             restart();
         });
 
-        let saveEl = document.getElementById("save");
-        if (saveEl) saveEl.addEventListener("click", function(event) {
-            try {
-                window.localStorage.setItem('save-state', savePoint);
-                document.getElementById("reload").removeAttribute("disabled");
-                window.localStorage.setItem('theme', document.body.classList.contains("dark") ? "dark" : "");
-            } catch (e) {
-                console.warn("Couldn't save state");
-            }
-
-        });
+        
 
         let reloadEl = document.getElementById("reload");
         if (!hasSave) {
             reloadEl.setAttribute("disabled", "disabled");
         }
         reloadEl.addEventListener("click", function(event) {
-            if (reloadEl.getAttribute("disabled"))
+
+            const saves = getAllSaves();
+
+            if (!saves.length)
                 return;
 
-            removeAll("p");
-            removeAll("img");
-            try {
-                let savedState = window.localStorage.getItem('save-state');
-                if (savedState) story.state.LoadJson(savedState);
-            } catch (e) {
-                console.debug("Couldn't load save state");
-            }
-            continueStory(true);
+            showSaveModal();
         });
 
-        let themeSwitchEl = document.getElementById("theme-switch");
-        if (themeSwitchEl) themeSwitchEl.addEventListener("click", function(event) {
-            document.body.classList.add("switched");
-            document.body.classList.toggle("dark");
-        });
+        
+        
     }
 
 })(storyContent);
