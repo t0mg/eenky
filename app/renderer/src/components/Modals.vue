@@ -64,6 +64,32 @@
         <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
+      <!-- Update Available Modal -->
+      <div v-else-if="uiStore.modalState.type === 'update'" class="modal-body update-modal">
+        <h2>Update Available</h2>
+        <div class="update-banner">
+          <p class="update-headline">
+            A new version of <strong>eenky</strong> is available: <span class="update-version-tag">v{{ modalData.latestVersion }}</span>
+          </p>
+          <p class="update-current-version">
+            You are currently running <strong>v{{ modalData.currentVersion }}</strong>
+          </p>
+        </div>
+
+        <div v-if="modalData.releaseNotes" class="update-notes-container">
+          <div class="update-notes-title">Release Notes</div>
+          <div class="update-notes-content">{{ modalData.releaseNotes }}</div>
+        </div>
+
+        <div class="modal-actions update-actions">
+          <button @click="skipVersion(modalData.latestVersion)" class="secondary-btn">Skip This Version</button>
+          <div class="update-actions-right">
+            <button @click="closeModal(false)" class="secondary-btn">Later</button>
+            <button @click="downloadUpdate(modalData.releaseUrl)" class="primary-btn">Download from GitHub</button>
+          </div>
+        </div>
+      </div>
+
       <div v-else-if="uiStore.modalState.type === 'shortcuts'" class="modal-body">
         <h2>Useful Keyboard Shortcuts</h2>
         <table class="shortcuts-table">
@@ -166,6 +192,32 @@ if (window.api && window.api.receive) {
     uiStore.openModal('about');
   });
 }
+
+if (window.api && window.api.onUpdateAvailable) {
+  window.api.onUpdateAvailable((data) => {
+    uiStore.openModal('update', data);
+  });
+} else if (window.api && window.api.receive) {
+  window.api.receive('update-available', (data) => {
+    uiStore.openModal('update', data);
+  });
+}
+
+const downloadUpdate = (url) => {
+  if (url && window.api && window.api.openExternal) {
+    window.api.openExternal(url);
+  }
+  closeModal(true);
+};
+
+const skipVersion = (version) => {
+  if (version && window.api && window.api.skipUpdateVersion) {
+    window.api.skipUpdateVersion(version);
+  } else if (version && window.api && window.api.invoke) {
+    window.api.invoke('eenky:skip-update-version', version);
+  }
+  closeModal(false);
+};
 
 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 const ctrlCmd = isMac ? '⌘' : 'Ctrl';
@@ -414,5 +466,75 @@ watch(
   font-size: 0.85em;
   color: var(--text-muted, #888);
   line-height: 1.4;
+}
+
+.update-modal {
+  max-width: 540px;
+}
+
+.update-banner {
+  padding: 4px 0 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.update-headline {
+  font-size: 1.05rem;
+  margin: 0;
+  color: var(--text-color);
+}
+
+.update-version-tag {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.update-current-version {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.update-notes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.update-notes-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.update-notes-content {
+  background: var(--color-light, rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--border-color, #ccc);
+  padding: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  color: var(--text-color);
+}
+
+.update-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.update-actions-right {
+  display: flex;
+  gap: 8px;
 }
 </style>

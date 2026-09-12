@@ -47,4 +47,19 @@ describe('uiStore', () => {
     expect(store.modalState.type).toBe('');
     expect(store.modalState.data).toBe(null);
   });
+
+  it('opens update modal with release data', () => {
+    const store = useUiStore();
+    const updateData = {
+      currentVersion: '0.2.2',
+      latestVersion: '0.2.3',
+      releaseNotes: 'Bug fixes and improvements',
+      releaseUrl: 'https://github.com/t0mg/eenky/releases/tag/v0.2.3'
+    };
+    store.openModal('update', updateData);
+    expect(store.modalState.isOpen).toBe(true);
+    expect(store.modalState.type).toBe('update');
+    expect(store.modalState.data.latestVersion).toBe('0.2.3');
+    expect(store.modalState.data.releaseNotes).toBe('Bug fixes and improvements');
+  });
 });

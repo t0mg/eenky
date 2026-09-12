@@ -480,6 +480,13 @@ function refresh(appState = { isHome: false }) {
                     accelerator: 'CmdOrCtrl+K',
                     enabled: callbacks.isFocusedWindow,
                     click: callbacks.keyboardShortcuts
+                },
+                {
+                    type: 'separator'
+                },
+                {
+                    label: i18n._('Check for Updates...'),
+                    click: callbacks.checkForUpdates
                 }
             ]
         },
@@ -497,6 +504,10 @@ function refresh(appState = { isHome: false }) {
                     label: aboutWindowLabel,
                     click: callbacks.showAbout
                     // role: 'about'
+                },
+                {
+                    label: i18n._('Check for Updates...'),
+                    click: callbacks.checkForUpdates
                 },
                 {
                     type: 'separator'

@@ -23,6 +23,7 @@ app.setName('eenky');
 // ── eenk extensions ───────────────────────────────────────────────────────────
 require('./eenkCompiler.js');   // registers eenk:compile IPC
 const { stopSimulator } = require('./simulator.js'); // registers eenk:sim-* IPC
+const updateChecker = require('./updateChecker.js');
 
 // IPC: open file dialog (used by compiler + simulator panels)
 ipcMain.handle('eenk:open-file-dialog', async (event, opts) => {
@@ -37,6 +38,14 @@ ipcMain.handle('eenk:open-project', async (event, filePath) => {
 });
 ipcMain.handle('eenk:new-project', async () => {
     ProjectWindow.createEmpty();
+});
+
+ipcMain.handle('eenky:check-for-updates', async (event) => {
+    const win = ProjectWindow.withWebContents(event.sender);
+    return await updateChecker.checkForUpdates({ isStartup: false, win });
+});
+ipcMain.handle('eenky:skip-update-version', async (event, version) => {
+    updateChecker.skipVersion(version);
 });
 
 
@@ -443,6 +452,10 @@ app.on('ready', function () {
                 });
             }
         },
+        checkForUpdates: (item, focusedWindow) => {
+            const win = focusedWindow ? ProjectWindow.withBrowserWindow(focusedWindow) : ProjectWindow.focused();
+            updateChecker.checkForUpdates({ isStartup: false, win });
+        },
         keyboardShortcuts: () => {
             var win = ProjectWindow.focused();
             if (win) win.keyboardShortcuts();
@@ -622,6 +635,24 @@ app.on('ready', function () {
     DocumentationWindow.changeTheme(theme);
 
     hasFinishedLaunch = true;
+
+    // Check for updates in the background on startup (debounced and rate-limited)
+    const firstWin = ProjectWindow.all()[0];
+    if (firstWin && firstWin.browserWindow) {
+        const contents = firstWin.browserWindow.webContents;
+        let triggered = false;
+        const triggerStartupCheck = () => {
+            if (triggered) return;
+            triggered = true;
+            setTimeout(() => {
+                updateChecker.checkForUpdates({ isStartup: true, win: firstWin });
+            }, 2500);
+        };
+        contents.once('did-finish-load', triggerStartupCheck);
+        if (!contents.isLoading()) {
+            setTimeout(triggerStartupCheck, 3000);
+        }
+    }
 
     // Debug
     //w.openDevTools();

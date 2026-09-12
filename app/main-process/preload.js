@@ -20,7 +20,8 @@ contextBridge.exposeInMainWorld('api', {
             'zoom', 'goto-anything', 'add-watch-expression', 'set-tags-visible',
             'keyboard-shortcuts', 'project-stats', 'find', 'replace', 'show-about', 'set-fullscreen',
             'toggle-auto-player',
-            'eenk:sim-exited', 'eenk:sim-log'
+            'eenk:sim-exited', 'eenk:sim-log',
+            'update-available'
         ];
         if (validChannels.includes(channel)) {
             // Deliberately strip event as it includes `sender` 
@@ -28,7 +29,13 @@ contextBridge.exposeInMainWorld('api', {
         }
     },
     invoke: (channel, data, data2) => {
-        let validChannels = ['eenk:open-file-dialog', 'eenk:get-recent-files', 'eenk:open-project', 'eenk:new-project', 'showSaveDialog', 'try-close', 'launch-simulator', 'eenk:compile', 'eenk:sim-launch', 'get-template-dir', 'change-theme', 'set-view-setting', 'eenk:open-device-management', 'eenk:get-flasher-path', 'eenk:open-external'];
+        let validChannels = [
+            'eenk:open-file-dialog', 'eenk:get-recent-files', 'eenk:open-project', 'eenk:new-project',
+            'showSaveDialog', 'try-close', 'launch-simulator', 'eenk:compile', 'eenk:sim-launch',
+            'get-template-dir', 'change-theme', 'set-view-setting', 'eenk:open-device-management',
+            'eenk:get-flasher-path', 'eenk:open-external',
+            'eenky:check-for-updates', 'eenky:skip-update-version'
+        ];
         if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, data, data2);
         }
@@ -97,5 +104,8 @@ contextBridge.exposeInMainWorld('api', {
 
     onThemeChange: (func) => ipcRenderer.on('change-theme', (event, theme) => func(theme)),
     onShowModal: (func) => ipcRenderer.on('show-modal', (event, type, data) => func(type, data)),
-    onSetAboutData: (func) => ipcRenderer.on('set-about-data', (event, data) => func(data))
+    onSetAboutData: (func) => ipcRenderer.on('set-about-data', (event, data) => func(data)),
+    onUpdateAvailable: (func) => ipcRenderer.on('update-available', (event, data) => func(data)),
+    checkForUpdates: () => ipcRenderer.invoke('eenky:check-for-updates'),
+    skipUpdateVersion: (version) => ipcRenderer.invoke('eenky:skip-update-version', version)
 });
