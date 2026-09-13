@@ -197,7 +197,7 @@ const getIssueIcon = (type) => {
     case 'loose_end': return 'call_split';
     case 'infinite_loop': return 'sync_problem';
     case 'outlier': return 'query_stats';
-    case 'excessive_checkpoints': return 'bookmark_alert';
+    case 'excessive_checkpoints': return 'flag_2';
     case 'checkpoint_budget': return 'sd_card_alert';
     default: return 'report_problem';
   }
