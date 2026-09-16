@@ -375,7 +375,7 @@ Turn 2. Score is {score}.
     expect(replayStory.variablesState['score']).toBe(10);
   });
 
-  it('tracks discovered milestones and permits normal chapter counts without warning', () => {
+  it('tracks discovered checkpoints/chapters with encounter counts and percentages', () => {
     let ink = '-> start\n=== start ===\n';
     for (let i = 1; i <= 5; i++) {
       ink += `Line ${i}\n# CHAPTER: Awakening ${i}\n`;
@@ -391,10 +391,45 @@ Turn 2. Score is {score}.
 
     engine.recordSimulationResult(result);
     const stats = engine.getStats();
-    expect(stats.milestonesDiscoveredCount).toBe(5);
-    expect(stats.milestonesList).toContain('Awakening 1');
-    expect(stats.milestonesList).toContain('Awakening 5');
+    expect(stats.checkpointsDiscoveredCount).toBe(5);
+    expect(stats.namedCheckpointsCount).toBe(5);
+    expect(stats.unnamedCheckpointsCount).toBe(0);
+    expect(stats.checkpointsDetails.length).toBe(5);
+    expect(stats.checkpointsDetails.find(c => c.name === 'Awakening 1')?.count).toBe(1);
+    expect(stats.checkpointsDetails.find(c => c.name === 'Awakening 1')?.percentage).toBe(100);
     expect(stats.uniqueIssuesCount).toBe(0);
+  });
+
+  it('tracks unnamed checkpoints and mixed checkpoints correctly', () => {
+    // Story with 1 named chapter and 2 unnamed checkpoints at different knots
+    const ink = `
+-> knot_a
+=== knot_a ===
+First knot
+# CHECKPOINT
+-> knot_b
+=== knot_b ===
+Second knot
+# CHECKPOINT: Chapter One
+-> knot_c
+=== knot_c ===
+Third knot
+# CHECKPOINT
+-> END
+`;
+    const json = compileInk(ink);
+    const engine = new FuzzerEngine({ maxCheckpointsPerRun: 25 });
+    const result = engine.runSingleSimulation(json);
+
+    expect(result.issue).toBeNull();
+    engine.recordSimulationResult(result);
+
+    const stats = engine.getStats();
+    expect(stats.namedCheckpointsCount).toBe(1);
+    expect(stats.unnamedCheckpointsCount).toBe(2);
+    expect(stats.checkpointsDiscoveredCount).toBe(3);
+    expect(stats.checkpointsDetails.find(c => c.name === 'Chapter One')).toBeDefined();
+    expect(stats.checkpointsDetails.find(c => c.isUnnamed)).toBeDefined();
   });
 
   it('detects runaway checkpoints and issues an excessive checkpoints warning', () => {
@@ -416,9 +451,10 @@ Turn 2. Score is {score}.
 
     engine.recordSimulationResult(result);
     const stats = engine.getStats();
-    expect(stats.milestonesDiscoveredCount).toBe(30);
-    expect(stats.milestonesList).toContain('Chapter 1');
-    expect(stats.milestonesList).toContain('Chapter 30');
+    expect(stats.checkpointsDiscoveredCount).toBe(30);
+    expect(stats.namedCheckpointsCount).toBe(30);
+    expect(stats.checkpointsDetails.find(c => c.name === 'Chapter 1')).toBeDefined();
+    expect(stats.checkpointsDetails.find(c => c.name === 'Chapter 30')).toBeDefined();
   });
 
   it('autoPlayer controller toggles enabled state and updates store', () => {

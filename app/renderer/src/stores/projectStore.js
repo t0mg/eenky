@@ -18,8 +18,10 @@ export const useProjectStore = defineStore('project', {
       uniqueIssuesCount: 0,
       meanLength: 0,
       stdDevLength: 0,
-      milestonesDiscoveredCount: 0,
-      milestonesList: [],
+      checkpointsDiscoveredCount: 0,
+      namedCheckpointsCount: 0,
+      unnamedCheckpointsCount: 0,
+      checkpointsDetails: [],
       maxCheckpointsInSingleRun: 0
     },
     compiledStoryJson: null,
@@ -76,8 +78,10 @@ export const useProjectStore = defineStore('project', {
         uniqueIssuesCount: 0,
         meanLength: 0,
         stdDevLength: 0,
-        milestonesDiscoveredCount: 0,
-        milestonesList: [],
+        checkpointsDiscoveredCount: 0,
+        namedCheckpointsCount: 0,
+        unnamedCheckpointsCount: 0,
+        checkpointsDetails: [],
         maxCheckpointsInSingleRun: 0
       };
     },

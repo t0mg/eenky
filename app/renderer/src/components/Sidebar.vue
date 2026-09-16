@@ -111,13 +111,40 @@
 
       <div class="auto-player-body">
         <div v-if="projectStore.autoPlayerIssues.length === 0" class="auto-player-msg">
-          <span v-if="projectStore.autoPlayerStatus === 'running'">Fuzzing story paths ({{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs)...</span>
+          <span v-if="projectStore.autoPlayerStatus === 'running'">
+            Fuzzing story paths ({{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs)...
+            <span v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed"> ({{ checkpointSummary.text }})</span>
+          </span>
           <span v-else-if="projectStore.autoPlayerStats.runsCompleted > 0">
-            No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs<span v-if="projectStore.autoPlayerStats.milestonesDiscoveredCount > 0" :title="projectStore.autoPlayerStats.milestonesList?.join(', ')"> ({{ projectStore.autoPlayerStats.milestonesDiscoveredCount }} {{ projectStore.autoPlayerStats.milestonesDiscoveredCount === 1 ? 'milestone' : 'milestones' }} discovered)</span>.
+            No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs<span v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed"> ({{ checkpointSummary.text }})</span>.
           </span>
           <span v-else class="muted">Waiting for story compilation...</span>
         </div>
-        <div v-else class="issue-list auto-player-issue-list">
+
+        <div v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed && projectStore.autoPlayerIssues.length > 0" class="auto-player-subbar">
+          <span>{{ checkpointSummary.text }}</span>
+        </div>
+
+        <!-- Checkpoints notification item in the style of other fuzzer notifications -->
+        <div 
+          v-if="checkpointSummary.text && !checkpointSummary.isOnlyUnnamed"
+          class="issue-item auto-player-issue-item auto-player-checkpoint-item"
+          @click="openCheckpointsModal"
+          title="Click to view checkpoints &amp; chapters details"
+        >
+          <span class="material-symbols-outlined issue-icon checkpoints">
+            insert_chart
+          </span>
+          <div class="issue-details">
+            <div class="issue-top-row">
+              <span class="issue-file">{{ checkpointSummary.countText }}</span>
+              <span class="issue-type-tag checkpoints">Checkpoints</span>
+            </div>
+            <span class="issue-message">Click for details</span>
+          </div>
+        </div>
+
+        <div v-if="projectStore.autoPlayerIssues.length > 0" class="issue-list auto-player-issue-list">
           <div 
             v-for="issue in projectStore.autoPlayerIssues" 
             :key="issue.id"
@@ -174,6 +201,42 @@ const restartAutoPlayer = () => {
 const selectAutoPlayerIssue = (issue) => {
   AutoPlayer.replayIssue(issue);
 };
+
+const openCheckpointsModal = () => {
+  uiStore.openModal('checkpoints');
+};
+
+const checkpointSummary = computed(() => {
+  const stats = projectStore.autoPlayerStats;
+  if (!stats) return { text: '', isOnlyUnnamed: false, count: 0 };
+  const named = stats.namedCheckpointsCount || 0;
+  const unnamed = stats.unnamedCheckpointsCount || 0;
+  const total = stats.checkpointsDiscoveredCount || 0;
+
+  if (total === 0) {
+    return { text: '', isOnlyUnnamed: false, count: 0 };
+  }
+
+  if (named === 0 && unnamed > 0) {
+    const word = unnamed === 1 ? 'checkpoint' : 'checkpoints';
+    return {
+      text: `${unnamed} ${word} reached`,
+      countText: `${unnamed} ${word} reached`,
+      actionText: '',
+      isOnlyUnnamed: true,
+      count: unnamed
+    };
+  }
+
+  const word = total === 1 ? 'checkpoint' : 'checkpoints';
+  return {
+    text: `${total} ${word} found, click for details`,
+    countText: `${total} ${word} found`,
+    actionText: 'Click for details',
+    isOnlyUnnamed: false,
+    count: total
+  };
+});
 
 const autoPlayerStatusText = computed(() => {
   if (!projectStore.autoPlayerEnabled) return 'Paused';
@@ -681,5 +744,41 @@ onUnmounted(() => {
 .issue-item .issue-icon.excessive_checkpoints,
 .issue-item .issue-icon.checkpoint_budget {
   color: #e65100;
+}
+
+.issue-type-tag.checkpoints {
+  color: #1976d2;
+}
+
+.issue-item .issue-icon.checkpoints {
+  color: #1976d2;
+}
+
+body.dark .issue-type-tag.checkpoints,
+body.theme-dark .issue-type-tag.checkpoints,
+:root.dark .issue-type-tag.checkpoints {
+  color: #42a5f5;
+}
+
+body.dark .issue-item .issue-icon.checkpoints,
+body.theme-dark .issue-item .issue-icon.checkpoints,
+:root.dark .issue-item .issue-icon.checkpoints {
+  color: #42a5f5;
+}
+
+.auto-player-checkpoint-item {
+  border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+.auto-player-checkpoint-item .issue-file {
+  margin-bottom: 0;
+}
+
+.auto-player-subbar {
+  padding: 6px 12px;
+  font-size: calc(11px * var(--zoom-factor, 1));
+  color: var(--text-muted, #777);
+  background: var(--hover-bg, rgba(0, 0, 0, 0.03));
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 </style>

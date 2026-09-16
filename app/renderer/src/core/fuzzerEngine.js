@@ -27,7 +27,9 @@ export class FuzzerEngine {
     this.sumLengths = 0;
     this.sumSquaredLengths = 0;
     this.issuesMap = new Map(); // key -> issue object
-    this.discoveredMilestones = new Set();
+    this.checkpointEncounterCounts = new Map(); // name -> count of runs that reached this named checkpoint
+    this.unnamedCheckpointLocations = new Set(); // set of unique knotOrPath locations where unnamed checkpoints were hit
+    this.unnamedCheckpointRunsCount = 0; // count of runs that reached at least one unnamed checkpoint
     this.maxCheckpointsInSingleRun = 0;
   }
 
@@ -88,6 +90,31 @@ export class FuzzerEngine {
           if (chunk) text += chunk;
           if (story.currentTags && story.currentTags.length > 0) {
             tags.push(...story.currentTags);
+            const currentLoc = story.state?.currentPathString || 'Unknown';
+            for (const t of story.currentTags) {
+              const upper = t.toUpperCase();
+              if (upper.includes('CHECKPOINT') || upper.includes('CHAPTER')) {
+                let isCheckpoint = false;
+                let title = '';
+                const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
+                if (cpNamedMatch) {
+                  isCheckpoint = true;
+                  title = cpNamedMatch[1].trim();
+                } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
+                  isCheckpoint = true;
+                  title = '';
+                }
+
+                if (isCheckpoint) {
+                  activeCheckpoints.set(title || `__unnamed_${currentLoc}__`, {
+                    turn,
+                    knotOrPath: currentLoc,
+                    title,
+                    isNamed: Boolean(title)
+                  });
+                }
+              }
+            }
           }
         }
 
@@ -97,32 +124,6 @@ export class FuzzerEngine {
         }
       } catch (err) {
         error = err?.message || String(err);
-      }
-
-      // Track checkpoints encountered along this run
-      if (tags && tags.length > 0) {
-        for (const t of tags) {
-          const upper = t.toUpperCase();
-          if (upper.includes('CHECKPOINT') || upper.includes('CHAPTER')) {
-            let isCheckpoint = false;
-            let title = '';
-            const cpNamedMatch = t.match(/^(?:CHECKPOINT|CHAPTER)(?::\s*|\s+)(.*)$/i);
-            if (cpNamedMatch) {
-              isCheckpoint = true;
-              title = cpNamedMatch[1].trim();
-            } else if (/^(?:CHECKPOINT|CHAPTER)$/i.test(t.trim())) {
-              isCheckpoint = true;
-              title = '';
-            }
-
-            if (isCheckpoint) {
-              activeCheckpoints.set(title, {
-                turn,
-                knotOrPath: story.state?.currentPathString || 'Unknown'
-              });
-            }
-          }
-        }
       }
 
       if (error) {
@@ -199,9 +200,12 @@ export class FuzzerEngine {
               }
 
               if (isCheckpoint) {
-                activeCheckpoints.set(title, {
+                const knotOrPath = story.state?.currentPathString || 'Unknown';
+                activeCheckpoints.set(title || `__unnamed_${knotOrPath}__`, {
                   turn,
-                  knotOrPath: story.state?.currentPathString || 'Unknown'
+                  knotOrPath,
+                  title,
+                  isNamed: Boolean(title)
                 });
               }
             }
@@ -331,7 +335,7 @@ export class FuzzerEngine {
       } catch (_) {}
       issue = {
         type: 'excessive_checkpoints',
-        message: `Runaway checkpoints: playthrough accumulated ${activeCheckpoints.size} active checkpoints. Checkpoints should mark major chapter milestones; having more than ${this.maxCheckpointsPerRun} in a single run degrades menu navigation and save performance.`,
+        message: `Runaway checkpoints: playthrough accumulated ${activeCheckpoints.size} active checkpoints. Checkpoints should mark major chapters; having more than ${this.maxCheckpointsPerRun} in a single run degrades menu navigation and save performance.`,
         turnCount: turn,
         knotOrPath: latestCpKnot,
         stateHistory,
@@ -339,10 +343,13 @@ export class FuzzerEngine {
       };
     }
 
-    const discoveredInRun = [];
-    for (const title of activeCheckpoints.keys()) {
-      if (title && title.length > 0) {
-        discoveredInRun.push(title);
+    const namedInRun = new Set();
+    const unnamedInRun = new Set();
+    for (const [, cp] of activeCheckpoints.entries()) {
+      if (cp.isNamed && cp.title) {
+        namedInRun.add(cp.title);
+      } else {
+        unnamedInRun.add(cp.knotOrPath);
       }
     }
 
@@ -359,7 +366,8 @@ export class FuzzerEngine {
       turnCount: turn,
       success: !issue,
       stateHistory,
-      checkpointsDiscovered: discoveredInRun,
+      namedCheckpointsDiscovered: Array.from(namedInRun),
+      unnamedCheckpointsDiscovered: Array.from(unnamedInRun),
       activeCheckpointCount: activeCheckpoints.size,
       seed: actualSeed
     };
@@ -373,12 +381,18 @@ export class FuzzerEngine {
   recordSimulationResult(result) {
     this.runsCompleted++;
 
-    if (result.checkpointsDiscovered) {
-      for (const title of result.checkpointsDiscovered) {
+    if (result.namedCheckpointsDiscovered) {
+      for (const title of result.namedCheckpointsDiscovered) {
         if (title) {
-          this.discoveredMilestones.add(title);
+          this.checkpointEncounterCounts.set(title, (this.checkpointEncounterCounts.get(title) || 0) + 1);
         }
       }
+    }
+    if (result.unnamedCheckpointsDiscovered && result.unnamedCheckpointsDiscovered.length > 0) {
+      for (const loc of result.unnamedCheckpointsDiscovered) {
+        this.unnamedCheckpointLocations.add(loc);
+      }
+      this.unnamedCheckpointRunsCount++;
     }
     if (result.activeCheckpointCount !== undefined) {
       this.maxCheckpointsInSingleRun = Math.max(
@@ -479,6 +493,35 @@ export class FuzzerEngine {
     const variance = n > 0 ? Math.max(0, (this.sumSquaredLengths / n) - (mean * mean)) : 0;
     const stdDev = Math.sqrt(variance);
 
+    const namedList = [];
+    for (const [name, count] of this.checkpointEncounterCounts.entries()) {
+      const percentage = this.runsCompleted > 0 ? Number(((count / this.runsCompleted) * 100).toFixed(1)) : 0;
+      namedList.push({
+        name,
+        count,
+        percentage,
+        isUnnamed: false
+      });
+    }
+    namedList.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+    const unnamedCount = this.unnamedCheckpointLocations.size;
+    const namedCount = this.checkpointEncounterCounts.size;
+    const totalCount = namedCount + unnamedCount;
+
+    const allCheckpoints = [...namedList];
+    if (unnamedCount > 0) {
+      const count = this.unnamedCheckpointRunsCount;
+      const percentage = this.runsCompleted > 0 ? Number(((count / this.runsCompleted) * 100).toFixed(1)) : 0;
+      allCheckpoints.push({
+        name: unnamedCount === 1 ? '(unnamed checkpoint)' : `(${unnamedCount} unnamed checkpoints)`,
+        count,
+        percentage,
+        isUnnamed: true
+      });
+      allCheckpoints.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    }
+
     return {
       runsCompleted: this.runsCompleted,
       runsSinceLastNewIssue: this.runsSinceLastNewIssue,
@@ -486,8 +529,10 @@ export class FuzzerEngine {
       uniqueIssuesCount: this.issuesMap.size,
       meanLength: Number(mean.toFixed(1)),
       stdDevLength: Number(stdDev.toFixed(1)),
-      milestonesDiscoveredCount: this.discoveredMilestones.size,
-      milestonesList: Array.from(this.discoveredMilestones),
+      checkpointsDiscoveredCount: totalCount,
+      namedCheckpointsCount: namedCount,
+      unnamedCheckpointsCount: unnamedCount,
+      checkpointsDetails: allCheckpoints,
       maxCheckpointsInSingleRun: this.maxCheckpointsInSingleRun
     };
   }

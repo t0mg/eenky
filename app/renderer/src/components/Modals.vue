@@ -49,7 +49,7 @@
       <div v-else-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
         <div class="about-header">
           <h2>
-            <img src="/about/icon256.png" class="about-icon" alt="eenky icon" draggable="false" />
+            <img :src="'/about/icon256.png'" class="about-icon" alt="eenky icon" draggable="false" />
             eenky
           </h2>
           <p>a child of inkle's Inky</p>
@@ -154,6 +154,54 @@
         <button @click="closeModal(false)" class="primary-btn">Close</button>
       </div>
 
+      <!-- Checkpoints & Chapters Modal -->
+      <div v-else-if="uiStore.modalState.type === 'checkpoints'" class="modal-body checkpoints-modal">
+        <h2>Checkpoints &amp; Chapters</h2>
+        
+        <div class="checkpoints-subtitle-bar">
+          <span class="checkpoints-runs-info">
+            Encountered across <strong>{{ checkpointStats.runsCompleted.toLocaleString() }}</strong> {{ checkpointStats.runsCompleted === 1 ? 'run' : 'runs' }}
+          </span>
+          <span v-if="projectStore.autoPlayerStatus === 'running'" class="status-badge running">
+            Running
+          </span>
+        </div>
+
+        <div v-if="checkpointStats.list.length === 0" class="checkpoints-empty">
+          <p>No checkpoints or chapters discovered yet.</p>
+        </div>
+
+        <div v-else class="checkpoints-chart-container">
+          <div class="checkpoints-chart-list">
+            <div 
+              v-for="item in checkpointStats.list" 
+              :key="item.name" 
+              class="checkpoint-chart-row"
+              :class="{ 'is-unnamed': item.isUnnamed }"
+            >
+              <div class="checkpoint-row-header">
+                <span class="checkpoint-name" :title="item.name">{{ item.name }}</span>
+                <span class="checkpoint-stats-val">
+                  <strong>{{ item.percentage }}%</strong>
+                  <span class="checkpoint-count"> ({{ item.count.toLocaleString() }} {{ item.count === 1 ? 'run' : 'runs' }})</span>
+                </span>
+              </div>
+              <div class="checkpoint-bar-track">
+                <div 
+                  class="checkpoint-bar-fill" 
+                  :class="{ 'unnamed-bar': item.isUnnamed }"
+                  :style="{ width: Math.max(item.percentage, 0.75) + '%' }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button @click="closeModal(false)" class="primary-btn">Close</button>
+        </div>
+      </div>
+
       <div v-else class="modal-body">
         <h2>{{ uiStore.modalState.type }}</h2>
         <p>Not implemented yet.</p>
@@ -184,6 +232,17 @@ const modalData = computed(() => uiStore.modalState.data || {});
 const messageLines = computed(() => {
   const msg = modalData.value.message || '';
   return msg.split('\n');
+});
+
+const checkpointStats = computed(() => {
+  const stats = projectStore.autoPlayerStats || {};
+  return {
+    runsCompleted: stats.runsCompleted || 0,
+    totalCount: stats.checkpointsDiscoveredCount || 0,
+    namedCount: stats.namedCheckpointsCount || 0,
+    unnamedCount: stats.unnamedCheckpointsCount || 0,
+    list: stats.checkpointsDetails || []
+  };
 });
 
 if (window.api && window.api.receive) {
@@ -536,5 +595,120 @@ watch(
 .update-actions-right {
   display: flex;
   gap: 8px;
+}
+
+/* Checkpoints & Chapters Modal */
+.checkpoints-modal {
+  min-width: 420px;
+  max-width: 580px;
+}
+
+.checkpoints-subtitle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-muted, #666);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.checkpoints-runs-info strong {
+  color: var(--text-color, #333);
+}
+
+.status-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 2px;
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.06));
+  color: var(--text-muted, #777);
+}
+
+.status-badge.running {
+  background-color: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+}
+
+.checkpoints-empty {
+  padding: 28px 0;
+  text-align: center;
+  color: var(--text-muted, #777);
+  font-style: italic;
+}
+
+.checkpoints-chart-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin: 4px 0;
+}
+
+.checkpoints-chart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checkpoint-chart-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkpoint-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.88rem;
+}
+
+.checkpoint-name {
+  font-weight: 600;
+  color: var(--text-color, #333);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkpoint-chart-row.is-unnamed .checkpoint-name {
+  font-style: italic;
+  color: var(--text-muted, #777);
+}
+
+.checkpoint-stats-val {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: var(--text-color, #333);
+}
+
+.checkpoint-count {
+  color: var(--text-muted, #777);
+  font-size: 0.78rem;
+}
+
+.checkpoint-bar-track {
+  height: 12px;
+  background: var(--color-light, #f4f4f4);
+  border: var(--border, 2px solid #111111);
+  border-radius: 0px;
+  overflow: hidden;
+}
+
+.checkpoint-bar-fill {
+  height: 100%;
+  background: var(--color-accent, var(--primary-color, #FF4D00));
+  border-radius: 0px;
+  transition: width 0.3s ease;
+}
+
+.checkpoint-bar-fill.unnamed-bar {
+  background: var(--color-gray, #717171);
+  opacity: 0.85;
 }
 </style>
