@@ -66,109 +66,113 @@
 
     <KnotBrowser v-if="uiStore.showKnotBrowser" />
 
-    <div class="issues-panel" v-if="projectStore.issues.length > 0">
-      <div class="sidebar-header issues-header">
-        <span class="title">Issues ({{ projectStore.issues.length }})</span>
-      </div>
-      <div class="issue-list">
-        <div 
-          v-for="(issue, index) in projectStore.issues" 
-          :key="index"
-          class="issue-item"
-          :class="issue.type"
-          @click="selectIssue(issue)"
-        >
-          <span class="material-symbols-outlined issue-icon">
-            {{ issue.type === 'error' ? 'error' : 'warning' }}
-          </span>
-          <div class="issue-details">
-            <span class="issue-file">{{ issue.filename }}:{{ issue.lineNumber }}</span>
-            <span class="issue-message">{{ issue.message }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div class="sticky-panels">
 
-    <!-- Auto-Player Issues Panel -->
-    <div class="auto-player-panel" v-if="projectStore.autoPlayerEnabled">
-      <div class="sidebar-header auto-player-header">
-        <div class="header-left">
-          <span class="title">Auto-Player</span>
-          <span class="status-badge" :class="projectStore.autoPlayerStatus">
-            {{ autoPlayerStatusText }}
-          </span>
+      <div class="issues-panel" v-if="projectStore.issues.length > 0">
+        <div class="sidebar-header issues-header">
+          <span class="title">Issues ({{ projectStore.issues.length }})</span>
         </div>
-        <div class="header-actions">
-          <button 
-            class="icon-btn" 
-            title="Restart Fuzzer"
-            @click="restartAutoPlayer"
-          >
-            <span class="material-symbols-outlined">restart_alt</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="auto-player-body">
-        <div v-if="projectStore.autoPlayerIssues.length === 0" class="auto-player-msg">
-          <span v-if="projectStore.autoPlayerStatus === 'running'">
-            Fuzzing story paths ({{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs)...
-            <span v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed"> ({{ checkpointSummary.text }})</span>
-          </span>
-          <span v-else-if="projectStore.autoPlayerStats.runsCompleted > 0">
-            No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs<span v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed"> ({{ checkpointSummary.text }})</span>.
-          </span>
-          <span v-else class="muted">Waiting for story compilation...</span>
-        </div>
-
-        <div v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed && projectStore.autoPlayerIssues.length > 0" class="auto-player-subbar">
-          <span>{{ checkpointSummary.text }}</span>
-        </div>
-
-        <!-- Checkpoints notification item in the style of other fuzzer notifications -->
-        <div 
-          v-if="checkpointSummary.text && !checkpointSummary.isOnlyUnnamed"
-          class="issue-item auto-player-issue-item auto-player-checkpoint-item"
-          @click="openCheckpointsModal"
-          title="Click to view checkpoints &amp; chapters details"
-        >
-          <span class="material-symbols-outlined issue-icon checkpoints">
-            insert_chart
-          </span>
-          <div class="issue-details">
-            <div class="issue-top-row">
-              <span class="issue-type-tag checkpoints">Checkpoints</span>
-              <span class="occurrence-badge">{{ checkpointSummary.countText }}</span>
-            </div>
-            <span class="issue-message">Click for details</span>
-          </div>
-        </div>
-
-        <div v-if="projectStore.autoPlayerIssues.length > 0" class="issue-list auto-player-issue-list">
+        <div class="issue-list">
           <div 
-            v-for="issue in projectStore.autoPlayerIssues" 
-            :key="issue.id"
-            class="issue-item auto-player-issue-item"
+            v-for="(issue, index) in projectStore.issues" 
+            :key="index"
+            class="issue-item"
             :class="issue.type"
-            @click="selectAutoPlayerIssue(issue)"
-            title="Click to replay this run in JS Preview"
+            @click="selectIssue(issue)"
           >
-            <span class="material-symbols-outlined issue-icon" :class="issue.type">
-              {{ getIssueIcon(issue.type) }}
+            <span class="material-symbols-outlined issue-icon">
+              {{ issue.type === 'error' ? 'error' : 'warning' }}
             </span>
             <div class="issue-details">
-              <div class="issue-top-row">
-                <span class="issue-type-tag" :class="issue.type">{{ getIssueLabel(issue.type) }}</span>
-                <span class="occurrence-badge">{{ issue.turnCount }} turns &bull; {{ issue.occurrenceCount || 1 }}x</span>
-              </div>
-              <span class="issue-file">{{ issue.knotOrPath }}</span>
+              <span class="issue-file">{{ issue.filename }}:{{ issue.lineNumber }}</span>
               <span class="issue-message">{{ issue.message }}</span>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Auto-Player Issues Panel -->
+      <div class="auto-player-panel" v-if="projectStore.autoPlayerEnabled">
+        <div class="sidebar-header auto-player-header">
+          <div class="header-left">
+            <span class="title">Auto-Player</span>
+            <span class="status-badge" :class="projectStore.autoPlayerStatus">
+              {{ autoPlayerStatusText }}
+            </span>
+          </div>
+          <div class="header-actions">
+            <button 
+              class="icon-btn" 
+              title="Restart Fuzzer"
+              @click="restartAutoPlayer"
+            >
+              <span class="material-symbols-outlined">restart_alt</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="auto-player-body">
+          <div v-if="projectStore.autoPlayerIssues.length === 0" class="auto-player-msg">
+            <span v-if="projectStore.autoPlayerStatus === 'running'">
+              Fuzzing story paths ({{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs)...
+              <span v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed"> ({{ checkpointSummary.text }})</span>
+            </span>
+            <span v-else-if="projectStore.autoPlayerStats.runsCompleted > 0">
+              No issues found across {{ projectStore.autoPlayerStats.runsCompleted.toLocaleString() }} runs<span v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed"> ({{ checkpointSummary.text }})</span>.
+            </span>
+            <span v-else class="muted">Waiting for story compilation...</span>
+          </div>
+
+          <div v-if="checkpointSummary.text && checkpointSummary.isOnlyUnnamed && projectStore.autoPlayerIssues.length > 0" class="auto-player-subbar">
+            <span>{{ checkpointSummary.text }}</span>
+          </div>
+
+          <!-- Checkpoints notification item in the style of other fuzzer notifications -->
+          <div 
+            v-if="checkpointSummary.text && !checkpointSummary.isOnlyUnnamed"
+            class="issue-item auto-player-issue-item auto-player-checkpoint-item"
+            @click="openCheckpointsModal"
+            title="Click to view checkpoints &amp; chapters details"
+          >
+            <span class="material-symbols-outlined issue-icon checkpoints">
+              insert_chart
+            </span>
+            <div class="issue-details">
+              <div class="issue-top-row">
+                <span class="issue-type-tag checkpoints">Checkpoints</span>
+                <span class="occurrence-badge">{{ checkpointSummary.countText }}</span>
+              </div>
+              <span class="issue-message">Click for details</span>
+            </div>
+          </div>
+
+          <div v-if="projectStore.autoPlayerIssues.length > 0" class="issue-list auto-player-issue-list">
+            <div 
+              v-for="issue in projectStore.autoPlayerIssues" 
+              :key="issue.id"
+              class="issue-item auto-player-issue-item"
+              :class="issue.type"
+              @click="selectAutoPlayerIssue(issue)"
+              title="Click to replay this run in JS Preview"
+            >
+              <span class="material-symbols-outlined issue-icon" :class="issue.type">
+                {{ getIssueIcon(issue.type) }}
+              </span>
+              <div class="issue-details">
+                <div class="issue-top-row">
+                  <span class="issue-type-tag" :class="issue.type">{{ getIssueLabel(issue.type) }}</span>
+                  <span class="occurrence-badge">{{ issue.turnCount }} turns &bull; {{ issue.occurrenceCount || 1 }}x</span>
+                </div>
+                <span class="issue-file">{{ issue.knotOrPath }}</span>
+                <span class="issue-message">{{ issue.message }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
-    
+
     <!-- Custom Context Menu for Files -->
     <div 
       v-if="contextMenu.visible" 
@@ -560,9 +564,15 @@ onUnmounted(() => {
   color: var(--warning-color, #f57c00);
 }
 
+.sticky-panels {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--sidebar-bg, #fff);
+  max-height: 66%;
+}
+
 .issues-panel {
   border-top: 1px solid var(--border-color, #e0e0e0);
-  max-height: 40%;
   display: flex;
   flex-direction: column;
 }
@@ -617,7 +627,6 @@ onUnmounted(() => {
 /* Auto-Player Panel */
 .auto-player-panel {
   border-top: 1px solid var(--border-color, #e0e0e0);
-  max-height: 45%;
   display: flex;
   flex-direction: column;
 }

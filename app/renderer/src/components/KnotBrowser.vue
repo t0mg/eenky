@@ -88,7 +88,6 @@ const jumpToSymbol = (file, symbol) => {
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden;
   border-top: 1px solid var(--border-color, #e0e0e0);
 }
 
