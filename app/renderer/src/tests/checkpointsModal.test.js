@@ -64,7 +64,7 @@ describe('Checkpoints Modal and Sidebar Integration', () => {
     expect(wrapper.text()).toContain('Click for details');
     const item = wrapper.find('.auto-player-checkpoint-item');
     expect(item.exists()).toBe(true);
-    expect(item.find('.issue-file').text()).toBe('4 checkpoints found');
+    expect(item.find('.occurrence-badge').text()).toBe('4 checkpoints found');
     expect(item.find('.issue-type-tag.checkpoints').text()).toBe('Checkpoints');
     expect(item.find('.issue-message').text()).toBe('Click for details');
     expect(item.find('.material-symbols-outlined').text()).toBe('insert_chart');
@@ -137,5 +137,60 @@ describe('Checkpoints Modal and Sidebar Integration', () => {
     const closeBtn = wrapper.find('.primary-btn');
     await closeBtn.trigger('click');
     expect(uiStore.modalState.isOpen).toBe(false);
+  });
+
+  it('toggles between Name mode and Knot mode in the modal', async () => {
+    const uiStore = useUiStore();
+    const projectStore = useProjectStore();
+
+    projectStore.setAutoPlayerStats({
+      runsCompleted: 100,
+      checkpointsDiscoveredCount: 2,
+      namedCheckpointsCount: 2,
+      unnamedCheckpointsCount: 0,
+      checkpointsDetails: [
+        { name: 'Chapter 1 - Warrior Class', count: 60, percentage: 60, isUnnamed: false },
+        { name: 'Chapter 1 - Mage Class', count: 40, percentage: 40, isUnnamed: false }
+      ],
+      checkpointsByKnotDetails: [
+        {
+          knot: 'prologue.class_select',
+          count: 100,
+          percentage: 100,
+          isUnnamed: false,
+          titles: ['Chapter 1 - Warrior Class', 'Chapter 1 - Mage Class']
+        }
+      ]
+    });
+
+    uiStore.openModal('checkpoints');
+    const wrapper = mount(Modals);
+
+    // Initial state: Name mode is default and active
+    const switchInput = wrapper.find('.switch-input');
+    expect(switchInput.element.checked).toBe(true); // Name mode is On/checked
+    expect(wrapper.find('.toggle-mode-label.active').text()).toBe('Name');
+    expect(wrapper.text()).toContain('Chapter 1 - Warrior Class');
+    expect(wrapper.text()).toContain('Chapter 1 - Mage Class');
+    expect(wrapper.text()).not.toContain('prologue.class_select');
+
+    // Click 'Knot' label to switch to Knot mode
+    const knotLabel = wrapper.findAll('.toggle-mode-label').find(el => el.text() === 'Knot');
+    await knotLabel.trigger('click');
+
+    expect(wrapper.find('.toggle-mode-label.active').text()).toBe('Knot');
+    expect(switchInput.element.checked).toBe(false); // Knot mode is Off/unchecked
+    expect(wrapper.text()).toContain('prologue.class_select');
+    expect(wrapper.text()).toContain('(Chapter 1 - Warrior Class / Chapter 1 - Mage Class)');
+    expect(wrapper.text()).toContain('100%');
+    expect(wrapper.text()).toContain('100 runs');
+
+    // Click 'Name' label to switch back
+    const nameLabel = wrapper.findAll('.toggle-mode-label').find(el => el.text() === 'Name');
+    await nameLabel.trigger('click');
+
+    expect(wrapper.find('.toggle-mode-label.active').text()).toBe('Name');
+    expect(switchInput.element.checked).toBe(true);
+    expect(wrapper.text()).toContain('Chapter 1 - Warrior Class');
   });
 });

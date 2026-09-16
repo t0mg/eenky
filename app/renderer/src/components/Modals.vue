@@ -162,38 +162,87 @@
           <span class="checkpoints-runs-info">
             Encountered across <strong>{{ checkpointStats.runsCompleted.toLocaleString() }}</strong> {{ checkpointStats.runsCompleted === 1 ? 'run' : 'runs' }}
           </span>
-          <span v-if="projectStore.autoPlayerStatus === 'running'" class="status-badge running">
-            Running
-          </span>
+          <div class="checkpoints-subtitle-right">
+            <span v-if="projectStore.autoPlayerStatus === 'running'" class="status-badge running">
+              Running
+            </span>
+            <div class="checkpoints-grouping-toggle">
+              <span class="toggle-mode-label" :class="{ active: isKnotMode }" @click="isKnotMode = true">Knot</span>
+              <label class="neubrutalist-switch">
+                <input 
+                  type="checkbox" 
+                  :checked="!isKnotMode" 
+                  @change="isKnotMode = !$event.target.checked" 
+                  class="switch-input"
+                  aria-label="Toggle grouping by Knot or Name"
+                >
+                <span class="switch-track">
+                  <span class="switch-thumb"></span>
+                </span>
+              </label>
+              <span class="toggle-mode-label" :class="{ active: !isKnotMode }" @click="isKnotMode = false">Name</span>
+            </div>
+          </div>
         </div>
 
-        <div v-if="checkpointStats.list.length === 0" class="checkpoints-empty">
+        <div v-if="(isKnotMode ? checkpointStats.knotList : checkpointStats.list).length === 0" class="checkpoints-empty">
           <p>No checkpoints or chapters discovered yet.</p>
         </div>
 
         <div v-else class="checkpoints-chart-container">
           <div class="checkpoints-chart-list">
-            <div 
-              v-for="item in checkpointStats.list" 
-              :key="item.name" 
-              class="checkpoint-chart-row"
-              :class="{ 'is-unnamed': item.isUnnamed }"
-            >
-              <div class="checkpoint-row-header">
-                <span class="checkpoint-name" :title="item.name">{{ item.name }}</span>
-                <span class="checkpoint-stats-val">
-                  <strong>{{ item.percentage }}%</strong>
-                  <span class="checkpoint-count"> ({{ item.count.toLocaleString() }} {{ item.count === 1 ? 'run' : 'runs' }})</span>
-                </span>
+            <!-- Name Mode: Grouped by chapter name -->
+            <template v-if="!isKnotMode">
+              <div 
+                v-for="item in checkpointStats.list" 
+                :key="item.name" 
+                class="checkpoint-chart-row"
+                :class="{ 'is-unnamed': item.isUnnamed }"
+              >
+                <div class="checkpoint-row-header">
+                  <span class="checkpoint-name" :title="item.name">{{ item.name }}</span>
+                  <span class="checkpoint-stats-val">
+                    <strong>{{ item.percentage }}%</strong>
+                    <span class="checkpoint-count"> ({{ item.count.toLocaleString() }} {{ item.count === 1 ? 'run' : 'runs' }})</span>
+                  </span>
+                </div>
+                <div class="checkpoint-bar-track">
+                  <div 
+                    class="checkpoint-bar-fill" 
+                    :class="{ 'unnamed-bar': item.isUnnamed }"
+                    :style="{ width: Math.max(item.percentage, 0.75) + '%' }"
+                  ></div>
+                </div>
               </div>
-              <div class="checkpoint-bar-track">
-                <div 
-                  class="checkpoint-bar-fill" 
-                  :class="{ 'unnamed-bar': item.isUnnamed }"
-                  :style="{ width: Math.max(item.percentage, 0.75) + '%' }"
-                ></div>
+            </template>
+
+            <!-- Knot Mode: Grouped by knot address, folding dynamic titles -->
+            <template v-else>
+              <div 
+                v-for="item in checkpointStats.knotList" 
+                :key="item.knot" 
+                class="checkpoint-chart-row"
+                :class="{ 'is-unnamed': item.isUnnamed }"
+              >
+                <div class="checkpoint-row-header">
+                  <span class="checkpoint-name" :title="item.knot + ' ' + formatKnotTitles(item.titles, item.isUnnamed)">
+                    <span class="knot-address">{{ item.knot }}</span>
+                    <span class="checkpoint-knot-meta">{{ formatKnotTitles(item.titles, item.isUnnamed) }}</span>
+                  </span>
+                  <span class="checkpoint-stats-val">
+                    <strong>{{ item.percentage }}%</strong>
+                    <span class="checkpoint-count"> ({{ item.count.toLocaleString() }} {{ item.count === 1 ? 'run' : 'runs' }})</span>
+                  </span>
+                </div>
+                <div class="checkpoint-bar-track">
+                  <div 
+                    class="checkpoint-bar-fill" 
+                    :class="{ 'unnamed-bar': item.isUnnamed }"
+                    :style="{ width: Math.max(item.percentage, 0.75) + '%' }"
+                  ></div>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
 
@@ -234,6 +283,8 @@ const messageLines = computed(() => {
   return msg.split('\n');
 });
 
+const isKnotMode = ref(false);
+
 const checkpointStats = computed(() => {
   const stats = projectStore.autoPlayerStats || {};
   return {
@@ -241,9 +292,20 @@ const checkpointStats = computed(() => {
     totalCount: stats.checkpointsDiscoveredCount || 0,
     namedCount: stats.namedCheckpointsCount || 0,
     unnamedCount: stats.unnamedCheckpointsCount || 0,
-    list: stats.checkpointsDetails || []
+    list: stats.checkpointsDetails || [],
+    knotList: stats.checkpointsByKnotDetails || []
   };
 });
+
+function formatKnotTitles(titles, isUnnamed) {
+  if (isUnnamed || !titles || titles.length === 0) {
+    return '(unnamed)';
+  }
+  if (titles.length <= 2) {
+    return `(${titles.join(' / ')})`;
+  }
+  return `(${titles.slice(0, 2).join(' / ')} / +${titles.length - 2} more)`;
+}
 
 if (window.api && window.api.receive) {
   window.api.receive('show-about', (data) => {
@@ -332,6 +394,9 @@ watch(
   (isOpen) => {
     if (isOpen) {
       previousActiveElement = document.activeElement;
+      if (uiStore.modalState.type === 'checkpoints') {
+        isKnotMode.value = false;
+      }
       if (uiStore.modalState.type === 'stats') {
         statsData.value = null;
         eenkStats.value = null;
@@ -599,8 +664,7 @@ watch(
 
 /* Checkpoints & Chapters Modal */
 .checkpoints-modal {
-  min-width: 420px;
-  max-width: 580px;
+  width: 480px;
 }
 
 .checkpoints-subtitle-bar {
@@ -637,7 +701,6 @@ watch(
   padding: 28px 0;
   text-align: center;
   color: var(--text-muted, #777);
-  font-style: italic;
 }
 
 .checkpoints-chart-container {
@@ -667,17 +730,143 @@ watch(
   font-size: 0.88rem;
 }
 
+.checkpoints-subtitle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  color: var(--text-muted, #777);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-subtle, #e0e0e0);
+  gap: 12px;
+}
+
+.checkpoints-runs-info strong {
+  color: var(--text-color, #111);
+}
+
+.checkpoints-subtitle-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.checkpoints-grouping-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #777);
+}
+
+.toggle-mode-label {
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.75rem;
+  color: var(--text-muted, #777);
+  transition: color 0.15s ease;
+  user-select: none;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.toggle-mode-label.active {
+  color: var(--text-color, #111);
+  opacity: 1;
+}
+
+.neubrutalist-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-track {
+  width: 40px;
+  height: 20px;
+  background: var(--color-light, #f4f4f4);
+  border: var(--border, 2px solid var(--color-border, #111111));
+  box-shadow: 2px 2px 0px var(--color-border, #111111);
+  border-radius: 0px;
+  position: relative;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+}
+
+.switch-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--color-fg, #111111);
+  border-radius: 0px;
+  position: absolute;
+  left: 2px;
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease;
+}
+
+/* Checked = Name mode (On state, vibrant accent) */
+.switch-input:checked + .switch-track {
+  background: var(--color-accent, #FF4D00);
+}
+
+.switch-input:checked + .switch-track .switch-thumb {
+  transform: translateX(20px);
+  background: #FFFFFF;
+}
+
+body.dark .switch-thumb,
+body.theme-dark .switch-thumb {
+  background: var(--color-fg, #EEEEEE);
+}
+
+body.dark .switch-input:checked + .switch-track .switch-thumb,
+body.theme-dark .switch-input:checked + .switch-track .switch-thumb {
+  background: #FFFFFF;
+}
+
+.knot-address {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.checkpoint-knot-meta {
+  font-size: 0.78rem;
+  color: var(--text-color, #111111);
+  opacity: 0.8;
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-weight: 600;
+}
+
 .checkpoint-name {
   font-weight: 600;
   color: var(--text-color, #333);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .checkpoint-chart-row.is-unnamed .checkpoint-name {
   font-style: italic;
-  color: var(--text-muted, #777);
+  color: var(--text-color, #333);
+  font-weight: 600;
 }
 
 .checkpoint-stats-val {

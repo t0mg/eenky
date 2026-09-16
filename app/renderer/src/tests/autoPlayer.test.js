@@ -584,4 +584,58 @@ Spinning...
     expect(result.issue.type).toBe('infinite_loop');
     expect(result.issue.turnCount).toBe(2000);
   });
+
+  it('tracks checkpoints by chapter name and by knot address, folding dynamic names', () => {
+    const dynamicCheckpointStory = `
+VAR charClass = "Warrior"
+-> prologue.class_select
+
+=== prologue ===
+= class_select
+{RANDOM(1, 2) == 1:
+  ~ charClass = "Warrior"
+  # CHECKPOINT: Chapter 1 - Warrior Class
+- else:
+  ~ charClass = "Mage"
+  # CHECKPOINT: Chapter 1 - Mage Class
+}
+Selected {charClass}.
+-> castle
+
+=== castle ===
+# CHECKPOINT: The Castle Gates
+Arrived at castle.
+-> END
+`;
+    const json = compileInk(dynamicCheckpointStory);
+    const engine = new FuzzerEngine({ maxTurnsPerRun: 50 });
+
+    for (let i = 0; i < 20; i++) {
+      const result = engine.runSingleSimulation(json);
+      engine.recordSimulationResult(result);
+    }
+
+    const stats = engine.getStats();
+    expect(stats.runsCompleted).toBe(20);
+
+    // By Name: "The Castle Gates" (100%), and Warrior / Mage split
+    expect(stats.checkpointsDetails.length).toBe(3);
+    const castleByName = stats.checkpointsDetails.find(c => c.name === 'The Castle Gates');
+    expect(castleByName).toBeDefined();
+    expect(castleByName.percentage).toBe(100);
+
+    // By Knot: "prologue.class_select" should fold BOTH dynamic chapter names into one entry!
+    expect(stats.checkpointsByKnotDetails.length).toBe(2);
+    const classSelectKnot = stats.checkpointsByKnotDetails.find(c => c.knot === 'prologue.class_select');
+    expect(classSelectKnot).toBeDefined();
+    expect(classSelectKnot.percentage).toBe(100); // reached on every run!
+    expect(classSelectKnot.count).toBe(20);
+    expect(classSelectKnot.titles).toContain('Chapter 1 - Warrior Class');
+    expect(classSelectKnot.titles).toContain('Chapter 1 - Mage Class');
+
+    const castleKnot = stats.checkpointsByKnotDetails.find(c => c.knot === 'castle');
+    expect(castleKnot).toBeDefined();
+    expect(castleKnot.percentage).toBe(100);
+    expect(castleKnot.titles).toEqual(['The Castle Gates']);
+  });
 });

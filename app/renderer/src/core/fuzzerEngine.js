@@ -1,6 +1,41 @@
 import inkjs from 'inkjs';
 
 /**
+ * Extract clean knot/stitch address from inkjs path string (e.g. "prologue.class_select.0.c-0" -> "prologue.class_select")
+ */
+function extractKnotAddress(pathString) {
+  if (!pathString || pathString === 'Unknown' || pathString === 'root') {
+    return pathString || 'root';
+  }
+  const parts = pathString.split('.');
+  const namedParts = [];
+  for (const p of parts) {
+    if (/^\d+$/.test(p) || /^[cgs]-\d+$/i.test(p)) {
+      break;
+    }
+    namedParts.push(p);
+  }
+  return namedParts.length > 0 ? namedParts.join('.') : pathString;
+}
+
+/**
+ * Safely get the story current location path, falling back to outputStream if story reached END/DONE
+ */
+function getStoryLocation(story) {
+  if (story?.state?.currentPathString) {
+    return story.state.currentPathString;
+  }
+  if (story?.state?.outputStream && story.state.outputStream.length > 0) {
+    for (let i = story.state.outputStream.length - 1; i >= 0; i--) {
+      const item = story.state.outputStream[i];
+      const p = item?.path?.toString ? item.path.toString() : (typeof item?.path === 'string' ? item.path : null);
+      if (p) return p;
+    }
+  }
+  return 'Unknown';
+}
+
+/**
  * FuzzerEngine runs headless random playthroughs of an Ink story,
  * detecting runtime errors, loose ends (out of flow), infinite loops,
  * and statistical outliers.
@@ -28,6 +63,9 @@ export class FuzzerEngine {
     this.sumSquaredLengths = 0;
     this.issuesMap = new Map(); // key -> issue object
     this.checkpointEncounterCounts = new Map(); // name -> count of runs that reached this named checkpoint
+    this.checkpointKnotEncounterCounts = new Map(); // knotOrPath -> count of runs that reached a checkpoint at this knot
+    this.knotCheckpointTitles = new Map(); // knotOrPath -> Set<string> of unique named checkpoint titles seen at this knot
+    this.knotIsUnnamed = new Map(); // knotOrPath -> boolean
     this.unnamedCheckpointLocations = new Set(); // set of unique knotOrPath locations where unnamed checkpoints were hit
     this.unnamedCheckpointRunsCount = 0; // count of runs that reached at least one unnamed checkpoint
     this.maxCheckpointsInSingleRun = 0;
@@ -90,7 +128,7 @@ export class FuzzerEngine {
           if (chunk) text += chunk;
           if (story.currentTags && story.currentTags.length > 0) {
             tags.push(...story.currentTags);
-            const currentLoc = story.state?.currentPathString || 'Unknown';
+            const currentLoc = getStoryLocation(story);
             for (const t of story.currentTags) {
               const upper = t.toUpperCase();
               if (upper.includes('CHECKPOINT') || upper.includes('CHAPTER')) {
@@ -106,9 +144,10 @@ export class FuzzerEngine {
                 }
 
                 if (isCheckpoint) {
-                  activeCheckpoints.set(title || `__unnamed_${currentLoc}__`, {
+                  const knotOrPath = extractKnotAddress(currentLoc);
+                  activeCheckpoints.set(title || `__unnamed_${knotOrPath}__`, {
                     turn,
-                    knotOrPath: currentLoc,
+                    knotOrPath,
                     title,
                     isNamed: Boolean(title)
                   });
@@ -200,7 +239,7 @@ export class FuzzerEngine {
               }
 
               if (isCheckpoint) {
-                const knotOrPath = story.state?.currentPathString || 'Unknown';
+                const knotOrPath = extractKnotAddress(getStoryLocation(story));
                 activeCheckpoints.set(title || `__unnamed_${knotOrPath}__`, {
                   turn,
                   knotOrPath,
@@ -343,9 +382,11 @@ export class FuzzerEngine {
       };
     }
 
+    const checkpointsInRun = [];
     const namedInRun = new Set();
     const unnamedInRun = new Set();
     for (const [, cp] of activeCheckpoints.entries()) {
+      checkpointsInRun.push(cp);
       if (cp.isNamed && cp.title) {
         namedInRun.add(cp.title);
       } else {
@@ -366,6 +407,7 @@ export class FuzzerEngine {
       turnCount: turn,
       success: !issue,
       stateHistory,
+      checkpointsInRun,
       namedCheckpointsDiscovered: Array.from(namedInRun),
       unnamedCheckpointsDiscovered: Array.from(unnamedInRun),
       activeCheckpointCount: activeCheckpoints.size,
@@ -393,6 +435,26 @@ export class FuzzerEngine {
         this.unnamedCheckpointLocations.add(loc);
       }
       this.unnamedCheckpointRunsCount++;
+    }
+    if (result.checkpointsInRun && result.checkpointsInRun.length > 0) {
+      const knotsInThisRun = new Set();
+      for (const cp of result.checkpointsInRun) {
+        knotsInThisRun.add(cp.knotOrPath);
+        if (cp.isNamed && cp.title) {
+          if (!this.knotCheckpointTitles.has(cp.knotOrPath)) {
+            this.knotCheckpointTitles.set(cp.knotOrPath, new Set());
+          }
+          this.knotCheckpointTitles.get(cp.knotOrPath).add(cp.title);
+        } else {
+          this.knotIsUnnamed.set(cp.knotOrPath, true);
+        }
+      }
+      for (const knot of knotsInThisRun) {
+        this.checkpointKnotEncounterCounts.set(
+          knot,
+          (this.checkpointKnotEncounterCounts.get(knot) || 0) + 1
+        );
+      }
     }
     if (result.activeCheckpointCount !== undefined) {
       this.maxCheckpointsInSingleRun = Math.max(
@@ -522,6 +584,24 @@ export class FuzzerEngine {
       allCheckpoints.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
     }
 
+    const knotList = [];
+    for (const [knot, count] of this.checkpointKnotEncounterCounts.entries()) {
+      const percentage = this.runsCompleted > 0
+        ? Number(((count / this.runsCompleted) * 100).toFixed(1))
+        : 0;
+      const titlesSet = this.knotCheckpointTitles.get(knot);
+      const titles = titlesSet ? Array.from(titlesSet) : [];
+      const isUnnamed = Boolean(this.knotIsUnnamed.get(knot) && titles.length === 0);
+      knotList.push({
+        knot,
+        count,
+        percentage,
+        isUnnamed,
+        titles
+      });
+    }
+    knotList.sort((a, b) => b.count - a.count || a.knot.localeCompare(b.knot));
+
     return {
       runsCompleted: this.runsCompleted,
       runsSinceLastNewIssue: this.runsSinceLastNewIssue,
@@ -533,6 +613,7 @@ export class FuzzerEngine {
       namedCheckpointsCount: namedCount,
       unnamedCheckpointsCount: unnamedCount,
       checkpointsDetails: allCheckpoints,
+      checkpointsByKnotDetails: knotList,
       maxCheckpointsInSingleRun: this.maxCheckpointsInSingleRun
     };
   }

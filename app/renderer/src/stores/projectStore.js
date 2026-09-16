@@ -22,6 +22,7 @@ export const useProjectStore = defineStore('project', {
       namedCheckpointsCount: 0,
       unnamedCheckpointsCount: 0,
       checkpointsDetails: [],
+      checkpointsByKnotDetails: [],
       maxCheckpointsInSingleRun: 0
     },
     compiledStoryJson: null,
@@ -82,6 +83,7 @@ export const useProjectStore = defineStore('project', {
         namedCheckpointsCount: 0,
         unnamedCheckpointsCount: 0,
         checkpointsDetails: [],
+        checkpointsByKnotDetails: [],
         maxCheckpointsInSingleRun: 0
       };
     },

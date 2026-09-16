@@ -137,8 +137,8 @@
           </span>
           <div class="issue-details">
             <div class="issue-top-row">
-              <span class="issue-file">{{ checkpointSummary.countText }}</span>
               <span class="issue-type-tag checkpoints">Checkpoints</span>
+              <span class="occurrence-badge">{{ checkpointSummary.countText }}</span>
             </div>
             <span class="issue-message">Click for details</span>
           </div>
@@ -600,6 +600,7 @@ onUnmounted(() => {
 .issue-details {
   display: flex;
   flex-direction: column;
+  flex-grow: 1;
 }
 
 .issue-file {
