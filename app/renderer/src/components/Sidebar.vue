@@ -474,6 +474,10 @@ onUnmounted(() => {
   letter-spacing: 0.5px;
   color: var(--text-muted, #777);
   border-bottom: 1px solid var(--border-color, #e0e0e0);
+  position: sticky;
+  top: 0;
+  background-color: var(--sidebar-bg, #fafafa);
+  z-index: 1;
 }
 
 .icon-btn {
