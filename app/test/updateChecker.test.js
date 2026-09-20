@@ -167,5 +167,111 @@ describe('updateChecker', function () {
             assert.strictEqual(sentChannel, 'show-modal');
             assert.strictEqual(sentPayload.title, 'Update Check Failed');
         });
+
+        it('should prompt on startup if pendingUpdate is newer even if recently checked', async function () {
+            let settingsStore = {
+                lastUpdateCheck: Date.now(), // checked just now
+                pendingUpdate: {
+                    currentVersion: '0.2.2',
+                    latestVersion: '0.2.4',
+                    releaseName: 'v0.2.4',
+                    releaseNotes: 'Some notes',
+                    releaseUrl: 'https://github.com/t0mg/eenky/releases/tag/v0.2.4',
+                    publishedAt: '2026-09-17T22:25:14Z'
+                }
+            };
+
+            let sentChannel = null;
+            let sentPayload = null;
+            const mockWin = {
+                browserWindow: {
+                    isDestroyed: () => false,
+                    webContents: {
+                        send: (channel, payload) => {
+                            sentChannel = channel;
+                            sentPayload = payload;
+                        }
+                    }
+                }
+            };
+
+            const result = await checkForUpdates({
+                isStartup: true,
+                win: mockWin,
+                settings: settingsStore,
+                updateSettingFn: (k, v) => { settingsStore[k] = v; }
+            });
+
+            assert.strictEqual(result.hasUpdate, true);
+            assert.strictEqual(result.fromCache, true);
+            assert.strictEqual(sentChannel, 'update-available');
+            assert.strictEqual(sentPayload.latestVersion, '0.2.4');
+        });
+
+        it('should not prompt on startup if pendingUpdate version was skipped', async function () {
+            let settingsStore = {
+                lastUpdateCheck: Date.now(),
+                skippedUpdateVersion: '0.2.4',
+                pendingUpdate: {
+                    currentVersion: '0.2.2',
+                    latestVersion: '0.2.4'
+                }
+            };
+
+            let sentChannel = null;
+            const mockWin = {
+                browserWindow: {
+                    isDestroyed: () => false,
+                    webContents: {
+                        send: (channel) => { sentChannel = channel; }
+                    }
+                }
+            };
+
+            const result = await checkForUpdates({
+                isStartup: true,
+                win: mockWin,
+                settings: settingsStore,
+                updateSettingFn: (k, v) => { settingsStore[k] = v; }
+            });
+
+            assert.strictEqual(result.skipped, true);
+            assert.strictEqual(sentChannel, null);
+        });
+
+        it('should clear pendingUpdate when app version matches or exceeds it', async function () {
+            let settingsStore = {
+                lastUpdateCheck: Date.now(),
+                pendingUpdate: {
+                    currentVersion: '0.2.2',
+                    latestVersion: '0.2.2' // same as currentVersion fallback 0.2.2
+                }
+            };
+
+            const result = await checkForUpdates({
+                isStartup: true,
+                settings: settingsStore,
+                updateSettingFn: (k, v) => { settingsStore[k] = v; }
+            });
+
+            assert.strictEqual(result.skipped, true);
+            assert.strictEqual(settingsStore.pendingUpdate, null);
+        });
+
+        it('should clear pendingUpdate when skipVersion is called for that version', function () {
+            const { skipVersion } = require('../main-process/updateChecker.js');
+
+            let settingsStore = {
+                pendingUpdate: {
+                    latestVersion: '0.2.4'
+                }
+            };
+
+            skipVersion('v0.2.4', settingsStore, (k, v) => { settingsStore[k] = v; });
+            assert.strictEqual(settingsStore.skippedUpdateVersion, '0.2.4');
+            assert.strictEqual(settingsStore.pendingUpdate, null);
+        });
     });
 });
+
+
