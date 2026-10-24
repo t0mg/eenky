@@ -21,23 +21,32 @@ To bypass this security feature:
 This removes the quarantine flag and allows macOS to open the app normally.
 
 ### Note for Linux Users
-Linux releases are available in three formats on the Releases page:
+Linux releases are available in four formats on the Releases page:
+- **Fedora / RHEL / openSUSE package (`.rpm`)**: Recommended for Fedora, Red Hat Enterprise Linux, Rocky Linux, AlmaLinux, and openSUSE. Automatically registers desktop launcher entries and icons:
+  ```bash
+  sudo dnf install ./eenky-*.x86_64.rpm
+  ```
 - **Debian / Ubuntu package (`.deb`)**: Recommended for Debian, Ubuntu, and derivatives. Automatically registers desktop launcher entries and icons:
   ```bash
   sudo apt install ./eenky_*_amd64.deb
   ```
-- **AppImage (`.AppImage`)**: Standalone portable single-file executable across distributions. Make it executable and run:
+- **AppImage (`.AppImage`)**: Standalone portable single-file executable that runs across Linux distributions without installation. Make it executable and run:
   ```bash
   chmod +x eenky-*_amd64.AppImage
   ./eenky-*_amd64.AppImage
   ```
+  *(On desktop environments like GNOME or KDE, integration tools like [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) can automatically install and manage AppImages in your application launcher).*
 - **Portable archive (`.zip`)**: Extract the archive and launch with the included `eenky.sh` wrapper:
   ```bash
   ./eenky.sh
   ```
+  To integrate a desktop launcher and icon into your desktop environment's application menu:
+  ```bash
+  ./create-desktop-shortcut.sh
+  ```
 
 > [!NOTE]
-> On modern Linux distributions with restricted unprivileged user namespaces (such as **Ubuntu 24.04 LTS**), running the raw `./eenky` binary directly without `--no-sandbox` will abort with a `FATAL:setuid_sandbox_host.cc` error because user-extracted files cannot hold setuid root permissions on `chrome-sandbox`. Use `./eenky.sh`, install the `.deb`, or pass `--no-sandbox` manually (`./eenky --no-sandbox`).
+> On modern Linux distributions with restricted unprivileged user namespaces (such as **Ubuntu 24.04 LTS** and modern Fedora/RHEL hardened kernels), running the raw `./eenky` binary directly without `--no-sandbox` will abort with a `FATAL:setuid_sandbox_host.cc` error because user-extracted files cannot hold setuid root permissions on `chrome-sandbox`. Use `./eenky.sh`, install the `.rpm` or `.deb`, or pass `--no-sandbox` manually (`./eenky --no-sandbox`).
 
 
 ## Features & Differences from Original Inky
@@ -83,6 +92,28 @@ git lfs install
 
 > [!WARNING]
 > If you cloned the repository *before* installing `git-lfs`, you must run `git lfs pull` inside the `eenky` directory to fetch the actual binaries (otherwise `inklecate` will fail to run with a system format error).
+
+### Linux Quick Setup (Fresh Install)
+
+If you are setting up eenky to build from source on a fresh Linux machine:
+
+On **Fedora / RHEL / CentOS**:
+```bash
+# 1. Install Node.js, CMake, SDL2 libraries, and git-lfs
+sudo dnf install nodejs npm cmake gcc-c++ SDL2-devel SDL2_image-devel SDL2_ttf-devel SDL2_gfx-devel git-lfs
+
+# 2. Initialize Git LFS
+git lfs install
+```
+
+On **Ubuntu / Debian**:
+```bash
+# 1. Install Node.js, CMake, SDL2 libraries, and git-lfs
+sudo apt update && sudo apt install -y nodejs npm cmake g++ libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev git-lfs
+
+# 2. Initialize Git LFS
+git lfs install
+```
 
 ## Getting Started
 

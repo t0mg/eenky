@@ -270,12 +270,39 @@ if (!fs.existsSync(inkcppCheck)) {
 // ── 3. inklecate (bundled in app/main-process/ink/ from inky fork) ──────────
 console.log('\n3. inklecate (ink → JSON compiler)');
 const inklecatePath = path.join(ROOT, 'app', 'main-process', 'ink', `inklecate_${process.platform === 'win32' ? 'win.exe' : process.platform === 'darwin' ? 'mac' : 'linux'}`);
-if (fs.existsSync(inklecatePath)) {
-    console.log(`  ✔  inklecate already bundled`);
-} else {
+
+function isLfsPointer(filePath) {
+    try {
+        if (!fs.existsSync(filePath)) return false;
+        const stats = fs.statSync(filePath);
+        if (stats.size < 500) {
+            const head = fs.readFileSync(filePath, 'utf8').slice(0, 50);
+            return head.startsWith('version https://git-lfs.github.com');
+        }
+    } catch (_) {}
+    return false;
+}
+
+if (!fs.existsSync(inklecatePath)) {
     console.warn(`  ⚠  inklecate not found. Download a release from:`);
     console.warn(`     https://github.com/inkle/ink/releases\n`);
     allOk = false;
+} else if (isLfsPointer(inklecatePath)) {
+    console.log(`  [lfs] inklecate is a Git LFS pointer. Attempting 'git lfs pull'...`);
+    try {
+        const { execSync } = require('child_process');
+        execSync('git lfs pull', { cwd: ROOT, stdio: 'inherit' });
+    } catch (_) {}
+
+    if (isLfsPointer(inklecatePath)) {
+        console.warn(`  ⚠  inklecate is a Git LFS pointer. Please install git-lfs and run:`);
+        console.warn(`     git lfs pull\n`);
+        allOk = false;
+    } else {
+        console.log(`  ✔  inklecate fetched via Git LFS`);
+    }
+} else {
+    console.log(`  ✔  inklecate already bundled`);
 }
 
 // ── 4. Write eenk_version.txt ──────────────────────────────────────────────

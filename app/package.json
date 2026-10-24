@@ -90,6 +90,7 @@
       "syncDesktopName": true,
       "target": [
         "deb",
+        "rpm",
         "AppImage",
         "zip"
       ],
@@ -100,6 +101,14 @@
         {
           "from": "../resources/eenky.sh",
           "to": "eenky.sh"
+        },
+        {
+          "from": "../resources/icon.png",
+          "to": "icon.png"
+        },
+        {
+          "from": "../resources/create-desktop-shortcut.sh",
+          "to": "create-desktop-shortcut.sh"
         }
       ],
       "extraResources": [
@@ -150,5 +159,9 @@
   },
   "optionalDependencies": {
     "appdmg": "^0.6.6"
+  },
+  "allowScripts": {
+    "electron@30.5.1": true,
+    "electron-winstaller@5.4.0": true
   }
 }

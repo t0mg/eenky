@@ -19,6 +19,10 @@ const fs = require("fs");
 
 // Set the app name so that the OS and default menus display "eenky" instead of "Electron"
 app.setName('eenky');
+if (process.platform === 'linux' && typeof app.setDesktopName === 'function') {
+    app.setDesktopName('eenky.desktop');
+}
+const { defaultIconPath } = require('./appIcon.js');
 
 // ── eenk extensions ───────────────────────────────────────────────────────────
 require('./eenkCompiler.js');   // registers eenk:compile IPC
@@ -266,10 +270,9 @@ ipcMain.handle('eenk:open-external', async (event, url) => {
 app.on('ready', function () {
 
     if (process.platform === 'darwin' && app.dock) {
-        const iconPath = fs.existsSync(path.join(__dirname, '../../resources/Icon.icns'))
-            ? path.join(__dirname, '../../resources/Icon.icns')
-            : path.join(__dirname, '../renderer/public/about/icon256.png');
-        if (fs.existsSync(iconPath)) {
+        const icnsPath = path.join(__dirname, '../../resources/Icon.icns');
+        const iconPath = fs.existsSync(icnsPath) ? icnsPath : defaultIconPath;
+        if (iconPath) {
             try { app.dock.setIcon(iconPath); } catch (e) {}
         }
     }

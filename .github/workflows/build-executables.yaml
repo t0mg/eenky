@@ -132,7 +132,7 @@ jobs:
 
       - name: Install SDL2 (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev rpm
 
       - name: Install MSYS2 & SDL2 (Windows)
         if: matrix.os == 'windows-latest'
@@ -197,6 +197,7 @@ jobs:
             dist-eenky/*.dmg
             dist-eenky/*.exe
             dist-eenky/*.deb
+            dist-eenky/*.rpm
             dist-eenky/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

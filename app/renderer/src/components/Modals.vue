@@ -49,7 +49,7 @@
       <div v-else-if="uiStore.modalState.type === 'about'" class="modal-body about-modal">
         <div class="about-header">
           <h2>
-            <img :src="'/about/icon256.png'" class="about-icon" alt="eenky icon" draggable="false" />
+            <img src="/about/icon256.png" class="about-icon" alt="eenky icon" draggable="false" />
             eenky
           </h2>
           <p>a child of inkle's Inky</p>

@@ -2,16 +2,7 @@ const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { AppMenus } = require('./appmenus.js');
-
-const defaultIconPath = (() => {
-    const icoCandidate = path.join(__dirname, '../../resources/icon.ico');
-    const pngCandidate = path.join(__dirname, '../../resources/icon.png');
-    const rendererIcon = path.join(__dirname, '../renderer/public/assets/favicon.png');
-    if (process.platform === 'win32' && fs.existsSync(icoCandidate)) return icoCandidate;
-    if (fs.existsSync(pngCandidate)) return pngCandidate;
-    if (fs.existsSync(rendererIcon)) return rendererIcon;
-    return undefined;
-})();
+const { defaultIconPath } = require('./appIcon.js');
 
 let deviceWindow = null;
 

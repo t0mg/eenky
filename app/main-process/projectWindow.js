@@ -7,16 +7,7 @@ const fs = require("fs");
 const Inklecate = require("./inklecate.js").Inklecate;
 const Menu = electron.Menu;
 const i18n = require("./i18n/i18n.js");
-
-const defaultIconPath = (() => {
-    const icoCandidate = path.join(__dirname, '../../resources/icon.ico');
-    const pngCandidate = path.join(__dirname, '../../resources/icon.png');
-    const rendererIcon = path.join(__dirname, '../renderer/public/assets/favicon.png');
-    if (process.platform === 'win32' && fs.existsSync(icoCandidate)) return icoCandidate;
-    if (fs.existsSync(pngCandidate)) return pngCandidate;
-    if (fs.existsSync(rendererIcon)) return rendererIcon;
-    return undefined;
-})();
+const { defaultIconPath } = require("./appIcon.js");
 
 var electronWindowOptions = {
     width: 1300,
