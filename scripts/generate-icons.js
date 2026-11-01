@@ -113,6 +113,40 @@ app.whenReady().then(async () => {
 
         await win.loadURL('about:blank');
 
+        // SVG-as-image rendering can only use system fonts. If a font referenced by
+        // the SVGs isn't installed, Chromium silently falls back, producing wrong
+        // icons. Detect this by comparing glyph widths against generic fallbacks.
+        const fontFamilies = new Set();
+        for (const p of [svg64Path, svg256Path, svg512Path]) {
+            const src = fs.readFileSync(p, 'utf8');
+            for (const m of src.matchAll(/font-family\s*[:=]\s*["']?([^;"'>]+)/g)) {
+                m[1].split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+                    .forEach(f => fontFamilies.add(f));
+            }
+        }
+        const generic = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui']);
+        const missingFonts = [];
+        for (const family of fontFamilies) {
+            if (generic.has(family.toLowerCase())) continue;
+            const available = await win.webContents.executeJavaScript(`
+                (() => {
+                    const ctx = document.createElement('canvas').getContext('2d');
+                    const text = 'eenky mmmmmmmmmmlli 0123456789';
+                    return ['monospace', 'serif', 'sans-serif'].some(fb => {
+                        ctx.font = '72px ' + fb;
+                        const base = ctx.measureText(text).width;
+                        ctx.font = '72px "${family.replace(/"/g, '')}", ' + fb;
+                        return ctx.measureText(text).width !== base;
+                    });
+                })()
+            `);
+            if (!available) missingFonts.push(family);
+        }
+        if (missingFonts.length) {
+            throw new Error(`Font(s) used by the logo SVGs are not installed on this system: ${missingFonts.join(', ')}. ` +
+                'Install them (e.g. into ~/.local/share/fonts and run fc-cache -f) and retry.');
+        }
+
         async function renderSvg(dataUri, size) {
             const pngBase64 = await win.webContents.executeJavaScript(`
                 new Promise((resolve, reject) => {
@@ -189,6 +223,15 @@ app.whenReady().then(async () => {
         fs.writeFileSync(path.join(RESOURCES, 'icon.ico'), icoBuffer);
         fs.writeFileSync(path.join(RESOURCES, 'Icon1024.png.ico'), icoBuffer);
         fs.writeFileSync(path.join(RESOURCES, 'Icon.icns'), icnsBuffer);
+
+        // Linux icon set (electron-builder installs each into hicolor/<size>/apps).
+        // A lone 1024px icon isn't picked up: hicolor has no 1024x1024 directory.
+        const linuxIconsDir = path.join(RESOURCES, 'icons');
+        ensureDir(linuxIconsDir);
+        const linuxIcons = { 16: png16, 24: png24, 32: png32, 48: png48, 64: png64, 128: png128, 256: png256, 512: png512 };
+        for (const [size, buf] of Object.entries(linuxIcons)) {
+            fs.writeFileSync(path.join(linuxIconsDir, `${size}x${size}.png`), buf);
+        }
 
         // 2. Write app/renderer/public/about/
         console.log('  - Updating app/renderer/public/about/...');

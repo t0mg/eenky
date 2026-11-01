@@ -30,20 +30,21 @@ function refresh(appState = { isHome: false }) {
     let themes = [];
 
     // Create the themes menu, with the correct current theme ticked
-    for (const t of ['os', 'light', 'dark']) {
+    const isSystemTheme = !theme || theme === 'system' || theme === 'os';
+    for (const t of ['system', 'light', 'dark']) {
         let label = t.substring(0, 1).toUpperCase() + t.substring(1);
         if (t === 'system') label = 'Match System';
 
         themes.push({
             label: label,
             type: 'radio',
-            checked: t === theme,
+            checked: t === 'system' ? isSystemTheme : t === theme,
             click: () => {
                 theme = t;
                 ProjectWindow.all().forEach(window => {
                     window.browserWindow.webContents.send('change-theme', t);
-                    callbacks.changeTheme(t);
                 });
+                callbacks.changeTheme(t);
             }
         });
     }

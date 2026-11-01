@@ -45,14 +45,6 @@ var events = {
 
 
 function ProjectWindow(filePath) {
-    const getThemeFromMenu = () => Menu.getApplicationMenu().items.find(
-        e => e.label.toLowerCase() === '&view'
-    ).submenu.items.find(
-        e => e.label.toLowerCase() === 'theme'
-    ).submenu.items.find(
-        e => e.checked
-    ).label.toLowerCase();
-
     electronWindowOptions.title = i18n._("eenk");
     this.browserWindow = new BrowserWindow(electronWindowOptions);
 
@@ -122,9 +114,9 @@ function ProjectWindow(filePath) {
 
     // Set up theme/zoom from settings
     this.browserWindow.webContents.on('dom-ready', () => {
-        this.browserWindow.send("change-theme", getThemeFromMenu());
-
         let settings = ProjectWindow.getViewSettings();
+        this.browserWindow.webContents.send("change-theme", settings.theme);
+
         this.zoom(settings.zoom);
         this.browserWindow.webContents.send('set-autocomplete-disabled', !!settings.autoCompleteDisabled);
         this.browserWindow.webContents.send('toggle-toolbar', settings.showToolbar !== false);

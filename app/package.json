@@ -84,7 +84,7 @@
       ]
     },
     "linux": {
-      "icon": "../resources/Icon1024.png",
+      "icon": "../resources/icons",
       "category": "Development",
       "maintainer": "Tom Granger <eenk@t0m.fr> (https://github.com/t0mg/eenky)",
       "syncDesktopName": true,
