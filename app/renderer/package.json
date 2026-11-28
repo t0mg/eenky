@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@codemirror/view": "6.43.1",
-    "@mavnn/codemirror-lang-ink": "^0.10.1",
+    "@mavnn/codemirror-lang-ink": "^0.10.3",
     "codemirror": "^6.0.2",
     "fuzzaldrin-plus": "^0.6.0",
     "material-symbols": "^0.45.5",

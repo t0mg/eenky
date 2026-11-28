@@ -24,8 +24,20 @@ InkFileSymbols.prototype.scheduleParse = function() {
 }
 
 InkFileSymbols.prototype.parse = function() {
-    var includes = [];
+    var includeEntries = [];
+    var seenIncludes = new Set();
     var lastIncludeRow = -1;
+
+    const addInclude = (rawPath, row) => {
+        let filePath = rawPath.trim();
+        filePath = filePath.replace(/\/\/.*$/, '').trim();
+        filePath = filePath.replace(/^["']|["']$/g, '').trim();
+        if (filePath && !seenIncludes.has(filePath)) {
+            seenIncludes.add(filePath);
+            includeEntries.push({ filePath, row });
+            lastIncludeRow = Math.max(lastIncludeRow, row);
+        }
+    };
 
     var symbolStack = [{
         flowType: { level: 0 },
@@ -167,13 +179,7 @@ InkFileSymbols.prototype.parse = function() {
             else if (name === "Include") {
                 const pathMatch = value.match(/INCLUDE\s+(.+)/i);
                 if (pathMatch) {
-                    let filePath = pathMatch[1].trim();
-                    filePath = filePath.replace(/\/\/.*$/, '').trim();
-                    filePath = filePath.replace(/^["']|["']$/g, '').trim();
-                    if (filePath && !includes.includes(filePath)) {
-                        includes.push(filePath);
-                        lastIncludeRow = getLineCol(from).row;
-                    }
+                    addInclude(pathMatch[1], getLineCol(from).row);
                 }
             }
             else if (name === "Tag") {
@@ -203,15 +209,11 @@ InkFileSymbols.prototype.parse = function() {
     const includeRegex = /^\s*INCLUDE\s+([^\r\n]+)/gim;
     let incMatch;
     while ((incMatch = includeRegex.exec(textContent)) !== null) {
-        let filePath = incMatch[1].trim();
-        filePath = filePath.replace(/\/\/.*$/, '').trim();
-        filePath = filePath.replace(/^["']|["']$/g, '').trim();
-        if (filePath && !includes.includes(filePath)) {
-            includes.push(filePath);
-            const pos = getLineCol(incMatch.index);
-            lastIncludeRow = Math.max(lastIncludeRow, pos.row);
-        }
+        addInclude(incMatch[1], getLineCol(incMatch.index).row);
     }
+
+    includeEntries.sort((a, b) => a.row - b.row);
+    var includes = includeEntries.map(e => e.filePath);
 
     for (let r = 0; r < lines.length; r++) {
         if (!handledFlowLines.has(r)) {
